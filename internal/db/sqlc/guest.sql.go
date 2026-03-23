@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -55,6 +56,77 @@ func (q *Queries) GetGuestByID(ctx context.Context, guestID uuid.UUID) (Guest, e
 		&i.Slug,
 	)
 	return i, err
+}
+
+const getGuestRefreshToken = `-- name: GetGuestRefreshToken :one
+SELECT id, guest_id, token, expires_at, created_at, revoked, replaced_by_token, user_agent, ip_address
+FROM guest_refresh_tokens
+WHERE token = $1
+`
+
+func (q *Queries) GetGuestRefreshToken(ctx context.Context, token string) (GuestRefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, getGuestRefreshToken, token)
+	var i GuestRefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.GuestID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.Revoked,
+		&i.ReplacedByToken,
+		&i.UserAgent,
+		&i.IpAddress,
+	)
+	return i, err
+}
+
+const insertGuestRefreshToken = `-- name: InsertGuestRefreshToken :one
+INSERT INTO guest_refresh_tokens (guest_id, token, expires_at, user_agent, ip_address)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, guest_id, token, expires_at, created_at, revoked, replaced_by_token, user_agent, ip_address
+`
+
+type InsertGuestRefreshTokenParams struct {
+	GuestID   uuid.UUID      `json:"guest_id"`
+	Token     string         `json:"token"`
+	ExpiresAt time.Time      `json:"expires_at"`
+	UserAgent sql.NullString `json:"user_agent"`
+	IpAddress sql.NullString `json:"ip_address"`
+}
+
+func (q *Queries) InsertGuestRefreshToken(ctx context.Context, arg InsertGuestRefreshTokenParams) (GuestRefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, insertGuestRefreshToken,
+		arg.GuestID,
+		arg.Token,
+		arg.ExpiresAt,
+		arg.UserAgent,
+		arg.IpAddress,
+	)
+	var i GuestRefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.GuestID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.Revoked,
+		&i.ReplacedByToken,
+		&i.UserAgent,
+		&i.IpAddress,
+	)
+	return i, err
+}
+
+const revokeGuestRefreshToken = `-- name: RevokeGuestRefreshToken :exec
+UPDATE guest_refresh_tokens
+SET revoked = TRUE
+WHERE token = $1
+`
+
+func (q *Queries) RevokeGuestRefreshToken(ctx context.Context, token string) error {
+	_, err := q.db.ExecContext(ctx, revokeGuestRefreshToken, token)
+	return err
 }
 
 const updateGuestLastActive = `-- name: UpdateGuestLastActive :one

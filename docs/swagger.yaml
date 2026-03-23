@@ -9,6 +9,24 @@ definitions:
       slug:
         type: string
     type: object
+  model.GuestRefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  model.GuestRefreshSuccessEnvelope:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+    type: object
   model.GuestRegisterData:
     properties:
       access_token:
@@ -109,6 +127,41 @@ info:
   title: Ticket Shicket API
   version: "1.0"
 paths:
+  /guests/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Validates a refresh token and issues new access and refresh tokens
+        for guests.
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.GuestRefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.GuestRefreshSuccessEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Guest token refresh
+      tags:
+      - guest
   /guests/register:
     post:
       consumes:

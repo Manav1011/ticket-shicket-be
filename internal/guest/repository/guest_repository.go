@@ -31,3 +31,15 @@ func (r *GuestRepository) GetGuestByID(ctx context.Context, guestID uuid.UUID) (
 func (r *GuestRepository) UpdateGuestLastActive(ctx context.Context, guestID uuid.UUID) (sqldb.Guest, error) {
 	return r.q.UpdateGuestLastActive(ctx, guestID)
 }
+
+func (r *GuestRepository) InsertGuestRefreshToken(ctx context.Context, arg sqldb.InsertGuestRefreshTokenParams) (sqldb.GuestRefreshToken, error) {
+	return r.q.InsertGuestRefreshToken(ctx, arg)
+}
+
+func (r *GuestRepository) GetGuestRefreshToken(ctx context.Context, token string) (sqldb.GuestRefreshToken, error) {
+	return r.q.GetGuestRefreshToken(ctx, token)
+}
+
+func (r *GuestRepository) RevokeGuestRefreshToken(ctx context.Context, token string) error {
+	return r.q.RevokeGuestRefreshToken(ctx, token)
+}

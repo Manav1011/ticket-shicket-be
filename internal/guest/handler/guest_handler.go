@@ -1,13 +1,13 @@
 package handler
 
 import (
-"errors"
-"net/http"
+	"errors"
+	"net/http"
 
-"github.com/gin-gonic/gin"
-"github.com/manav1011/ticket-shicket-be/internal/guest/model"
-"github.com/manav1011/ticket-shicket-be/internal/guest/service"
-"github.com/manav1011/ticket-shicket-be/pkg/utils"
+	"github.com/gin-gonic/gin"
+	"github.com/manav1011/ticket-shicket-be/internal/guest/model"
+	"github.com/manav1011/ticket-shicket-be/internal/guest/service"
+	"github.com/manav1011/ticket-shicket-be/pkg/utils"
 )
 
 type GuestHandler struct {
@@ -40,6 +40,38 @@ func (h *GuestHandler) Register(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, service.ErrGuestRegistrationFailed) {
 			utils.Error(c, "guest registration failed", http.StatusInternalServerError)
+			return
+		}
+		utils.Error(c, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	utils.Success(c, data)
+}
+
+// Refresh validates a guest refresh token and issues new tokens.
+// @Summary      Guest token refresh
+// @Description  Validates a refresh token and issues new access and refresh tokens for guests.
+// @Tags         guest
+// @Accept       json
+// @Produce      json
+// @Param        body  body      model.GuestRefreshRequest  true  "Refresh token"
+// @Success      200   {object}  model.GuestRefreshSuccessEnvelope
+// @Failure      400   {object}  utils.APIResponse
+// @Failure      401   {object}  utils.APIResponse
+// @Failure      500   {object}  utils.APIResponse
+// @Router       /guests/refresh [post]
+func (h *GuestHandler) Refresh(c *gin.Context) {
+	var req model.GuestRefreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Error(c, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	data, err := h.svc.Refresh(c.Request.Context(), req.RefreshToken)
+	if err != nil {
+		if errors.Is(err, service.ErrGuestInvalidRefreshToken) {
+			utils.Error(c, "invalid refresh token", http.StatusUnauthorized)
 			return
 		}
 		utils.Error(c, "internal server error", http.StatusInternalServerError)

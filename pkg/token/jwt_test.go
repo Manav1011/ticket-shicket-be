@@ -51,6 +51,37 @@ func TestGenerateRefreshTokenForGuest(t *testing.T) {
 		t.Fatalf("Expected type 'refresh', got %v", claims["type"])
 	}
 }
+
+func TestGenerateRefreshTokenIsUniqueForSameUser(t *testing.T) {
+	userID := "63bdcfa3-5b91-4fd9-a870-8d4a86528ee3"
+	t1, err := GenerateRefreshToken(userID)
+	if err != nil {
+		t.Fatalf("first token error: %v", err)
+	}
+	t2, err := GenerateRefreshToken(userID)
+	if err != nil {
+		t.Fatalf("second token error: %v", err)
+	}
+	if t1 == t2 {
+		t.Fatal("expected different refresh tokens for same user")
+	}
+}
+
+func TestGenerateRefreshTokenIsUniqueForSameGuest(t *testing.T) {
+	guestID := "550e8400-e29b-41d4-a716-446655440000"
+	t1, err := GenerateRefreshTokenGuest(guestID)
+	if err != nil {
+		t.Fatalf("first token error: %v", err)
+	}
+	t2, err := GenerateRefreshTokenGuest(guestID)
+	if err != nil {
+		t.Fatalf("second token error: %v", err)
+	}
+	if t1 == t2 {
+		t.Fatal("expected different refresh tokens for same guest")
+	}
+}
+
 func TestGenerateAccessToken(t *testing.T) {
 	userID := "test-user-123"
 	token, err := GenerateAccessToken(userID)

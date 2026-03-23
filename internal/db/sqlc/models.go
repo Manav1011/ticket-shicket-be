@@ -108,6 +108,18 @@ type Guest struct {
 	Slug       uuid.NullUUID  `json:"slug"`
 }
 
+type GuestRefreshToken struct {
+	ID              uuid.UUID      `json:"id"`
+	GuestID         uuid.UUID      `json:"guest_id"`
+	Token           string         `json:"token"`
+	ExpiresAt       time.Time      `json:"expires_at"`
+	CreatedAt       sql.NullTime   `json:"created_at"`
+	Revoked         sql.NullBool   `json:"revoked"`
+	ReplacedByToken sql.NullString `json:"replaced_by_token"`
+	UserAgent       sql.NullString `json:"user_agent"`
+	IpAddress       sql.NullString `json:"ip_address"`
+}
+
 type Permission struct {
 	ID          uuid.UUID           `json:"id"`
 	Name        NullAdminPermission `json:"name"`

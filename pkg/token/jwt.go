@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/manav1011/ticket-shicket-be/internal/config"
 )
 
@@ -13,6 +14,7 @@ func GenerateAccessToken(userID string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"type":    "access",
+		"jti":     uuid.NewString(),
 		"exp":     time.Now().Add(cfg.AccessTokenDuration).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -23,6 +25,7 @@ func GenerateRefreshToken(userID string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"type":    "refresh",
+		"jti":     uuid.NewString(),
 		"exp":     time.Now().Add(cfg.RefreshTokenDuration).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -50,6 +53,7 @@ func GenerateAccessTokenGuest(guestID string) (string, error) {
 	claims := jwt.MapClaims{
 		"guest_id": guestID,
 		"type":     "access",
+		"jti":      uuid.NewString(),
 		"exp":      time.Now().Add(cfg.AccessTokenDuration).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -60,6 +64,7 @@ func GenerateRefreshTokenGuest(guestID string) (string, error) {
 	claims := jwt.MapClaims{
 		"guest_id": guestID,
 		"type":     "refresh",
+		"jti":      uuid.NewString(),
 		"exp":      time.Now().Add(cfg.RefreshTokenDuration).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
