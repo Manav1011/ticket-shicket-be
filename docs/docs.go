@@ -15,6 +15,52 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/guests/register": {
+            "post": {
+                "description": "Registers a guest user and returns JWT access and refresh tokens.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "guest"
+                ],
+                "summary": "Guest registration",
+                "parameters": [
+                    {
+                        "description": "User agent and IP address",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.GuestRegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.GuestRegisterSuccessEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Returns ok if the service is running.",
@@ -149,6 +195,66 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "model.GuestInfo": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.GuestRegisterData": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "guest": {
+                    "$ref": "#/definitions/model.GuestInfo"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "token_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.GuestRegisterRequest": {
+            "type": "object",
+            "required": [
+                "ip_address",
+                "user_agent"
+            ],
+            "properties": {
+                "ip_address": {
+                    "type": "string"
+                },
+                "user_agent": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.GuestRegisterSuccessEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/model.GuestRegisterData"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "model.LoginData": {
             "type": "object",
             "properties": {

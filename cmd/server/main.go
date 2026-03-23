@@ -8,6 +8,10 @@ import (
 	"github.com/manav1011/ticket-shicket-be/internal/config"
 	"github.com/manav1011/ticket-shicket-be/internal/db"
 	sqldb "github.com/manav1011/ticket-shicket-be/internal/db/sqlc"
+	"github.com/manav1011/ticket-shicket-be/internal/guest"
+	guestHandler "github.com/manav1011/ticket-shicket-be/internal/guest/handler"
+	guestRepository "github.com/manav1011/ticket-shicket-be/internal/guest/repository"
+	guestService "github.com/manav1011/ticket-shicket-be/internal/guest/service"
 	"github.com/manav1011/ticket-shicket-be/internal/user"
 	"github.com/manav1011/ticket-shicket-be/internal/user/handler"
 	"github.com/manav1011/ticket-shicket-be/internal/user/repository"
@@ -48,10 +52,16 @@ func main() {
 	defer sqlDB.Close()
 
 	queries := sqldb.New(sqlDB)
+
 	// User app
 	userRepo := repository.NewUserRepository(queries)
 	userSvc := service.NewUserService(userRepo, cfg)
 	userHandler := handler.NewUserHandler(userSvc)
+
+	// Guest app
+	repo := guestRepository.NewGuestRepository(queries)
+	svc := guestService.NewGuestService(repo, cfg)
+	guestH := guestHandler.NewGuestHandler(svc)
 
 	r := gin.Default()
 
@@ -62,6 +72,7 @@ func main() {
 	v1.GET("/health", health)
 
 	user.RegisterRoutes(v1, userHandler)
+	guest.RegisterRoutes(v1, guestH)
 
 	log.Println("server running on port", cfg.ServerPort)
 	if err := r.Run(":" + cfg.ServerPort); err != nil {

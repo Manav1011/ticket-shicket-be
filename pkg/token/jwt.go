@@ -44,3 +44,24 @@ func ParseToken(tokenStr string) (jwt.MapClaims, error) {
 	}
 	return nil, jwt.ErrInvalidKey
 }
+
+// Guest token generation
+func GenerateAccessTokenGuest(guestID string) (string, error) {
+	claims := jwt.MapClaims{
+		"guest_id": guestID,
+		"type":     "access",
+		"exp":      time.Now().Add(cfg.AccessTokenDuration).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(cfg.JWTSecret))
+}
+
+func GenerateRefreshTokenGuest(guestID string) (string, error) {
+	claims := jwt.MapClaims{
+		"guest_id": guestID,
+		"type":     "refresh",
+		"exp":      time.Now().Add(cfg.RefreshTokenDuration).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(cfg.JWTSecret))
+}

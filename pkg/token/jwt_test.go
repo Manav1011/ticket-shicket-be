@@ -1,9 +1,56 @@
 package token
 
 import (
+	"strings"
 	"testing"
 )
 
+func TestGenerateAccessTokenForGuest(t *testing.T) {
+	guestID := "550e8400-e29b-41d4-a716-446655440000"
+	token, err := GenerateAccessTokenGuest(guestID)
+	if err != nil {
+		t.Fatalf("GenerateAccessTokenGuest failed: %v", err)
+	}
+	if token == "" {
+		t.Fatal("Expected token, got empty string")
+	}
+	if !strings.HasPrefix(token, "eyJ") {
+		t.Fatal("Invalid JWT format")
+	}
+
+	claims, err := ParseToken(token)
+	if err != nil {
+		t.Fatalf("ParseToken failed: %v", err)
+	}
+	if claims["guest_id"] != guestID {
+		t.Fatalf("Expected guest_id %s, got %v", guestID, claims["guest_id"])
+	}
+	if claims["type"] != "access" {
+		t.Fatalf("Expected type 'access', got %v", claims["type"])
+	}
+}
+
+func TestGenerateRefreshTokenForGuest(t *testing.T) {
+	guestID := "550e8400-e29b-41d4-a716-446655440000"
+	token, err := GenerateRefreshTokenGuest(guestID)
+	if err != nil {
+		t.Fatalf("GenerateRefreshTokenGuest failed: %v", err)
+	}
+	if token == "" {
+		t.Fatal("Expected token, got empty string")
+	}
+
+	claims, err := ParseToken(token)
+	if err != nil {
+		t.Fatalf("ParseToken failed: %v", err)
+	}
+	if claims["guest_id"] != guestID {
+		t.Fatalf("Expected guest_id %s, got %v", guestID, claims["guest_id"])
+	}
+	if claims["type"] != "refresh" {
+		t.Fatalf("Expected type 'refresh', got %v", claims["type"])
+	}
+}
 func TestGenerateAccessToken(t *testing.T) {
 	userID := "test-user-123"
 	token, err := GenerateAccessToken(userID)

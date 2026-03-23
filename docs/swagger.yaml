@@ -1,5 +1,44 @@
 basePath: /v1
 definitions:
+  model.GuestInfo:
+    properties:
+      created_at:
+        type: integer
+      id:
+        type: string
+      slug:
+        type: string
+    type: object
+  model.GuestRegisterData:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      guest:
+        $ref: '#/definitions/model.GuestInfo'
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+    type: object
+  model.GuestRegisterRequest:
+    properties:
+      ip_address:
+        type: string
+      user_agent:
+        type: string
+    required:
+    - ip_address
+    - user_agent
+    type: object
+  model.GuestRegisterSuccessEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/model.GuestRegisterData'
+      success:
+        type: boolean
+    type: object
   model.LoginData:
     properties:
       access_token:
@@ -70,6 +109,36 @@ info:
   title: Ticket Shicket API
   version: "1.0"
 paths:
+  /guests/register:
+    post:
+      consumes:
+      - application/json
+      description: Registers a guest user and returns JWT access and refresh tokens.
+      parameters:
+      - description: User agent and IP address
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.GuestRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.GuestRegisterSuccessEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Guest registration
+      tags:
+      - guest
   /health:
     get:
       description: Returns ok if the service is running.
