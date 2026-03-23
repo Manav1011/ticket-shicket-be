@@ -1,0 +1,161 @@
+basePath: /v1
+definitions:
+  model.LoginData:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+      user:
+        $ref: '#/definitions/model.LoginUser'
+    type: object
+  model.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  model.LoginSuccessEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/model.LoginData'
+      success:
+        type: boolean
+    type: object
+  model.LoginUser:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+    type: object
+  model.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  model.RefreshSuccessEnvelope:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+    type: object
+  utils.APIResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: HTTP API for Ticket Shicket backend.
+  title: Ticket Shicket API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Returns ok if the service is running.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check
+      tags:
+      - health
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      description: Validates email and password; returns JWT access and refresh tokens.
+      parameters:
+      - description: Email and password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.LoginSuccessEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: User login
+      tags:
+      - user
+  /users/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Validates a refresh token and issues new access and refresh tokens.
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.RefreshSuccessEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Refresh tokens
+      tags:
+      - user
+  /users/signup:
+    post:
+      responses: {}
+schemes:
+- http
+swagger: "2.0"
