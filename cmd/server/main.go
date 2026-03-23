@@ -23,6 +23,8 @@ import (
 	_ "github.com/manav1011/ticket-shicket-be/docs" // swagger docs (swag init)
 
 	response "github.com/manav1011/ticket-shicket-be/pkg/utils"
+
+	middleware "github.com/manav1011/ticket-shicket-be/internal/middleware"
 )
 
 // @title           Ticket Shicket API
@@ -64,6 +66,9 @@ func main() {
 	guestH := guestHandler.NewGuestHandler(svc)
 
 	r := gin.Default()
+
+	// add cors middleware
+	r.Use(middleware.CorsMiddleware())
 
 	// Swagger UI: open /swagger/index.html (Gin cannot mix /swagger + /swagger/*any on the same prefix).
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
