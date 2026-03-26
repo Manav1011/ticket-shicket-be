@@ -1,25 +1,26 @@
-* Event
-* TicketType
-* Ticket
-* Allocation (unified movement layer)
-* Order (payment layer)
+Perfect — now let’s **merge everything you’ve designed so far** (multi-day + bitmap + allocation system) into one **clean, final production-ready data model**.
 
-This is the version you can **actually build on** 🚀
+You already had a strong base. We’ll **extend it properly**, not break it.
 
 ---
 
-# 🧠 FINAL ARCHITECTURE (Mental Model)
+# 🧠 FINAL EVOLVED ARCHITECTURE (v2 🚀)
 
 ```text
 Event
-  ↓
-TicketType (defines rules)
-  ↓
-Ticket (atomic ownership)
+ └── EventDay
+      └── DayTicketAllocation
 
-Allocation (moves tickets)
-Order (handles payment, optional)
+TicketType
+ └── Ticket
+
+Allocation
+AllocationTicket
+
+Order
 ```
+
+👉 This keeps your original design intact + adds **multi-day support cleanly**
 
 ---
 
@@ -31,50 +32,115 @@ Event
 - title
 - description
 - location
-- start_time
-- end_time
+
+- start_date
+- end_date
 
 - distribution_mode (DIRECT / SPLIT / HYBRID)
-```
-
----
-
-# 🏷️ 2. TicketType (Blueprint)
-
-```text
-TicketType
-- id (PK)
-- event_id (FK → Event.id)
-
-- name (VIP, Early Bird, General)
-- category (ONLINE / B2B)   ✅
-
-- price
-- total_quantity
 
 - created_at
 ```
 
 ---
 
-# 🎟️ 3. Ticket (Atomic Unit)
+# 📅 2. EventDay (NEW 🔥)
 
 ```text
-Ticket
+EventDay
 - id (PK)
-- ticket_type_id (FK → TicketType.id) ✅
+- event_id (FK → Event.id)
 
-- owner_user_id (FK)
-- status (active / used / cancelled)
+- day_index (INT)   ✅ (1,2,3…)
+- date
+- start_time
+- end_time
 
--- concurrency control
-- locked_by_order_id (nullable FK → Order.id)
-- lock_expires_at (timestamp)
+- created_at
 ```
 
 ---
 
-# 🔄 4. Allocation (🔥 Core Unified Layer)
+👉 This is the foundation of your **multi-day UX**
+
+---
+
+# 🏷️ 3. TicketType (Global Blueprint)
+
+```text
+TicketType
+- id (PK)
+- event_id (FK → Event.id)
+
+- name (VIP, General, Early Bird)
+- category (ONLINE / B2B)
+
+- price
+
+- created_at
+```
+
+---
+
+👉 No more `total_quantity` here ❗
+👉 Quantity now lives per **day allocation**
+
+---
+
+# 🔗 4. DayTicketAllocation (🔥 CRITICAL NEW LAYER)
+
+```text
+DayTicketAllocation
+- id (PK)
+
+- event_day_id (FK → EventDay.id)
+- ticket_type_id (FK → TicketType.id)
+
+- quantity
+
+UNIQUE (event_day_id, ticket_type_id)
+```
+
+---
+
+👉 This connects:
+
+```text
+Day ↔ TicketType ↔ Quantity
+```
+
+---
+
+# 🎟️ 5. Ticket (Atomic Unit, Updated)
+
+```text
+Ticket
+- id (PK)
+
+- ticket_type_id (FK → TicketType.id)
+- event_day_id (FK → EventDay.id)   ✅ NEW
+
+- ticket_index (INT)                ✅ REQUIRED (for bitmap)
+
+- owner_user_id (FK)
+
+- status (active / used / cancelled)
+
+-- locking
+- locked_by_order_id (nullable FK → Order.id)
+- lock_expires_at
+```
+
+---
+
+👉 KEY CHANGE:
+
+```text
+Ticket is now DAY-SPECIFIC
+```
+
+---
+
+# 🔄 6. Allocation (Same Core Idea)
 
 ```text
 Allocation
@@ -82,12 +148,12 @@ Allocation
 
 - event_id (FK → Event.id)
 
-- from_user_id (nullable → NULL means POOL/Organizer)
+- from_user_id (nullable)
 - to_user_id (FK)
 
 - order_id (nullable FK → Order.id)
 
-- source_type (POOL / USER)  -- where tickets come from
+- source_type (POOL / USER)
 
 - status (pending / completed / failed)
 
@@ -96,28 +162,29 @@ Allocation
 
 ---
 
-# 🔗 5. AllocationTicket (Mapping)
+# 🔗 7. AllocationTicket (Same)
 
 ```text
 AllocationTicket
-- allocation_id (FK → Allocation.id)
-- ticket_id (FK → Ticket.id)
+- allocation_id (FK)
+- ticket_id (FK)
 
 PRIMARY KEY (allocation_id, ticket_id)
 ```
 
 ---
 
-# 💳 6. Order (Payment Layer)
+# 💳 8. Order (Same)
 
 ```text
 Order
 - id (PK)
 
-- event_id (FK → Event.id)
+- event_id (FK)
 
 - type (PURCHASE / TRANSFER)
-- user_id (who is paying)
+
+- user_id
 
 - total_amount
 - status (pending / paid / failed)
@@ -127,164 +194,160 @@ Order
 
 ---
 
-# 🧠 RELATIONSHIP OVERVIEW
+# 🧠 RELATIONSHIP (UPDATED)
 
 ```text
 Event
-  ├── TicketType
-  │     └── Ticket
-  │
-  ├── Order
-  │
-  └── Allocation
-        └── AllocationTicket → Ticket
+ ├── EventDay
+ │     └── DayTicketAllocation
+ │
+ ├── TicketType
+ │     └── Ticket (linked to EventDay)
+ │
+ ├── Order
+ │
+ └── Allocation
+       └── AllocationTicket → Ticket
 ```
 
 ---
 
-# 🔄 HOW EVERYTHING WORKS (REAL FLOWS)
+# ⚡ HOW SYSTEM WORKS NOW
 
 ---
 
-## 🟢 1. Online Purchase
+## 🟢 Ticket Creation
 
 ```text
-User buys 2 tickets
-```
-
-```text
-Order (PURCHASE)
+DayTicketAllocation (Day 1, VIP, 100)
    ↓
-Allocation (POOL → User)
+Generate 100 Tickets:
+   → ticket_index: 0 → 99
+   → event_day_id = Day 1
+```
+
+---
+
+## 🔵 Scan Flow (SUPER SIMPLE NOW)
+
+```text
+QR → decode
    ↓
-AllocationTicket → [T1, T2]
+event_id + event_day_id + ticket_index
    ↓
-Ticket.owner = User
-```
-
----
-
-## 🔵 2. B2B Distribution
-
-```text
-Organizer gives 50 tickets to A
-```
-
-```text
-Allocation (POOL → A)
-(no order)
-```
-
----
-
-## 🟣 3. Paid Transfer
-
-```text
-A → B (B pays)
-```
-
-```text
-Order (TRANSFER)
+Redis:
+event:{event_id}:day:{day_index}:bitmap
    ↓
-Allocation (A → B)
+SETBIT check
    ↓
-Tickets moved
+Allow / Reject
 ```
 
 ---
 
-## 🟡 4. Offline Transfer
+👉 ❌ No need for:
+
+* days_mask
+* DB validation
+
+---
+
+## 🟣 Allocation Flow (UNCHANGED)
 
 ```text
-A → B (cash outside)
+Allocation → moves tickets
 ```
+
+---
+
+# 🔥 REDIS STRUCTURE (FINAL)
 
 ```text
-Allocation (A → B)
-(no order)
+event:{event_id}:day:{day_index}:bitmap
 ```
 
 ---
 
-# 🔐 CRITICAL RULES
+👉 Each ticket already belongs to a day
+👉 So no ambiguity
 
 ---
 
-## ✅ 1. TicketType is Mandatory
-
-```text
-Ticket.ticket_type_id → NOT NULL
-```
+# 🧠 WHY THIS MODEL IS STRONG
 
 ---
 
-## ✅ 2. Allocation Drives Ownership
+## ✅ 1. Clean separation
 
-👉 Ownership ONLY changes via allocation
-
----
-
-## ✅ 3. Order is Optional
-
-| Case             | Order |
-| ---------------- | ----- |
-| Purchase         | ✅     |
-| Paid transfer    | ✅     |
-| Offline transfer | ❌     |
+| Layer      | Purpose   |
+| ---------- | --------- |
+| EventDay   | time      |
+| TicketType | category  |
+| Allocation | ownership |
+| Ticket     | atomic    |
 
 ---
 
-## ✅ 4. Locking Before Payment
+## ✅ 2. Perfect for scanning
 
-```sql
-UPDATE tickets
-SET locked_by_order_id = ?, lock_expires_at = now() + interval '5 min'
-WHERE id IN (...);
-```
+* No joins
+* No DB calls
+* Pure Redis
 
 ---
 
-## ✅ 5. Ownership Update (inside TX)
+## ✅ 3. Flexible for business
 
-```sql
-UPDATE tickets
-SET owner_user_id = ?
-WHERE id IN (...)
-AND owner_user_id = ?;
-```
+* Different quantities per day
+* B2B + online unified
+* Transfer system intact
 
 ---
 
-# ⚡ INDEXES (IMPORTANT FOR PERFORMANCE)
+## ✅ 4. Scales easily
+
+* Multi-day
+* Multi-event
+* High concurrency
+
+---
+
+# ⚠️ ONE IMPORTANT INDEX
 
 ---
 
 ## Ticket
 
 ```sql
-INDEX (owner_user_id)
-INDEX (ticket_type_id)
-INDEX (locked_by_order_id)
+UNIQUE (event_day_id, ticket_index)
+```
+
+👉 Required for bitmap correctness
+
+---
+
+# 🧠 FINAL MENTAL MODEL
+
+```text
+Event → multiple days
+Day → has ticket allocations
+Allocation → creates tickets
+Ticket → belongs to one day
+Scan → checks bitmap per day
 ```
 
 ---
 
-## Allocation
+# 🚀 FINAL ANSWER
 
-```sql
-INDEX (from_user_id)
-INDEX (to_user_id)
-INDEX (event_id)
-```
+> “What is our final data model?”
 
----
+👉 Your original system + these upgrades:
 
-## Order
-
-```sql
-INDEX (event_id)
-INDEX (user_id)
-INDEX (status)
-```
+* ✅ Add **EventDay**
+* ✅ Add **DayTicketAllocation**
+* ✅ Make **Ticket day-specific**
+* ❌ Remove TicketTypeDays
+* ❌ Remove global quantity from TicketType
 
 ---
