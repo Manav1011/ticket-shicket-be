@@ -1,261 +1,266 @@
-Perfect — now let’s **merge everything you’ve designed so far** (multi-day + bitmap + allocation system) into one **clean, final production-ready data model**.
-
-You already had a strong base. We’ll **extend it properly**, not break it.
-
 ---
 
-# 🧠 FINAL EVOLVED ARCHITECTURE (v2 🚀)
+# 🧠 FINAL ARCHITECTURE (v4)
 
 ```text
 Event
- └── EventDay
-      └── DayTicketAllocation
-
-TicketType
- └── Ticket
-
-Allocation
-AllocationTicket
-
-Order
+ ├── EventDay
+ │     ├── DayTicketAllocation
+ │     ├── ScanLog
+ │     └── BitmapSnapshot (optional)
+ │
+ ├── TicketType
+ │     └── Ticket
+ │
+ ├── Allocation
+ │     └── AllocationTicket
+ │
+ └── Order
 ```
-
-👉 This keeps your original design intact + adds **multi-day support cleanly**
 
 ---
 
 # 🏗️ 1. 🎤 Event
 
-```text
-Event
-- id (PK)
-- title
-- description
-- location
+```sql
+CREATE TABLE events (
+    id UUID PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    location TEXT,
 
-- start_date
-- end_date
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
 
-- distribution_mode (DIRECT / SPLIT / HYBRID)
+    distribution_mode TEXT NOT NULL, -- DIRECT / SPLIT / HYBRID
 
-- created_at
+    created_at TIMESTAMP DEFAULT now()
+);
 ```
 
 ---
 
-# 📅 2. EventDay (NEW 🔥)
+# 📅 2. EventDay
 
-```text
-EventDay
-- id (PK)
-- event_id (FK → Event.id)
+```sql
+CREATE TABLE event_days (
+    id UUID PRIMARY KEY,
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
 
-- day_index (INT)   ✅ (1,2,3…)
-- date
-- start_time
-- end_time
+    day_index INT NOT NULL,
+    date DATE NOT NULL,
+    start_time TIMESTAMP,
+    end_time TIMESTAMP,
 
-- created_at
+    created_at TIMESTAMP DEFAULT now(),
+
+    UNIQUE (event_id, day_index)
+);
 ```
 
 ---
 
-👉 This is the foundation of your **multi-day UX**
+# 🏷️ 3. TicketType
 
----
+```sql
+CREATE TABLE ticket_types (
+    id UUID PRIMARY KEY,
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
 
-# 🏷️ 3. TicketType (Global Blueprint)
+    name TEXT NOT NULL,
+    category TEXT NOT NULL, -- ONLINE / B2B
 
-```text
-TicketType
-- id (PK)
-- event_id (FK → Event.id)
+    price NUMERIC NOT NULL,
 
-- name (VIP, General, Early Bird)
-- category (ONLINE / B2B)
-
-- price
-
-- created_at
+    created_at TIMESTAMP DEFAULT now()
+);
 ```
 
 ---
 
-👉 No more `total_quantity` here ❗
-👉 Quantity now lives per **day allocation**
+# 🔗 4. DayTicketAllocation
 
----
+```sql
+CREATE TABLE day_ticket_allocations (
+    id UUID PRIMARY KEY,
 
-# 🔗 4. DayTicketAllocation (🔥 CRITICAL NEW LAYER)
+    event_day_id UUID NOT NULL REFERENCES event_days(id) ON DELETE CASCADE,
+    ticket_type_id UUID NOT NULL REFERENCES ticket_types(id) ON DELETE CASCADE,
 
-```text
-DayTicketAllocation
-- id (PK)
+    quantity INT NOT NULL CHECK (quantity > 0),
 
-- event_day_id (FK → EventDay.id)
-- ticket_type_id (FK → TicketType.id)
+    created_at TIMESTAMP DEFAULT now(),
 
-- quantity
-
-UNIQUE (event_day_id, ticket_type_id)
+    UNIQUE (event_day_id, ticket_type_id)
+);
 ```
 
 ---
 
-👉 This connects:
+# 🎟️ 5. Ticket
 
-```text
-Day ↔ TicketType ↔ Quantity
+```sql
+CREATE TABLE tickets (
+    id UUID PRIMARY KEY,
+
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    event_day_id UUID NOT NULL REFERENCES event_days(id) ON DELETE CASCADE,
+    ticket_type_id UUID NOT NULL REFERENCES ticket_types(id),
+
+    ticket_index INT NOT NULL,
+
+    owner_user_id UUID,
+
+    status TEXT NOT NULL DEFAULT 'active', -- active / cancelled
+
+    locked_by_order_id UUID,
+    lock_expires_at TIMESTAMP,
+
+    created_at TIMESTAMP DEFAULT now(),
+
+    UNIQUE (event_day_id, ticket_index)
+);
 ```
 
 ---
 
-# 🎟️ 5. Ticket (Atomic Unit, Updated)
+# 🔄 6. Allocation
 
-```text
-Ticket
-- id (PK)
+```sql
+CREATE TABLE allocations (
+    id UUID PRIMARY KEY,
 
-- ticket_type_id (FK → TicketType.id)
-- event_day_id (FK → EventDay.id)   ✅ NEW
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
 
-- ticket_index (INT)                ✅ REQUIRED (for bitmap)
+    from_user_id UUID,
+    to_user_id UUID NOT NULL,
 
-- owner_user_id (FK)
+    order_id UUID,
 
-- status (active / used / cancelled)
+    source_type TEXT NOT NULL, -- POOL / USER
+    status TEXT NOT NULL,      -- pending / completed / failed
 
--- locking
-- locked_by_order_id (nullable FK → Order.id)
-- lock_expires_at
+    created_at TIMESTAMP DEFAULT now()
+);
 ```
 
 ---
 
-👉 KEY CHANGE:
+# 🔗 7. AllocationTicket
 
-```text
-Ticket is now DAY-SPECIFIC
+```sql
+CREATE TABLE allocation_tickets (
+    allocation_id UUID REFERENCES allocations(id) ON DELETE CASCADE,
+    ticket_id UUID REFERENCES tickets(id) ON DELETE CASCADE,
+
+    PRIMARY KEY (allocation_id, ticket_id)
+);
 ```
 
 ---
 
-# 🔄 6. Allocation (Same Core Idea)
+# 💳 8. Order
 
-```text
-Allocation
-- id (PK)
+```sql
+CREATE TABLE orders (
+    id UUID PRIMARY KEY,
 
-- event_id (FK → Event.id)
+    event_id UUID NOT NULL REFERENCES events(id),
 
-- from_user_id (nullable)
-- to_user_id (FK)
+    type TEXT NOT NULL, -- PURCHASE / TRANSFER
+    user_id UUID NOT NULL,
 
-- order_id (nullable FK → Order.id)
+    total_amount NUMERIC NOT NULL,
+    status TEXT NOT NULL, -- pending / paid / failed
 
-- source_type (POOL / USER)
-
-- status (pending / completed / failed)
-
-- created_at
+    created_at TIMESTAMP DEFAULT now()
+);
 ```
 
 ---
 
-# 🔗 7. AllocationTicket (Same)
+# 📊 9. ScanLog (🔥 CRITICAL)
 
-```text
-AllocationTicket
-- allocation_id (FK)
-- ticket_id (FK)
+```sql
+CREATE TABLE scan_logs (
+    id BIGSERIAL PRIMARY KEY,
 
-PRIMARY KEY (allocation_id, ticket_id)
+    event_day_id UUID NOT NULL REFERENCES event_days(id) ON DELETE CASCADE,
+    ticket_index INT NOT NULL,
+
+    scanned_at TIMESTAMP DEFAULT now(),
+
+    UNIQUE (event_day_id, ticket_index)
+);
 ```
 
 ---
 
-# 💳 8. Order (Same)
+👉 Guarantees:
 
-```text
-Order
-- id (PK)
+* No duplicate successful scans
+* Perfect bitmap reconstruction
 
-- event_id (FK)
+---
 
-- type (PURCHASE / TRANSFER)
+# 💾 10. Bitmap Snapshot (Optional but Included)
 
-- user_id
+```sql
+CREATE TABLE event_day_bitmap_snapshots (
+    event_day_id UUID PRIMARY KEY REFERENCES event_days(id) ON DELETE CASCADE,
 
-- total_amount
-- status (pending / paid / failed)
-
-- created_at
+    bitmap_data BYTEA NOT NULL,
+    updated_at TIMESTAMP DEFAULT now()
+);
 ```
 
 ---
 
-# 🧠 RELATIONSHIP (UPDATED)
+👉 Used for:
 
-```text
-Event
- ├── EventDay
- │     └── DayTicketAllocation
- │
- ├── TicketType
- │     └── Ticket (linked to EventDay)
- │
- ├── Order
- │
- └── Allocation
-       └── AllocationTicket → Ticket
+* Faster recovery
+* Not updated per scan
+
+---
+
+# ⚡ INDEXES (IMPORTANT)
+
+---
+
+## Tickets
+
+```sql
+CREATE INDEX idx_tickets_owner ON tickets(owner_user_id);
+CREATE INDEX idx_tickets_event ON tickets(event_id);
+CREATE INDEX idx_tickets_event_day ON tickets(event_day_id);
+CREATE INDEX idx_tickets_type ON tickets(ticket_type_id);
 ```
 
 ---
 
-# ⚡ HOW SYSTEM WORKS NOW
+## Scan Logs
 
----
-
-## 🟢 Ticket Creation
-
-```text
-DayTicketAllocation (Day 1, VIP, 100)
-   ↓
-Generate 100 Tickets:
-   → ticket_index: 0 → 99
-   → event_day_id = Day 1
+```sql
+CREATE INDEX idx_scan_logs_event_day ON scan_logs(event_day_id);
 ```
 
 ---
 
-## 🔵 Scan Flow (SUPER SIMPLE NOW)
+## Allocations
 
-```text
-QR → decode
-   ↓
-event_id + event_day_id + ticket_index
-   ↓
-Redis:
-event:{event_id}:day:{day_index}:bitmap
-   ↓
-SETBIT check
-   ↓
-Allow / Reject
+```sql
+CREATE INDEX idx_allocations_from_user ON allocations(from_user_id);
+CREATE INDEX idx_allocations_to_user ON allocations(to_user_id);
+CREATE INDEX idx_allocations_event ON allocations(event_id);
 ```
 
 ---
 
-👉 ❌ No need for:
+## Orders
 
-* days_mask
-* DB validation
-
----
-
-## 🟣 Allocation Flow (UNCHANGED)
-
-```text
-Allocation → moves tickets
+```sql
+CREATE INDEX idx_orders_event ON orders(event_id);
+CREATE INDEX idx_orders_user ON orders(user_id);
 ```
 
 ---
@@ -263,91 +268,59 @@ Allocation → moves tickets
 # 🔥 REDIS STRUCTURE (FINAL)
 
 ```text
-event:{event_id}:day:{day_index}:bitmap
+event_day:{event_day_id}:bitmap
 ```
 
 ---
 
-👉 Each ticket already belongs to a day
-👉 So no ambiguity
+# ⚡ FINAL FLOW SUMMARY
 
 ---
 
-# 🧠 WHY THIS MODEL IS STRONG
+## 🎟 Ticket Creation
 
----
-
-## ✅ 1. Clean separation
-
-| Layer      | Purpose   |
-| ---------- | --------- |
-| EventDay   | time      |
-| TicketType | category  |
-| Allocation | ownership |
-| Ticket     | atomic    |
-
----
-
-## ✅ 2. Perfect for scanning
-
-* No joins
-* No DB calls
-* Pure Redis
-
----
-
-## ✅ 3. Flexible for business
-
-* Different quantities per day
-* B2B + online unified
-* Transfer system intact
-
----
-
-## ✅ 4. Scales easily
-
-* Multi-day
-* Multi-event
-* High concurrency
-
----
-
-# ⚠️ ONE IMPORTANT INDEX
-
----
-
-## Ticket
-
-```sql
-UNIQUE (event_day_id, ticket_index)
+```text
+DayTicketAllocation → generate tickets
 ```
 
-👉 Required for bitmap correctness
+---
+
+## 🎯 Scan
+
+```text
+QR → decode
+   ↓
+Redis bitmap (SETBIT)
+   ↓
+Publish event
+   ↓
+Worker → insert scan_logs
+```
+
+---
+
+## 🔁 Recovery
+
+```text
+scan_logs → rebuild bitmap
+```
+
+---
+
+## ⚡ Optional Fast Recovery
+
+```text
+snapshot → replay recent logs
+```
 
 ---
 
 # 🧠 FINAL MENTAL MODEL
 
 ```text
-Event → multiple days
-Day → has ticket allocations
-Allocation → creates tickets
-Ticket → belongs to one day
-Scan → checks bitmap per day
+DB → ownership + history
+Redis → real-time state
+NATS → async bridge
 ```
-
----
-
-# 🚀 FINAL ANSWER
-
-> “What is our final data model?”
-
-👉 Your original system + these upgrades:
-
-* ✅ Add **EventDay**
-* ✅ Add **DayTicketAllocation**
-* ✅ Make **Ticket day-specific**
-* ❌ Remove TicketTypeDays
-* ❌ Remove global quantity from TicketType
 
 ---
