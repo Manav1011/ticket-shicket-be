@@ -180,8 +180,11 @@ CREATE TABLE orders (
     type TEXT NOT NULL, -- PURCHASE / TRANSFER
     user_id UUID NOT NULL,
 
-    total_amount NUMERIC NOT NULL,
-    status TEXT NOT NULL, -- pending / paid / failed
+    subtotal_amount NUMERIC NOT NULL,
+    discount_amount NUMERIC NOT NULL DEFAULT 0,
+    final_amount NUMERIC NOT NULL,
+
+    status TEXT NOT NULL, -- pending / paid / failed / expired
 
     created_at TIMESTAMP DEFAULT now()
 );
@@ -221,6 +224,48 @@ CREATE TABLE event_day_bitmap_snapshots (
 
     bitmap_data BYTEA NOT NULL,
     updated_at TIMESTAMP DEFAULT now()
+);
+```
+
+---
+
+# 🎟️ 11. Coupon
+
+```sql
+CREATE TABLE coupons (
+    id UUID PRIMARY KEY,
+    code TEXT NOT NULL UNIQUE,
+
+    type TEXT NOT NULL, -- FLAT / PERCENTAGE
+    value NUMERIC NOT NULL,
+    max_discount NUMERIC,
+
+    min_order_amount NUMERIC NOT NULL DEFAULT 0,
+
+    usage_limit INT NOT NULL,
+    per_user_limit INT NOT NULL DEFAULT 1,
+    used_count INT NOT NULL DEFAULT 0,
+
+    valid_from TIMESTAMP NOT NULL,
+    valid_until TIMESTAMP NOT NULL,
+
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP DEFAULT now()
+);
+```
+
+---
+
+# 🔗 12. OrderCoupon
+
+```sql
+CREATE TABLE order_coupons (
+    order_id UUID PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
+    coupon_id UUID NOT NULL REFERENCES coupons(id),
+
+    discount_applied NUMERIC NOT NULL, -- 🔥 IMMUTABLE 
+
+    created_at TIMESTAMP DEFAULT now()
 );
 ```
 

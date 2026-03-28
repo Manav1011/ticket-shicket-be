@@ -1,0 +1,150 @@
+erDiagram
+    USERS }|--o{ TICKETS : owns
+    USERS }|--o{ ALLOCATIONS : initiates
+    USERS }|--o{ ALLOCATIONS : receives
+    USERS }|--o{ ORDERS : places
+
+    EVENTS }|--o{ EVENT_DAYS : has
+    EVENTS }|--o{ TICKET_TYPES : has
+    EVENTS }|--o{ TICKETS : has
+    EVENTS }|--o{ ALLOCATIONS : has
+    EVENTS }|--o{ ORDERS : has
+
+    ORDERS }|--o{ ALLOCATIONS : has
+    ORDERS }|--o{ TICKETS : locks
+    ORDERS ||--o| ORDER_COUPONS : has_discount
+
+    COUPONS }|--o{ ORDER_COUPONS : used_in
+
+    EVENT_DAYS }|--o{ DAY_TICKET_ALLOCATIONS : has
+    EVENT_DAYS }|--o{ TICKETS : has
+    EVENT_DAYS }|--o{ SCAN_LOGS : has
+    EVENT_DAYS ||--|| EVENT_DAY_BITMAP_SNAPSHOTS : has_snapshot
+
+    TICKET_TYPES }|--o{ DAY_TICKET_ALLOCATIONS : has
+    TICKET_TYPES }|--o{ TICKETS : has
+
+    ALLOCATIONS }|--o{ ALLOCATION_TICKETS : contains
+    TICKETS }|--o{ ALLOCATION_TICKETS : is_part_of
+
+    TICKETS ||--o| SCAN_LOGS : logs_scan
+
+    USERS {
+        UUID id PK
+        TEXT username
+        TEXT email
+    }
+
+    EVENTS {
+        UUID id PK
+        TEXT title
+        TEXT description
+        TEXT location
+        DATE start_date
+        DATE end_date
+        TEXT distribution_mode
+        TIMESTAMP created_at
+    }
+
+    EVENT_DAYS {
+        UUID id PK
+        UUID event_id FK
+        INT day_index
+        DATE date
+        TIMESTAMP start_time
+        TIMESTAMP end_time
+        TIMESTAMP created_at
+    }
+
+    TICKET_TYPES {
+        UUID id PK
+        UUID event_id FK
+        TEXT name
+        TEXT category
+        NUMERIC price
+        TIMESTAMP created_at
+    }
+
+    DAY_TICKET_ALLOCATIONS {
+        UUID id PK
+        UUID event_day_id FK
+        UUID ticket_type_id FK
+        INT quantity
+        TIMESTAMP created_at
+    }
+
+    TICKETS {
+        UUID id PK
+        UUID event_id FK
+        UUID event_day_id FK
+        UUID ticket_type_id FK
+        INT ticket_index
+        UUID owner_user_id FK
+        TEXT status
+        UUID locked_by_order_id FK
+        TIMESTAMP lock_expires_at
+        TIMESTAMP created_at
+    }
+
+    ALLOCATIONS {
+        UUID id PK
+        UUID event_id FK
+        UUID from_user_id FK
+        UUID to_user_id FK
+        UUID order_id FK
+        TEXT source_type
+        TEXT status
+        TIMESTAMP created_at
+    }
+
+    ALLOCATION_TICKETS {
+        UUID allocation_id PK,FK
+        UUID ticket_id PK,FK
+    }
+
+    ORDERS {
+        UUID id PK
+        UUID event_id FK
+        TEXT type
+        UUID user_id FK
+        NUMERIC subtotal_amount
+        NUMERIC discount_amount
+        NUMERIC final_amount
+        TEXT status
+        TIMESTAMP created_at
+    }
+
+    COUPONS {
+        UUID id PK
+        TEXT code UK
+        TEXT type
+        NUMERIC value
+        NUMERIC max_discount
+        NUMERIC min_order_amount
+        INT usage_limit
+        INT per_user_limit
+        INT used_count
+        TIMESTAMP valid_from
+        TIMESTAMP valid_until
+        BOOLEAN is_active
+        TIMESTAMP created_at
+    }
+
+    ORDER_COUPONS {
+        UUID order_id PK,FK
+        UUID coupon_id FK
+        NUMERIC discount_applied
+    }
+
+    SCAN_LOGS {
+        BIGSERIAL id PK
+        UUID event_day_id FK
+        INT ticket_index FK
+        TIMESTAMP scanned_at
+    }
+
+    EVENT_DAY_BITMAP_SNAPSHOTS {
+        UUID event_day_id PK,FK
+        BYTEA bitmap_data
+        TIMESTAMP updated_at
+    }
