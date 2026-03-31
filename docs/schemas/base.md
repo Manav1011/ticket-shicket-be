@@ -62,6 +62,8 @@ CREATE TABLE event_days (
     start_time TIMESTAMP,
     end_time TIMESTAMP,
 
+    next_ticket_index INT NOT NULL DEFAULT 1, -- 🔥 TRACKS NEXT AVAILABLE TICKET INDEX
+
     created_at TIMESTAMP DEFAULT now(),
 
     UNIQUE (event_id, day_index)

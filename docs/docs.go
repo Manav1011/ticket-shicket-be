@@ -136,6 +136,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/scanning/scan": {
+            "post": {
+                "description": "Validates and marks a QR code as used",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "scanning"
+                ],
+                "summary": "Scan QR code",
+                "parameters": [
+                    {
+                        "description": "QR code payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.ScanningRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ScanningResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users/login": {
             "post": {
                 "description": "Validates email and password; returns JWT access and refresh tokens.",
@@ -417,6 +463,28 @@ const docTemplate = `{
                 },
                 "token_type": {
                     "type": "string"
+                }
+            }
+        },
+        "model.ScanningRequest": {
+            "type": "object",
+            "required": [
+                "qr_code_payload"
+            ],
+            "properties": {
+                "qr_code_payload": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ScanningResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "valid": {
+                    "type": "boolean"
                 }
             }
         },

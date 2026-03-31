@@ -112,6 +112,20 @@ definitions:
       token_type:
         type: string
     type: object
+  model.ScanningRequest:
+    properties:
+      qr_code_payload:
+        type: string
+    required:
+    - qr_code_payload
+    type: object
+  model.ScanningResponse:
+    properties:
+      message:
+        type: string
+      valid:
+        type: boolean
+    type: object
   utils.APIResponse:
     properties:
       data: {}
@@ -207,6 +221,36 @@ paths:
       summary: Health check
       tags:
       - health
+  /scanning/scan:
+    post:
+      consumes:
+      - application/json
+      description: Validates and marks a QR code as used
+      parameters:
+      - description: QR code payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.ScanningRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ScanningResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Scan QR code
+      tags:
+      - scanning
   /users/login:
     post:
       consumes:

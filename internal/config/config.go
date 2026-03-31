@@ -18,10 +18,14 @@ type Config struct {
 
 	AccessTokenDuration  time.Duration
 	RefreshTokenDuration time.Duration
+
+	RedisAddr      string
+	RedisPassword  string
+	RedisDefaultDB int
 }
 
 func LoadConfig() *Config {
-	err := godotenv.Load("/home/web-h-063/Documents/ticket-shicket-be/.env")
+	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
@@ -46,6 +50,9 @@ func LoadConfig() *Config {
 
 		AccessTokenDuration:  accessDuration,
 		RefreshTokenDuration: refreshDuration,
+		RedisAddr:            os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT"),
+		RedisPassword:        os.Getenv("REDIS_PASSWORD"),
+		RedisDefaultDB:       0,
 	}
 
 }
