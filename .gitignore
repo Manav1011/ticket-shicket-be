@@ -1,1 +1,9 @@
 .env
+*.idea
+__pycache__
+.ruff_cache
+redis_ca.pem
+public_key.pem
+private_key.pem
+.vscode
+.venv/

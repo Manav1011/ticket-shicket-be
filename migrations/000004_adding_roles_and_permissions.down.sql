@@ -1,7 +1,0 @@
--- DROP TABLES
-DROP TABLE IF EXISTS permissions;
-DROP TABLE IF EXISTS roles;
-
--- DROP ENUMS
-DROP TYPE IF EXISTS admin_permission;
-DROP TYPE IF EXISTS role_type;
