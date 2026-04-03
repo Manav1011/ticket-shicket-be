@@ -51,15 +51,29 @@ class JWToken(SecurityBase):
             raise InvalidJWTTokenException(constants.EXPIRED_TOKEN)
 
 
-async def create_tokens(user_id: UUID) -> dict[str, str]:
+async def create_tokens(
+    user_id: UUID = None,
+    guest_id: UUID = None,
+    type: Literal["user", "guest"] = "user",
+) -> dict[str, str]:
     """
-    Create access-token and refresh-token for a user.
+    Create access-token and refresh-token.
+    Only one of user_id or guest_id should be provided based on type.
     """
+    if type == "user" and user_id is None:
+        raise ValueError("user_id required for user tokens")
+    if type == "guest" and guest_id is None:
+        raise ValueError("guest_id required for guest tokens")
+
+    sub = str(user_id) if type == "user" else str(guest_id)
+
     access_token = access.encode(
-        payload={"sub": str(user_id)}, expire_period=int(settings.ACCESS_TOKEN_EXP)
+        payload={"sub": sub, "type": type},
+        expire_period=int(settings.ACCESS_TOKEN_EXP),
     )
     refresh_token = refresh.encode(
-        payload={"sub": str(user_id)}, expire_period=int(settings.REFRESH_TOKEN_EXP)
+        payload={"sub": sub, "type": type},
+        expire_period=int(settings.REFRESH_TOKEN_EXP),
     )
     return {"access_token": access_token, "refresh_token": refresh_token}
 

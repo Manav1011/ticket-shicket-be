@@ -32,7 +32,7 @@ class UserService:
         if not await verify_password(hashed_password=user.password, plain_password=password):
             raise InvalidCredentialsException
 
-        return await create_tokens(user_id=user.id)
+        return await create_tokens(user_id=user.id, type="user")
 
     async def create_user(
         self,
@@ -102,7 +102,7 @@ class UserService:
         await self.repository.revoke_refresh_token(token_hash)
 
         # Issue new tokens
-        new_tokens = await create_tokens(user.id)
+        new_tokens = await create_tokens(user_id=user.id, type="user")
 
         # Store new refresh token in DB
         await self.repository.create_refresh_token(

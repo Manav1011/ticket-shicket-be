@@ -9,6 +9,7 @@ from handlers import start_exception_handlers
 from lifespan import lifespan
 from utils.schema import BaseValidationResponse
 from apps.user import user_router, protected_user_router
+from apps.guest import guest_router
 
 
 def root_health_path(_app: FastAPI) -> None:
@@ -53,6 +54,7 @@ def create_app(debug: bool = False) -> FastAPI:
     base_router = APIRouter()
     base_router.include_router(user_router)
     base_router.include_router(protected_user_router)
+    base_router.include_router(guest_router)
     _app.include_router(base_router, responses={422: {"model": BaseValidationResponse}})
 
     init_middlewares(_app)    
