@@ -77,7 +77,7 @@ async def logout(
     return BaseResponse(message="Logged out successfully")
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, operation_id="create_user")
+@router.post("/create", status_code=status.HTTP_201_CREATED, operation_id="create_user")
 async def create_user(
     body: Annotated[SignUpRequest, Body()],
     service: Annotated[UserService, Depends(get_user_service)],

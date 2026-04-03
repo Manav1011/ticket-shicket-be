@@ -4,7 +4,7 @@
 
 **Goal:** Implement a guest authentication module that allows anonymous users to browse and add tickets to cart without signup friction, then convert to a full User at checkout.
 
-**Architecture:** Guest identified by server-generated device_id (UUID) stored client-side. JWT tokens contain `type: "guest"` claim for differentiation. Single `/refresh` endpoint handles both User and Guest token rotation. On conversion, Guest record links to new User and is marked as converted.
+**Architecture:** Guest is created by the server on first guest login and identified by a server-generated `guest_id` only. JWT tokens contain `type: "guest"` claim for differentiation. Single `/refresh` endpoint handles both User and Guest token rotation. On conversion, Guest record links to new User and is marked as converted.
 
 **Tech Stack:** FastAPI, SQLAlchemy 2.0 async, PostgreSQL, Redis (existing)
 
@@ -16,7 +16,7 @@
 src/apps/guest/                    # NEW - Guest app module
 ├── __init__.py                    # Exports guest_router
 ├── models.py                      # GuestModel, GuestRefreshTokenModel
-├── repository.py                  # GuestRepository with device_id lookup
+├── repository.py                  # GuestRepository with guest lookup
 ├── service.py                     # GuestService with token + conversion logic
 ├── request.py                     # GuestLoginRequest, GuestConvertRequest
 ├── response.py                    # GuestLoginResponse, GuestResponse
@@ -68,13 +68,11 @@ from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
 class GuestModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     """
     Guest user model for anonymous browsing.
-    Identified by device_id (UUID generated on first login).
+    Identified by guest_id (server-generated UUID).
     Converted to User at checkout.
     """
     __tablename__ = "guests"
 
-    device_id: Mapped[uuid.UUID] = mapped_column(index=True, unique=True)
-    # User fields captured at conversion
     email: Mapped[str | None] = mapped_column(String(320), index=True, nullable=True)
     phone: Mapped[str | None] = mapped_column(index=True, nullable=True)
     # Conversion tracking
@@ -84,8 +82,8 @@ class GuestModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     )
 
     @classmethod
-    def create(cls, device_id: uuid.UUID) -> Self:
-        return cls(id=uuid.uuid4(), device_id=device_id)
+    def create(cls) -> Self:
+        return cls(id=uuid.uuid4())
 
 
 class GuestRefreshTokenModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
@@ -135,11 +133,6 @@ class GuestRepository:
     async def get_by_id(self, guest_id: UUID) -> Optional[GuestModel]:
         return await self._session.scalar(
             select(GuestModel).where(GuestModel.id == guest_id)
-        )
-
-    async def get_by_device_id(self, device_id: UUID) -> Optional[GuestModel]:
-        return await self._session.scalar(
-            select(GuestModel).where(GuestModel.device_id == device_id)
         )
 
     async def get_by_email(self, email: str) -> Optional[GuestModel]:
@@ -246,18 +239,14 @@ class GuestService:
         self.repository = repository
         self.user_repository = user_repository
 
-    async def login_guest(self, device_id: uuid.UUID) -> dict:
+    async def login_guest(self) -> dict:
         """
-        Login or create guest by device_id.
-        Returns tokens and guest info including device_id for client storage.
+        Create a new guest session and return tokens plus guest info.
         """
-        guest = await self.repository.get_by_device_id(device_id)
-
-        if not guest:
-            guest = GuestModel.create(device_id=device_id)
-            await self.repository.create(guest)
-            await self.repository.session.flush()
-            await self.repository.session.refresh(guest)
+        guest = GuestModel.create()
+        await self.repository.create(guest)
+        await self.repository.session.flush()
+        await self.repository.session.refresh(guest)
 
         if guest.is_converted:
             raise GuestAlreadyConvertedException
@@ -275,7 +264,6 @@ class GuestService:
 
         return {
             "guest_id": str(guest.id),
-            "device_id": str(guest.device_id),
             "access_token": tokens["access_token"],
             "refresh_token": tokens["refresh_token"],
         }
@@ -403,7 +391,7 @@ from utils.schema import CamelCaseModel
 
 
 class GuestLoginRequest(CamelCaseModel):
-    """Empty request - device_id extracted from header."""
+    """Empty request - guest identity is server-generated."""
 
 
 class GuestConvertRequest(CamelCaseModel):
@@ -423,7 +411,6 @@ from utils.schema import CamelCaseModel
 
 class GuestLoginResponse(CamelCaseModel):
     guest_id: uuid.UUID
-    device_id: uuid.UUID
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -431,7 +418,6 @@ class GuestLoginResponse(CamelCaseModel):
 
 class GuestResponse(CamelCaseModel):
     id: uuid.UUID
-    device_id: uuid.UUID
     is_converted: bool
     converted_user_id: uuid.UUID | None = None
 ```
@@ -499,16 +485,13 @@ def get_guest_service(session: Annotated, Depends(db_session)]) -> GuestService:
 
 @router.post("/login", status_code=status.HTTP_200_OK, operation_id="guest_login")
 async def guest_login(
-    device_id_header: Annotated[str, Header(alias="X-Device-ID")],
     service: Annotated[GuestService, Depends(get_guest_service)],
 ) -> JSONResponse:
     """
-    Login or register guest by device_id.
-    Device ID is sent in X-Device-ID header (generated client-side).
+    Create a guest session.
     Server generates guest_id and returns tokens.
     """
-    device_id = UUID(device_id_header)
-    result = await service.login_guest(device_id)
+    result = await service.login_guest()
 
     data = {"status": SUCCESS, "code": status.HTTP_200_OK, "data": result}
     response = JSONResponse(content=data)
@@ -574,7 +557,6 @@ async def get_guest_self(
     guest: GuestModel = request.state.guest
     return BaseResponse(data=GuestResponse(
         id=guest.id,
-        device_id=guest.device_id,
         is_converted=guest.is_converted,
         converted_user_id=guest.converted_user_id,
     ))
@@ -797,18 +779,17 @@ from apps.guest.models import GuestModel
 
 
 class TestGuestLogin:
-    def test_login_creates_new_guest_when_device_id_not_found(self):
+    def test_login_creates_new_guest(self):
         # Arrange
         mock_session = AsyncMock()
+        mock_session.flush = AsyncMock()
+        mock_session.refresh = AsyncMock()
         mock_user_repo = AsyncMock()
         mock_guest_repo = AsyncMock()
-        mock_guest_repo.get_by_device_id.return_value = None
-        mock_guest_repo.create.return_value = GuestModel.create(device_id=uuid4())
-        mock_guest_repo.session.flush = AsyncMock()
-        mock_guest_repo.session.refresh = AsyncMock()
+        mock_guest_repo.create.return_value = GuestModel.create()
+        mock_guest_repo.session = mock_session
 
         service = GuestService(mock_guest_repo, mock_user_repo)
-        device_id = uuid4()
 
         # Act
         # (test implementation)
@@ -836,7 +817,7 @@ Expected: All tests pass
 # tests/apps/guest/test_guest_integration.py
 """
 Integration test covering:
-1. Guest login - creates guest, returns device_id
+1. Guest login - creates guest, returns guest_id and tokens
 2. Guest browse (protected endpoint) - uses guest token
 3. Guest convert - creates user, marks guest converted
 4. Guest token now invalid after conversion
@@ -852,7 +833,7 @@ Expected: Full flow passes
 
 ## Self-Review Checklist
 
-- [ ] Guest login returns device_id for client storage
+- [ ] Guest login returns guest_id and tokens
 - [ ] Guest token has `type: "guest"` claim
 - [ ] `get_current_guest` validates token type and rejects converted guests
 - [ ] Conversion creates User record with email/phone/password
