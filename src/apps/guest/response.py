@@ -15,3 +15,7 @@ class GuestResponse(CamelCaseModel):
     device_id: uuid.UUID
     is_converted: bool
     converted_user_id: uuid.UUID | None = None
+
+
+class GuestDeviceResponse(CamelCaseModel):
+    device_id: uuid.UUID

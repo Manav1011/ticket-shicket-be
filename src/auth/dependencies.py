@@ -8,8 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from auth.jwt import access
-from auth.blocklist import TokenBlocklist
-from db.redis import redis
 from db.session import db_session
 from exceptions import UnauthorizedError, InvalidJWTTokenException
 
@@ -21,15 +19,10 @@ if TYPE_CHECKING:
 security = HTTPBearer()
 
 
-def get_token_blocklist() -> TokenBlocklist:
-    return TokenBlocklist(redis=redis)
-
-
 async def get_current_user(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     session: AsyncSession = Depends(db_session),
-    blocklist: TokenBlocklist = Depends(get_token_blocklist),
 ) -> UserModel:
     """
     Dependency that validates Bearer token and returns the current user.
@@ -49,17 +42,10 @@ async def get_current_user(
                 detail="Invalid token type - expected user",
             )
         user_id = UUID(payload["sub"])
-        jti = payload.get("jti")
     except (UnauthorizedError, InvalidJWTTokenException, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
-        )
-
-    if jti and await blocklist.is_blocklisted(jti):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has been revoked",
         )
 
     from apps.user.models import UserModel
@@ -82,7 +68,6 @@ async def get_current_guest(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     session: AsyncSession = Depends(db_session),
-    blocklist: TokenBlocklist = Depends(get_token_blocklist),
 ) -> GuestModel:
     """
     Dependency that validates Bearer token and returns the current guest.
@@ -103,17 +88,10 @@ async def get_current_guest(
                 detail="Invalid token type - expected guest",
             )
         guest_id = UUID(payload["sub"])
-        jti = payload.get("jti")
     except (UnauthorizedError, InvalidJWTTokenException, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
-        )
-
-    if jti and await blocklist.is_blocklisted(jti):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has been revoked",
         )
 
     from apps.guest.models import GuestModel

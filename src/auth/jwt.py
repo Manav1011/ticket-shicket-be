@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from typing import Literal
-import uuid
 from uuid import UUID
 
 from fastapi.security.base import SecurityBase
@@ -69,7 +68,7 @@ async def create_tokens(
     sub = str(user_id) if type == "user" else str(guest_id)
 
     access_token = access.encode(
-        payload={"sub": sub, "user_type": type, "jti": str(uuid.uuid4())},
+        payload={"sub": sub, "user_type": type},
         expire_period=int(settings.ACCESS_TOKEN_EXP),
     )
     refresh_token = refresh.encode(

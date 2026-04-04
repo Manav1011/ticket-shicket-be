@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.dependencies import get_current_guest
-from auth.blocklist import TokenBlocklist
 from .models import GuestModel
 from .request import GuestConvertRequest, GuestLoginRequest
 from .response import GuestLoginResponse, GuestResponse, GuestDeviceResponse
@@ -15,8 +14,7 @@ from .service import GuestService
 from .repository import GuestRepository
 from apps.user.repository import UserRepository
 from db.session import db_session
-from db.redis import redis
-from auth.schemas import RefreshRequest, RefreshRequestWithJti, TokenPair
+from auth.schemas import RefreshRequest, TokenPair
 from utils.schema import BaseResponse
 from utils.cookies import set_auth_cookies
 from constants import SUCCESS
@@ -33,7 +31,6 @@ def get_guest_service(session: Annotated[AsyncSession, Depends(db_session)]) -> 
     return GuestService(
         GuestRepository(session),
         UserRepository(session),
-        TokenBlocklist(redis=redis),
     )
 
 
@@ -118,6 +115,16 @@ async def convert_guest(
     return response
 
 
+@protected_router.post("/logout", status_code=status.HTTP_200_OK, operation_id="guest_logout")
+async def guest_logout(
+    body: RefreshRequest,
+    service: Annotated[GuestService, Depends(get_guest_service)],
+) -> BaseResponse:
+    """Logout guest by revoking refresh token. Requires valid guest token."""
+    await service.logout_guest(body.refresh_token)
+    return BaseResponse(message="Logged out successfully")
+
+
 @protected_router.get("/self", status_code=status.HTTP_200_OK, operation_id="get_guest_self")
 async def get_guest_self(
     request: Request,
@@ -131,18 +138,3 @@ async def get_guest_self(
         is_converted=guest.is_converted,
         converted_user_id=guest.converted_user_id,
     ))
-
-
-@protected_router.post("/logout", status_code=status.HTTP_200_OK, operation_id="guest_logout")
-async def guest_logout(
-    request: Request,
-    body: RefreshRequestWithJti,
-    service: Annotated[GuestService, Depends(get_guest_service)],
-) -> BaseResponse:
-    """Logout guest by revoking refresh token and blocklisting access token."""
-    guest: GuestModel = request.state.guest
-    await service.logout_guest(
-        refresh_token=body.refresh_token,
-        access_token_jti=body.access_token_jti,
-    )
-    return BaseResponse(message="Logged out successfully")
