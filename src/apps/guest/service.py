@@ -19,6 +19,7 @@ from config import settings
 
 if TYPE_CHECKING:
     from apps.user.repository import UserRepository
+from auth.blocklist import TokenBlocklist
 
 
 class GuestService:
@@ -26,9 +27,11 @@ class GuestService:
         self,
         repository: GuestRepository,
         user_repository: "UserRepository",
+        blocklist: TokenBlocklist,
     ) -> None:
         self.repository = repository
         self.user_repository = user_repository
+        self._blocklist = blocklist
 
     async def login_guest(self, device_id: uuid.UUID) -> dict:
         """
@@ -101,10 +104,18 @@ class GuestService:
 
         return new_tokens
 
-    async def logout_guest(self, refresh_token: str) -> None:
-        """Revoke guest refresh token."""
+    async def logout_guest(
+        self,
+        refresh_token: str,
+        access_token_jti: str | None = None,
+    ) -> None:
+        """Revoke refresh token and optionally blocklist access token by jti."""
         token_hash = self._hash_token(refresh_token)
         await self.repository.revoke_refresh_token(token_hash)
+
+        if access_token_jti:
+            await self._blocklist.add(access_token_jti, ttl=int(settings.ACCESS_TOKEN_EXP))
+
         await self.repository.session.commit()
 
     async def convert_guest(
