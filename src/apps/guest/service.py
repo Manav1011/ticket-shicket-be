@@ -14,6 +14,7 @@ from .repository import GuestRepository
 from apps.user.models import UserModel
 from apps.user.repository import UserRepository
 from auth.jwt import create_tokens
+from auth.password import hash_password
 from exceptions import UnauthorizedError
 from config import settings
 
@@ -139,9 +140,10 @@ class GuestService:
             raise GuestAlreadyConvertedException
 
         # Check email/phone uniqueness in User table
-        existing = await self.user_repository.get_by_email_or_phone(email, phone)
+        normalized_email = email.strip().lower()
+        existing = await self.user_repository.get_by_email_or_phone(normalized_email, phone)
         if existing:
-            if existing.email == email.lower():
+            if existing.email and existing.email.strip().lower() == normalized_email:
                 raise DuplicateEmailException
             if existing.phone == phone:
                 raise DuplicatePhoneException
@@ -150,9 +152,9 @@ class GuestService:
         user = UserModel.create(
             first_name=first_name,
             last_name=last_name,
-            email=email,
+            email=normalized_email,
             phone=phone,
-            password=password,
+            password=await hash_password(password),
         )
         self.user_repository.add(user)
         await self.user_repository.session.flush()
@@ -161,7 +163,7 @@ class GuestService:
         # Update guest record
         await self.repository.update_conversion(
             guest_id=guest_id,
-            email=email,
+            email=normalized_email,
             phone=phone,
             converted_user_id=user.id,
         )

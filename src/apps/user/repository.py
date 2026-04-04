@@ -2,9 +2,8 @@ from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import load_only
 
 from .models import UserModel, RefreshTokenModel
 
@@ -24,21 +23,24 @@ class UserRepository:
 
     async def get_by_id(self, user_id: UUID) -> Optional[UserModel]:
         return await self._session.scalar(
-            select(UserModel)
-            .options(load_only(UserModel.id, UserModel.email, UserModel.first_name, UserModel.last_name))
-            .where(UserModel.id == user_id)
+            select(UserModel).where(UserModel.id == user_id)
         )
 
     async def get_by_email(self, email: str) -> Optional[UserModel]:
+        normalized_email = email.strip().lower()
         return await self._session.scalar(
-            select(UserModel).where(UserModel.email == email)
+            select(UserModel).where(func.lower(UserModel.email) == normalized_email)
         )
 
     async def get_by_email_or_phone(self, email: str, phone: str) -> Optional[UserModel]:
+        normalized_email = email.strip().lower()
         return await self._session.scalar(
-            select(UserModel)
-            .options(load_only(UserModel.email))
-            .where(or_(UserModel.email == email, UserModel.phone == phone))
+            select(UserModel).where(
+                or_(
+                    func.lower(UserModel.email) == normalized_email,
+                    UserModel.phone == phone,
+                )
+            )
         )
 
     async def delete(self, user_id: UUID) -> None:
@@ -89,5 +91,23 @@ class UserRepository:
             update(RefreshTokenModel)
             .where(RefreshTokenModel.user_id == user_id)
             .values(revoked=True)
+        )
+        await self._session.flush()
+
+    async def delete_all_user_tokens(self, user_id: UUID) -> None:
+        """Delete all refresh tokens for a user before deleting the user row."""
+        await self._session.execute(
+            delete(RefreshTokenModel).where(RefreshTokenModel.user_id == user_id)
+        )
+        await self._session.flush()
+
+    async def clear_guest_conversion_links(self, user_id: UUID) -> None:
+        """Detach guest records that point at this user before deleting the user row."""
+        from apps.guest.models import GuestModel
+
+        await self._session.execute(
+            update(GuestModel)
+            .where(GuestModel.converted_user_id == user_id)
+            .values(converted_user_id=None)
         )
         await self._session.flush()

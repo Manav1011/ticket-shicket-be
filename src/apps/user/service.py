@@ -4,6 +4,7 @@ from uuid import UUID
 
 from .exceptions import (
     DuplicateEmailException,
+    DuplicatePhoneException,
     InvalidCredentialsException,
     UserNotFoundException,
 )
@@ -27,7 +28,8 @@ class UserService:
         return await self.repository.get_by_id(user_id)
 
     async def login_user(self, email: str, password: str) -> dict[str, str]:
-        user = await self.repository.get_by_email(email)
+        normalized_email = email.strip().lower()
+        user = await self.repository.get_by_email(normalized_email)
         if not user:
             raise InvalidCredentialsException
 
@@ -44,16 +46,20 @@ class UserService:
         phone: str,
         password: str,
     ) -> UserModel:
-        existing = await self.repository.get_by_email_or_phone(email, phone)
+        normalized_email = email.strip().lower()
+        existing = await self.repository.get_by_email_or_phone(normalized_email, phone)
         if existing:
-            raise DuplicateEmailException
+            if existing.email and existing.email.strip().lower() == normalized_email:
+                raise DuplicateEmailException
+            if existing.phone == phone:
+                raise DuplicatePhoneException
 
         user = UserModel.create(
             first_name=first_name,
             last_name=last_name,
             phone=phone,
             password=await hash_password(password),
-            email=email,
+            email=normalized_email,
         )
         self.repository.add(user)
         await self.repository.session.flush()
@@ -70,6 +76,8 @@ class UserService:
         user = await self.repository.get_by_id(user_id)
         if not user:
             raise UserNotFoundException
+        await self.repository.delete_all_user_tokens(user_id)
+        await self.repository.clear_guest_conversion_links(user_id)
         await self.repository.delete(user_id)
         await self.repository.session.commit()
         return user

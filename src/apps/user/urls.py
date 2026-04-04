@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Query, Request, Security, status
+from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -77,7 +78,8 @@ async def create_user(
     body: Annotated[SignUpRequest, Body()],
     service: Annotated[UserService, Depends(get_user_service)],
 ) -> BaseResponse[BaseUserResponse]:
-    return BaseResponse(data=await service.create_user(**body.model_dump()))
+    user = await service.create_user(**body.model_dump())
+    return BaseResponse(data=BaseUserResponse.model_validate(user))
 
 
 # ==================== PROTECTED ROUTES ====================
@@ -103,7 +105,7 @@ async def get_self(
     service: Annotated[UserService, Depends(get_user_service)],
 ) -> BaseResponse[BaseUserResponse]:
     user: UserModel = request.state.user
-    return BaseResponse(data=await service.get_self(user_id=user.id))
+    return BaseResponse(data=BaseUserResponse.model_validate(await service.get_self(user_id=user.id)))
 
 
 @protected_router.get("/", status_code=status.HTTP_200_OK, operation_id="get_user_by_id")
@@ -112,8 +114,12 @@ async def get_user_by_id(
     request: Request,
     service: Annotated[UserService, Depends(get_user_service)],
 ) -> BaseResponse[BaseUserResponse]:
-    user: UserModel = request.state.user
-    return BaseResponse(data=await service.get_user_by_id(**query.model_dump()))
+    current_user: UserModel = request.state.user
+    if query.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    user = await service.get_user_by_id(current_user.id)
+    return BaseResponse(data=BaseUserResponse.model_validate(user))
 
 
 @protected_router.delete("/", status_code=status.HTTP_200_OK, operation_id="delete_user_by_id")
@@ -122,5 +128,9 @@ async def delete_user_by_id(
     request: Request,
     service: Annotated[UserService, Depends(get_user_service)],
 ) -> BaseResponse[BaseUserResponse]:
-    user: UserModel = request.state.user
-    return BaseResponse(data=await service.delete_user_by_id(**query.model_dump()))
+    current_user: UserModel = request.state.user
+    if query.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    deleted_user = await service.delete_user_by_id(current_user.id)
+    return BaseResponse(data=BaseUserResponse.model_validate(deleted_user))

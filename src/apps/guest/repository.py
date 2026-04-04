@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -28,8 +29,9 @@ class GuestRepository:
         )
 
     async def get_by_email(self, email: str) -> Optional[GuestModel]:
+        normalized_email = email.strip().lower()
         return await self._session.scalar(
-            select(GuestModel).where(GuestModel.email == email)
+            select(GuestModel).where(GuestModel.email == normalized_email)
         )
 
     async def get_by_phone(self, phone: str) -> Optional[GuestModel]:
@@ -65,6 +67,7 @@ class GuestRepository:
         self, token_hash: str, guest_id: UUID, expires_at: datetime
     ) -> GuestRefreshTokenModel:
         token = GuestRefreshTokenModel(
+            id=uuid.uuid4(),
             token_hash=token_hash,
             guest_id=guest_id,
             expires_at=expires_at,

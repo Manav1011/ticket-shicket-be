@@ -10,6 +10,14 @@ class DuplicateEmailException(CustomException):
     message = constants.DUPLICATE_EMAIL
 
 
+class DuplicatePhoneException(BadRequestError):
+    """
+    Custom exception for phone duplication.
+    """
+
+    message = "Phone number already exists."
+
+
 class InvalidCredentialsException(UnauthorizedError):
     """
     Custom exception to show a generic error message.
