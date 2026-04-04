@@ -1,9 +1,14 @@
 erDiagram
+    USERS }|--o{ ORGANIZER_PAGES : owns
+    ORGANIZER_PAGES }|--o{ EVENTS : owns
+    USERS }|--o{ EVENTS : creates
     USERS }|--o{ TICKETS : owns
     USERS }|--o{ ALLOCATIONS : initiates
     USERS }|--o{ ALLOCATIONS : receives
     USERS }|--o{ ORDERS : places
 
+    EVENTS }|--o{ EVENT_MEDIA_ASSETS : has
+    EVENTS }|--o{ EVENT_FAQS : has
     EVENTS }|--o{ EVENT_DAYS : has
     EVENTS }|--o{ TICKET_TYPES : has
     EVENTS }|--o{ TICKETS : has
@@ -33,17 +38,92 @@ erDiagram
         UUID id PK
         TEXT username
         TEXT email
+        TEXT password_hash
+        TEXT status
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    GUESTS {
+        UUID id PK
+        TEXT signature UK
+        TEXT user_agent
+        TEXT ip_address
+        TEXT status
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    ORGANIZER_PAGES {
+        UUID id PK
+        UUID owner_user_id FK
+        TEXT name
+        TEXT slug UK
+        TEXT bio
+        TEXT logo_url
+        TEXT cover_image_url
+        TEXT website_url
+        TEXT instagram_url
+        TEXT facebook_url
+        TEXT youtube_url
+        TEXT visibility
+        TEXT status
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     EVENTS {
         UUID id PK
+        UUID organizer_page_id FK
+        UUID created_by_user_id FK
         TEXT title
+        TEXT slug UK
         TEXT description
-        TEXT location
+        TEXT event_type
+        TEXT status
+        TEXT location_mode
+        TEXT timezone
         DATE start_date
         DATE end_date
-        TEXT distribution_mode
+        TEXT venue_name
+        TEXT venue_address
+        TEXT venue_city
+        TEXT venue_state
+        TEXT venue_country
+        NUMERIC venue_latitude
+        NUMERIC venue_longitude
+        TEXT venue_google_place_id
+        TEXT online_event_url
+        TEXT recorded_event_url
+        TIMESTAMP published_at
         TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    EVENT_MEDIA_ASSETS {
+        UUID id PK
+        UUID event_id FK
+        TEXT asset_type
+        TEXT storage_key
+        TEXT public_url
+        TEXT title
+        TEXT caption
+        TEXT alt_text
+        INT sort_order
+        BOOLEAN is_primary
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    EVENT_FAQS {
+        UUID id PK
+        UUID event_id FK
+        TEXT question
+        TEXT answer
+        INT sort_order
+        BOOLEAN is_published
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     EVENT_DAYS {
@@ -55,6 +135,7 @@ erDiagram
         TIMESTAMP end_time
         INT next_ticket_index
         TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     TICKET_TYPES {
@@ -63,7 +144,9 @@ erDiagram
         TEXT name
         TEXT category
         NUMERIC price
+        TEXT currency
         TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     DAY_TICKET_ALLOCATIONS {
@@ -72,6 +155,7 @@ erDiagram
         UUID ticket_type_id FK
         INT quantity
         TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     TICKETS {
@@ -85,6 +169,7 @@ erDiagram
         UUID locked_by_order_id FK
         TIMESTAMP lock_expires_at
         TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     ALLOCATIONS {
@@ -96,6 +181,7 @@ erDiagram
         TEXT source_type
         TEXT status
         TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     ALLOCATION_TICKETS {
@@ -113,6 +199,7 @@ erDiagram
         NUMERIC final_amount
         TEXT status
         TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     COUPONS {
@@ -129,6 +216,7 @@ erDiagram
         TIMESTAMP valid_until
         BOOLEAN is_active
         TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     ORDER_COUPONS {

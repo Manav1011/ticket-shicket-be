@@ -1,19 +1,103 @@
-Perfect — now we’ll lock this as your **final production schema (v4)** including:
+# TicketShicket Base Schema (v5)
 
-* ✅ Multi-day events
-* ✅ Allocation system
-* ✅ Redis bitmap + DB persistence
-* ✅ Scan logs
-* ✅ Optional bitmap snapshots
+This document captures the current core schema direction for TicketShicket.
 
-This is something you can **directly implement with SQLC + pgx** 🚀
+The key change in this version is the ownership model:
+
+- `User` is the login identity
+- `Guest` is the anonymous identity
+- `OrganizerPage` is the public brand/container for events
+- `Event` belongs to an `OrganizerPage`, not directly to a `User`
+
+This structure supports:
+
+- multiple organizer pages per user
+- public and private organizer pages
+- draft-first event creation
+- S3-backed media and content blocks for the public event page
+- the existing ticketing, allocation, ordering, and scanning model
 
 ---
 
-# 🧠 FINAL ARCHITECTURE (v4)
+# 1. Identity and Organizer Layer
+
+```text
+User
+ ├── OrganizerPage
+ └── created / updates Events
+
+Guest
+
+OrganizerPage
+ └── Event
+```
+
+## 1.1 User
+
+```sql
+CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+
+    status TEXT NOT NULL DEFAULT 'active', -- active / disabled / deleted
+
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
+);
+```
+
+## 1.2 Guest
+
+```sql
+CREATE TABLE guests (
+    id UUID PRIMARY KEY,
+    signature TEXT NOT NULL UNIQUE,
+    user_agent TEXT,
+    ip_address TEXT,
+
+    status TEXT NOT NULL DEFAULT 'active',
+
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
+);
+```
+
+## 1.3 OrganizerPage
+
+```sql
+CREATE TABLE organizer_pages (
+    id UUID PRIMARY KEY,
+    owner_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    bio TEXT,
+
+    logo_url TEXT,
+    cover_image_url TEXT,
+    website_url TEXT,
+    instagram_url TEXT,
+    facebook_url TEXT,
+    youtube_url TEXT,
+
+    visibility TEXT NOT NULL DEFAULT 'private', -- public / private
+    status TEXT NOT NULL DEFAULT 'active', -- active / archived
+
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
+);
+```
+
+---
+
+# 2. Event Layer
 
 ```text
 Event
+ ├── EventMediaAsset
+ ├── EventFAQ
  ├── EventDay
  │     ├── DayTicketAllocation
  │     ├── ScanLog
@@ -28,29 +112,92 @@ Event
  └── Order
 ```
 
----
-
-# 🏗️ 1. 🎤 Event
+## 2.1 Event
 
 ```sql
 CREATE TABLE events (
     id UUID PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT,
-    location TEXT,
 
+    organizer_page_id UUID NOT NULL REFERENCES organizer_pages(id) ON DELETE CASCADE,
+    created_by_user_id UUID NOT NULL REFERENCES users(id),
+
+    title TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    description TEXT,
+
+    event_type TEXT, -- concert / conference / meetup / workshop / custom
+    status TEXT NOT NULL DEFAULT 'draft', -- draft / published / archived
+
+    location_mode TEXT NOT NULL DEFAULT 'venue', -- venue / online / recorded / hybrid
+
+    timezone TEXT NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
 
-    distribution_mode TEXT NOT NULL, -- DIRECT / SPLIT / HYBRID
+    venue_name TEXT,
+    venue_address TEXT,
+    venue_city TEXT,
+    venue_state TEXT,
+    venue_country TEXT,
+    venue_latitude NUMERIC,
+    venue_longitude NUMERIC,
+    venue_google_place_id TEXT,
 
-    created_at TIMESTAMP DEFAULT now()
+    online_event_url TEXT,
+    recorded_event_url TEXT,
+
+    published_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
+);
+```
+
+## 2.2 EventMediaAsset
+
+S3 stores the file, but the database stores the event-facing metadata.
+
+```sql
+CREATE TABLE event_media_assets (
+    id UUID PRIMARY KEY,
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+
+    asset_type TEXT NOT NULL, -- banner / gallery_image / gallery_video / promo_video
+    storage_key TEXT NOT NULL,
+    public_url TEXT,
+
+    title TEXT,
+    caption TEXT,
+    alt_text TEXT,
+    sort_order INT NOT NULL DEFAULT 0,
+    is_primary BOOLEAN NOT NULL DEFAULT false,
+
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
+);
+```
+
+## 2.3 EventFAQ
+
+```sql
+CREATE TABLE event_faqs (
+    id UUID PRIMARY KEY,
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    is_published BOOLEAN NOT NULL DEFAULT true,
+
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
 );
 ```
 
 ---
 
-# 📅 2. EventDay
+# 3. Scheduling and Ticket Definition
+
+## 3.1 EventDay
 
 ```sql
 CREATE TABLE event_days (
@@ -62,17 +209,16 @@ CREATE TABLE event_days (
     start_time TIMESTAMP,
     end_time TIMESTAMP,
 
-    next_ticket_index INT NOT NULL DEFAULT 1, -- 🔥 TRACKS NEXT AVAILABLE TICKET INDEX
+    next_ticket_index INT NOT NULL DEFAULT 1,
 
     created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
 
     UNIQUE (event_id, day_index)
 );
 ```
 
----
-
-# 🏷️ 3. TicketType
+## 3.2 TicketType
 
 ```sql
 CREATE TABLE ticket_types (
@@ -80,17 +226,17 @@ CREATE TABLE ticket_types (
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
 
     name TEXT NOT NULL,
-    category TEXT NOT NULL, -- ONLINE / B2B
+    category TEXT NOT NULL, -- ONLINE / B2B / PUBLIC
 
     price NUMERIC NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'INR',
 
-    created_at TIMESTAMP DEFAULT now()
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
 );
 ```
 
----
-
-# 🔗 4. DayTicketAllocation
+## 3.3 DayTicketAllocation
 
 ```sql
 CREATE TABLE day_ticket_allocations (
@@ -102,14 +248,13 @@ CREATE TABLE day_ticket_allocations (
     quantity INT NOT NULL CHECK (quantity > 0),
 
     created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
 
     UNIQUE (event_day_id, ticket_type_id)
 );
 ```
 
----
-
-# 🎟️ 5. Ticket
+## 3.4 Ticket
 
 ```sql
 CREATE TABLE tickets (
@@ -121,14 +266,15 @@ CREATE TABLE tickets (
 
     ticket_index INT NOT NULL,
 
-    owner_user_id UUID,
+    owner_user_id UUID REFERENCES users(id),
 
-    status TEXT NOT NULL DEFAULT 'active', -- active / cancelled
+    status TEXT NOT NULL DEFAULT 'active', -- active / cancelled / used
 
     locked_by_order_id UUID,
     lock_expires_at TIMESTAMP,
 
     created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
 
     UNIQUE (event_day_id, ticket_index)
 );
@@ -136,7 +282,9 @@ CREATE TABLE tickets (
 
 ---
 
-# 🔄 6. Allocation
+# 4. Movement and Money
+
+## 4.1 Allocation
 
 ```sql
 CREATE TABLE allocations (
@@ -144,21 +292,20 @@ CREATE TABLE allocations (
 
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
 
-    from_user_id UUID,
-    to_user_id UUID NOT NULL,
+    from_user_id UUID REFERENCES users(id),
+    to_user_id UUID NOT NULL REFERENCES users(id),
 
     order_id UUID,
 
     source_type TEXT NOT NULL, -- POOL / USER
-    status TEXT NOT NULL,      -- pending / completed / failed
+    status TEXT NOT NULL, -- pending / completed / failed
 
-    created_at TIMESTAMP DEFAULT now()
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
 );
 ```
 
----
-
-# 🔗 7. AllocationTicket
+## 4.2 AllocationTicket
 
 ```sql
 CREATE TABLE allocation_tickets (
@@ -169,9 +316,7 @@ CREATE TABLE allocation_tickets (
 );
 ```
 
----
-
-# 💳 8. Order
+## 4.3 Order
 
 ```sql
 CREATE TABLE orders (
@@ -180,7 +325,7 @@ CREATE TABLE orders (
     event_id UUID NOT NULL REFERENCES events(id),
 
     type TEXT NOT NULL, -- PURCHASE / TRANSFER
-    user_id UUID NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id),
 
     subtotal_amount NUMERIC NOT NULL,
     discount_amount NUMERIC NOT NULL DEFAULT 0,
@@ -188,50 +333,12 @@ CREATE TABLE orders (
 
     status TEXT NOT NULL, -- pending / paid / failed / expired
 
-    created_at TIMESTAMP DEFAULT now()
-);
-```
-
----
-
-# 📊 9. ScanLog (🔥 CRITICAL)
-
-```sql
-CREATE TABLE scan_logs (
-    id BIGSERIAL PRIMARY KEY,
-
-    event_day_id UUID NOT NULL REFERENCES event_days(id) ON DELETE CASCADE,
-    ticket_index INT NOT NULL,
-
-    scanned_at TIMESTAMP DEFAULT now(),
-
-    UNIQUE (event_day_id, ticket_index)
-);
-```
-
----
-
-👉 Guarantees:
-
-* No duplicate successful scans
-* Perfect bitmap reconstruction
-
----
-
-# 💾 10. Bitmap Snapshot (Optional but Included)
-
-```sql
-CREATE TABLE event_day_bitmap_snapshots (
-    event_day_id UUID PRIMARY KEY REFERENCES event_days(id) ON DELETE CASCADE,
-
-    bitmap_data BYTEA NOT NULL,
+    created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
 );
 ```
 
----
-
-# 🎟️ 11. Coupon
+## 4.4 Coupon
 
 ```sql
 CREATE TABLE coupons (
@@ -252,134 +359,87 @@ CREATE TABLE coupons (
     valid_until TIMESTAMP NOT NULL,
 
     is_active BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMP DEFAULT now()
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
 );
 ```
 
----
-
-# 🔗 12. OrderCoupon
+## 4.5 OrderCoupon
 
 ```sql
 CREATE TABLE order_coupons (
     order_id UUID PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
     coupon_id UUID NOT NULL REFERENCES coupons(id),
-
-    discount_applied NUMERIC NOT NULL, -- 🔥 IMMUTABLE 
-
-    created_at TIMESTAMP DEFAULT now()
+    discount_applied NUMERIC NOT NULL DEFAULT 0
 );
 ```
 
 ---
 
-👉 Used for:
+# 5. Scanning and Recovery
 
-* Faster recovery
-* Not updated per scan
-
----
-
-# ⚡ INDEXES (IMPORTANT)
-
----
-
-## Tickets
+## 5.1 ScanLog
 
 ```sql
-CREATE INDEX idx_tickets_owner ON tickets(owner_user_id);
-CREATE INDEX idx_tickets_event ON tickets(event_id);
-CREATE INDEX idx_tickets_event_day ON tickets(event_day_id);
-CREATE INDEX idx_tickets_type ON tickets(ticket_type_id);
+CREATE TABLE scan_logs (
+    id BIGSERIAL PRIMARY KEY,
+
+    event_day_id UUID NOT NULL REFERENCES event_days(id) ON DELETE CASCADE,
+    ticket_index INT NOT NULL,
+
+    scanned_at TIMESTAMP DEFAULT now(),
+
+    UNIQUE (event_day_id, ticket_index)
+);
 ```
 
----
-
-## Scan Logs
+## 5.2 EventDayBitmapSnapshot
 
 ```sql
-CREATE INDEX idx_scan_logs_event_day ON scan_logs(event_day_id);
+CREATE TABLE event_day_bitmap_snapshots (
+    event_day_id UUID PRIMARY KEY REFERENCES event_days(id) ON DELETE CASCADE,
+
+    bitmap_data BYTEA NOT NULL,
+    updated_at TIMESTAMP DEFAULT now()
+);
 ```
 
 ---
 
-## Allocations
+# 6. Key Relationships
 
-```sql
-CREATE INDEX idx_allocations_from_user ON allocations(from_user_id);
-CREATE INDEX idx_allocations_to_user ON allocations(to_user_id);
-CREATE INDEX idx_allocations_event ON allocations(event_id);
-```
-
----
-
-## Orders
-
-```sql
-CREATE INDEX idx_orders_event ON orders(event_id);
-CREATE INDEX idx_orders_user ON orders(user_id);
-```
-
----
-
-# 🔥 REDIS STRUCTURE (FINAL)
-
-```text
-event_day:{event_day_id}:bitmap
-```
+- `users` owns many `organizer_pages`
+- `organizer_pages` owns many `events`
+- `events` owns many `event_days`
+- `events` owns many `ticket_types`
+- `events` owns many `event_media_assets`
+- `events` owns many `event_faqs`
+- `event_days` owns many `day_ticket_allocations`
+- `ticket_types` are allocated across event days through `day_ticket_allocations`
+- `event_days` own many `tickets`
+- `tickets` belong to one `user` when assigned
+- `allocations` track ticket movement between users
+- `orders` record payment state, not ownership
+- `scan_logs` and `event_day_bitmap_snapshots` support real-time validation and recovery
 
 ---
 
-# ⚡ FINAL FLOW SUMMARY
+# 7. Notes for Phase 0 and 1
 
----
+For the draft-first event creation flow, the important phase 0 entities are:
 
-## 🎟 Ticket Creation
+- `users`
+- `guests`
+- `organizer_pages`
+- `events`
+- `event_media_assets`
+- `event_faqs`
 
-```text
-DayTicketAllocation → generate tickets
-```
+For phase 1, the important ticketing entities are:
 
----
+- `event_days`
+- `ticket_types`
+- `day_ticket_allocations`
+- `tickets`
 
-## 🎯 Scan
-
-```text
-QR → decode
-   ↓
-Redis bitmap (SETBIT)
-   ↓
-Publish event
-   ↓
-Worker → insert scan_logs
-```
-
----
-
-## 🔁 Recovery
-
-```text
-scan_logs → rebuild bitmap
-```
-
----
-
-## ⚡ Optional Fast Recovery
-
-```text
-snapshot → replay recent logs
-```
-
----
-
-# 🧠 FINAL MENTAL MODEL
-
-```text
-DB → ownership + history
-Redis → real-time state
-NATS → async bridge
-```
-
----
-
-Just tell me 👍
+The rest of the schema supports ownership movement, payment, and scanning once the core event setup flow is stable.
