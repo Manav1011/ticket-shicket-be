@@ -13,8 +13,10 @@ from .response import BaseUserResponse
 from .service import UserService
 from .repository import UserRepository
 from auth.dependencies import get_current_user
-from auth.schemas import RefreshRequest, TokenPair
+from auth.schemas import RefreshRequest, TokenPair, RefreshRequestWithJti
+from auth.blocklist import TokenBlocklist
 from db.session import db_session
+from db.redis import redis
 from utils.schema import BaseResponse
 from utils.cookies import set_auth_cookies
 from config import settings
@@ -24,7 +26,10 @@ protected_router = APIRouter(prefix="/api/user", tags=["User"], dependencies=[De
 
 
 def get_user_service(session: Annotated[AsyncSession, Depends(db_session)]) -> UserService:
-    return UserService(UserRepository(session))
+    return UserService(
+        UserRepository(session),
+        TokenBlocklist(redis=redis),
+    )
 
 
 # ==================== PUBLIC ROUTES ====================
@@ -67,16 +72,6 @@ async def refresh_token(
     return await service.refresh_user(body.refresh_token)
 
 
-@router.post("/logout", status_code=status.HTTP_200_OK, operation_id="logout")
-async def logout(
-    body: RefreshRequest,
-    service: Annotated[UserService, Depends(get_user_service)],
-):
-    """Logout endpoint. Revokes the refresh token."""
-    await service.logout_user(body.refresh_token)
-    return BaseResponse(message="Logged out successfully")
-
-
 @router.post("/create", status_code=status.HTTP_201_CREATED, operation_id="create_user")
 async def create_user(
     body: Annotated[SignUpRequest, Body()],
@@ -86,6 +81,21 @@ async def create_user(
 
 
 # ==================== PROTECTED ROUTES ====================
+
+@protected_router.post("/logout", status_code=status.HTTP_200_OK, operation_id="logout")
+async def logout(
+    request: Request,
+    body: RefreshRequestWithJti,
+    service: Annotated[UserService, Depends(get_user_service)],
+):
+    """Logout endpoint. Revokes refresh token and blocklists access token."""
+    user: UserModel = request.state.user  # from auth dependency
+    await service.logout_user(
+        refresh_token=body.refresh_token,
+        access_token_jti=body.access_token_jti,
+    )
+    return BaseResponse(message="Logged out successfully")
+
 
 @protected_router.get("/self", status_code=status.HTTP_200_OK, operation_id="get_self")
 async def get_self(

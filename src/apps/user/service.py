@@ -10,6 +10,7 @@ from .exceptions import (
 from .models import UserModel
 from .repository import UserRepository
 from auth.password import hash_password, verify_password
+from auth.blocklist import TokenBlocklist
 from auth.jwt import create_tokens
 from exceptions import UnauthorizedError
 from config import settings
@@ -18,8 +19,9 @@ from config import settings
 class UserService:
     """Business logic for user operations."""
 
-    def __init__(self, repository: UserRepository) -> None:
+    def __init__(self, repository: UserRepository, blocklist: TokenBlocklist) -> None:
         self.repository = repository
+        self._blocklist = blocklist
 
     async def get_self(self, user_id: UUID) -> UserModel:
         return await self.repository.get_by_id(user_id)
@@ -72,10 +74,18 @@ class UserService:
         await self.repository.session.commit()
         return user
 
-    async def logout_user(self, refresh_token: str) -> None:
-        """Revoke a refresh token (logout)."""
+    async def logout_user(
+        self,
+        refresh_token: str,
+        access_token_jti: str | None = None,
+    ) -> None:
+        """Revoke refresh token and optionally blocklist access token by jti."""
         token_hash = self._hash_token(refresh_token)
         await self.repository.revoke_refresh_token(token_hash)
+
+        if access_token_jti:
+            await self._blocklist.add(access_token_jti, ttl=int(settings.ACCESS_TOKEN_EXP))
+
         await self.repository.session.commit()
 
     async def refresh_user(self, refresh_token: str) -> dict[str, str]:

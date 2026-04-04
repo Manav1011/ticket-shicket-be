@@ -19,3 +19,9 @@ class TokenPair(BaseModel):
 class RefreshRequest(BaseModel):
     """Request body for token refresh."""
     refresh_token: str
+
+
+class RefreshRequestWithJti(BaseModel):
+    """Request body for logout with optional access token jti."""
+    refresh_token: str
+    access_token_jti: str | None = None
