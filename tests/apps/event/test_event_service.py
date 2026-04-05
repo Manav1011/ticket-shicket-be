@@ -55,6 +55,9 @@ async def test_create_event_day_and_start_scan_from_same_service():
     event_repo.get_by_id_for_owner.return_value = event
     event_repo.create_event_day.return_value = day
     event_repo.get_event_day_for_owner.return_value = day
+    event_repo.count_event_days.return_value = 1
+    event_repo.count_ticket_types.return_value = 0
+    event_repo.count_ticket_allocations.return_value = 0
     event_repo.session = AsyncMock()
     service = EventService(event_repo, organizer_repo)
 
@@ -84,3 +87,194 @@ async def test_ended_scan_cannot_restart():
 
     with pytest.raises(InvalidScanTransition):
         await service.start_scan(uuid4(), uuid4())
+
+
+@pytest.mark.asyncio
+async def test_update_basic_info_marks_basic_info_complete():
+    owner_id = uuid4()
+    event_id = uuid4()
+    organizer_repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.session = AsyncMock()
+    event = SimpleNamespace(
+        id=event_id,
+        title=None,
+        description=None,
+        event_type=None,
+        event_access_type="ticketed",
+        location_mode=None,
+        timezone=None,
+        setup_status={},
+    )
+    event_repo.get_by_id_for_owner.return_value = event
+    event_repo.count_event_days.return_value = 0
+    event_repo.count_ticket_types.return_value = 0
+    event_repo.count_ticket_allocations.return_value = 0
+    service = EventService(event_repo, organizer_repo)
+
+    updated = await service.update_basic_info(
+        owner_id,
+        event_id,
+        title="Ahmedabad Startup Meetup",
+        description="Founders and builders meetup",
+        event_type="meetup",
+        event_access_type="open",
+        location_mode="venue",
+        timezone="Asia/Kolkata",
+    )
+
+    assert updated.setup_status["basic_info"] is True
+    assert updated.setup_status["tickets"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_basic_info_preserves_omitted_fields():
+    owner_id = uuid4()
+    event_id = uuid4()
+    organizer_repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.session = AsyncMock()
+    event = SimpleNamespace(
+        id=event_id,
+        title="Existing title",
+        description="Existing description",
+        event_type="meetup",
+        event_access_type="ticketed",
+        location_mode="venue",
+        timezone="Asia/Kolkata",
+        setup_status={},
+    )
+    event_repo.get_by_id_for_owner.return_value = event
+    event_repo.count_event_days.return_value = 0
+    event_repo.count_ticket_types.return_value = 0
+    event_repo.count_ticket_allocations.return_value = 0
+    service = EventService(event_repo, organizer_repo)
+
+    updated = await service.update_basic_info(owner_id, event_id, title="Updated title")
+
+    assert updated.title == "Updated title"
+    assert updated.description == "Existing description"
+    assert updated.event_access_type == "ticketed"
+    assert updated.location_mode == "venue"
+
+
+@pytest.mark.asyncio
+async def test_get_readiness_reports_missing_sections_from_setup_status():
+    owner_id = uuid4()
+    event_id = uuid4()
+    organizer_repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.session = AsyncMock()
+    event_repo.get_by_id_for_owner.return_value = SimpleNamespace(
+        id=event_id,
+        setup_status={"basic_info": True, "schedule": False, "tickets": False},
+    )
+    service = EventService(event_repo, organizer_repo)
+
+    readiness = await service.get_readiness(owner_id, event_id)
+
+    assert readiness["completed_sections"] == ["basic_info"]
+    assert "schedule" in readiness["missing_sections"]
+    assert "Add at least one event day" in readiness["blocking_issues"]
+
+
+@pytest.mark.asyncio
+async def test_create_event_day_marks_schedule_complete():
+    owner_id = uuid4()
+    event_id = uuid4()
+    event = SimpleNamespace(
+        id=event_id,
+        title="Ahmedabad Startup Meetup",
+        event_access_type="open",
+        location_mode="venue",
+        timezone="Asia/Kolkata",
+        setup_status={},
+    )
+    day = SimpleNamespace(
+        id=uuid4(),
+        event_id=event_id,
+        day_index=1,
+        date=datetime(2026, 4, 15).date(),
+        start_time=None,
+        end_time=None,
+        scan_status="not_started",
+        scan_started_at=None,
+        scan_paused_at=None,
+        scan_ended_at=None,
+        next_ticket_index=1,
+    )
+    organizer_repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.get_by_id_for_owner.return_value = event
+    event_repo.create_event_day.return_value = day
+    event_repo.count_event_days.return_value = 1
+    event_repo.count_ticket_types.return_value = 0
+    event_repo.count_ticket_allocations.return_value = 0
+    event_repo.session = AsyncMock()
+    service = EventService(event_repo, organizer_repo)
+
+    await service.create_event_day(owner_id, event_id, 1, datetime(2026, 4, 15).date())
+
+    assert event.setup_status["schedule"] is True
+
+
+@pytest.mark.asyncio
+async def test_pause_resume_end_scan_enforces_valid_transitions():
+    owner_id = uuid4()
+    organizer_repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.session = AsyncMock()
+    day = SimpleNamespace(
+        id=uuid4(),
+        event_id=uuid4(),
+        scan_status="active",
+        scan_started_at=None,
+        scan_paused_at=None,
+        scan_ended_at=None,
+        next_ticket_index=1,
+    )
+    event_repo.get_event_day_for_owner.return_value = day
+    service = EventService(event_repo, organizer_repo)
+
+    paused = await service.pause_scan(owner_id, day.id)
+    assert paused.scan_status == "paused"
+
+    resumed = await service.resume_scan(owner_id, day.id)
+    assert resumed.scan_status == "active"
+
+    ended = await service.end_scan(owner_id, day.id)
+    assert ended.scan_status == "ended"
+
+
+@pytest.mark.asyncio
+async def test_update_event_day_preserves_omitted_fields():
+    owner_id = uuid4()
+    day_id = uuid4()
+    organizer_repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.session = AsyncMock()
+    day = SimpleNamespace(
+        id=day_id,
+        event_id=uuid4(),
+        day_index=1,
+        date=datetime(2026, 4, 15).date(),
+        start_time=datetime(2026, 4, 15, 10, 0, 0),
+        end_time=datetime(2026, 4, 15, 12, 0, 0),
+        scan_status="not_started",
+        scan_started_at=None,
+        scan_paused_at=None,
+        scan_ended_at=None,
+        next_ticket_index=1,
+    )
+    event_repo.get_event_day_for_owner.return_value = day
+    service = EventService(event_repo, organizer_repo)
+
+    updated = await service.update_event_day(
+        owner_id,
+        day_id,
+        start_time=datetime(2026, 4, 15, 11, 0, 0),
+    )
+
+    assert updated.start_time == datetime(2026, 4, 15, 11, 0, 0)
+    assert updated.end_time == datetime(2026, 4, 15, 12, 0, 0)
+    assert updated.day_index == 1

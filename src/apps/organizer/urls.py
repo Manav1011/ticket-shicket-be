@@ -1,13 +1,16 @@
 from typing import Annotated
+from uuid import UUID
+
 from fastapi import APIRouter, Body, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.event.response import EventSummaryResponse
 from auth.dependencies import get_current_user
 from db.session import db_session
 from utils.schema import BaseResponse
 
 from .repository import OrganizerRepository
-from .request import CreateOrganizerPageRequest
+from .request import CreateOrganizerPageRequest, UpdateOrganizerPageRequest
 from .response import OrganizerPageResponse
 from .service import OrganizerService
 
@@ -22,6 +25,15 @@ def get_organizer_service(
     return OrganizerService(OrganizerRepository(session))
 
 
+@router.get("")
+async def list_organizers(
+    request: Request,
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+) -> BaseResponse[list[OrganizerPageResponse]]:
+    organizers = await service.list_organizers(request.state.user.id)
+    return BaseResponse(data=[OrganizerPageResponse.model_validate(item) for item in organizers])
+
+
 @router.post("")
 async def create_organizer(
     request: Request,
@@ -33,3 +45,29 @@ async def create_organizer(
         **body.model_dump(),
     )
     return BaseResponse(data=OrganizerPageResponse.model_validate(organizer))
+
+
+@router.patch("/{organizer_id}")
+async def update_organizer(
+    organizer_id: UUID,
+    request: Request,
+    body: Annotated[UpdateOrganizerPageRequest, Body()],
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+) -> BaseResponse[OrganizerPageResponse]:
+    organizer = await service.update_organizer(
+        request.state.user.id,
+        organizer_id,
+        **body.model_dump(exclude_unset=True),
+    )
+    return BaseResponse(data=OrganizerPageResponse.model_validate(organizer))
+
+
+@router.get("/{organizer_id}/events")
+async def list_organizer_events(
+    organizer_id: UUID,
+    request: Request,
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+    status: str | None = None,
+) -> BaseResponse[list[EventSummaryResponse]]:
+    events = await service.list_organizer_events(request.state.user.id, organizer_id, status)
+    return BaseResponse(data=[EventSummaryResponse.model_validate(item) for item in events])

@@ -8,9 +8,9 @@ from config import AppEnvironment, settings
 from handlers import start_exception_handlers
 from lifespan import lifespan
 from utils.schema import BaseValidationResponse
-from apps.organizer import organizer_router
-from apps.event import event_router
-from apps.ticketing import ticketing_router
+from apps.organizer.urls import router as organizer_router
+from apps.event.urls import router as event_router
+from apps.ticketing.urls import router as ticketing_router
 from apps.user import user_router, protected_user_router
 from apps.guest import guest_router, protected_guest_router
 

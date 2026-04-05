@@ -4,6 +4,16 @@ from uuid import UUID
 from utils.schema import BaseResponse, CamelCaseModel
 
 
+class EventSummaryResponse(CamelCaseModel):
+    id: UUID
+    organizer_page_id: UUID
+    title: str | None = None
+    status: str
+    event_access_type: str
+    setup_status: dict
+    created_at: datetime
+
+
 class EventResponse(CamelCaseModel):
     id: UUID
     organizer_page_id: UUID
@@ -44,6 +54,12 @@ class EventDayResponse(CamelCaseModel):
     scan_paused_at: datetime | None = None
     scan_ended_at: datetime | None = None
     next_ticket_index: int
+
+
+class EventReadinessResponse(CamelCaseModel):
+    completed_sections: list[str]
+    missing_sections: list[str]
+    blocking_issues: list[str]
 
 
 class EventEnvelopeResponse(BaseResponse[EventResponse]):

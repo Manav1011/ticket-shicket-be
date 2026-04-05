@@ -1,3 +1,5 @@
-from .urls import router as organizer_router
+"""Organizer app package.
 
-__all__ = ["organizer_router"]
+Keep package imports side-effect free so model and schema imports do not pull in
+router wiring during test collection or migration discovery.
+"""

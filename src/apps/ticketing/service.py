@@ -27,6 +27,18 @@ class TicketingService:
         await self.repository.session.refresh(ticket_type)
         return ticket_type
 
+    async def list_ticket_types(self, owner_user_id, event_id):
+        event = await self.event_repository.get_by_id_for_owner(event_id, owner_user_id)
+        if event is None:
+            return []
+        return await self.repository.list_ticket_types_for_event(event_id)
+
+    async def list_allocations(self, owner_user_id, event_id):
+        event = await self.event_repository.get_by_id_for_owner(event_id, owner_user_id)
+        if event is None:
+            return []
+        return await self.repository.list_allocations_for_event(event_id)
+
     async def allocate_ticket_type_to_day(
         self, owner_user_id, event_id, event_day_id, ticket_type_id, quantity
     ):

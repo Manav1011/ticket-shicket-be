@@ -26,6 +26,16 @@ def get_ticketing_service(
     return TicketingService(TicketingRepository(session), event_repository, event_repository)
 
 
+@router.get("/{event_id}/ticket-types")
+async def list_ticket_types(
+    event_id: UUID,
+    request: Request,
+    service: Annotated[TicketingService, Depends(get_ticketing_service)],
+) -> BaseResponse[list[TicketTypeResponse]]:
+    ticket_types = await service.list_ticket_types(request.state.user.id, event_id)
+    return BaseResponse(data=[TicketTypeResponse.model_validate(item) for item in ticket_types])
+
+
 @router.post("/{event_id}/ticket-types")
 async def create_ticket_type(
     event_id: UUID,
@@ -37,6 +47,18 @@ async def create_ticket_type(
         request.state.user.id, event_id, **body.model_dump()
     )
     return BaseResponse(data=TicketTypeResponse.model_validate(ticket_type))
+
+
+@router.get("/{event_id}/ticket-allocations")
+async def list_ticket_allocations(
+    event_id: UUID,
+    request: Request,
+    service: Annotated[TicketingService, Depends(get_ticketing_service)],
+) -> BaseResponse[list[DayTicketAllocationResponse]]:
+    allocations = await service.list_allocations(request.state.user.id, event_id)
+    return BaseResponse(
+        data=[DayTicketAllocationResponse.model_validate(item) for item in allocations]
+    )
 
 
 @router.post("/{event_id}/ticket-allocations")

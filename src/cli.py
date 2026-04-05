@@ -80,7 +80,7 @@ class AppGenerator:
         n = self.app_name
         title = n.title()
         return {
-            self.base_path / "__init__.py": f"from .urls import router as {n}_router\n\n__all__ = [\"{n}_router\"]\n",
+            self.base_path / "__init__.py": f"\"\"\"{title} app package.\"\"\"\n",
             self.base_path / "models.py": f"""import uuid
 from typing import Self
 

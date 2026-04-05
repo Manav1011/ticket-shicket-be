@@ -1,3 +1,5 @@
-from .urls import router as ticketing_router
+"""Ticketing app package.
 
-__all__ = ["ticketing_router"]
+Keep package imports side-effect free so model imports remain safe inside other
+app repositories and services.
+"""

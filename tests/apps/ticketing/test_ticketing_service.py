@@ -55,3 +55,34 @@ async def test_open_event_rejects_ticket_type_creation():
             price=0,
             currency="INR",
         )
+
+
+@pytest.mark.asyncio
+async def test_list_ticket_setup_returns_ticket_types_and_allocations_for_owner_event():
+    owner_id = uuid4()
+    event_id = uuid4()
+    repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.get_by_id_for_owner.return_value = SimpleNamespace(
+        id=event_id, event_access_type="ticketed"
+    )
+    repo.list_ticket_types_for_event.return_value = [
+        SimpleNamespace(
+            id=uuid4(),
+            event_id=event_id,
+            name="General",
+            category="PUBLIC",
+            price=0,
+            currency="INR",
+        )
+    ]
+    repo.list_allocations_for_event.return_value = [
+        SimpleNamespace(id=uuid4(), event_day_id=uuid4(), ticket_type_id=uuid4(), quantity=25)
+    ]
+    service = TicketingService(repo, event_repo, event_repo)
+
+    ticket_types = await service.list_ticket_types(owner_id, event_id)
+    allocations = await service.list_allocations(owner_id, event_id)
+
+    assert len(ticket_types) == 1
+    assert len(allocations) == 1
