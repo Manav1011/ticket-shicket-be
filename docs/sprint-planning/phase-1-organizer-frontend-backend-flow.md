@@ -70,7 +70,7 @@ flowchart TD
 | Method | Route | Purpose |
 |---|---|---|
 | `POST` | `/api/events/drafts` | Create a new draft event shell |
-| `GET` | `/api/events/{event_id}` | Fetch the draft event shell |
+| `GET` | `/api/events/{event_id}` | Fetch only the draft event shell, not the full editor payload |
 | `PATCH` | `/api/events/{event_id}/basic-info` | Progressively patch event basic info |
 | `GET` | `/api/events/{event_id}/readiness` | Return section completion and blocking issues |
 | `POST` | `/api/events/{event_id}/days` | Create an event day |
@@ -265,9 +265,11 @@ GET /api/events/{event_id}/ticket-allocations
 
 `GET /api/events/{event_id}/ticket-types`:
 - lists ticket types for the event
+- if owner-scoped event lookup fails, the current implementation returns an empty list instead of raising an event-not-found style error
 
 `GET /api/events/{event_id}/ticket-allocations`:
 - lists allocations by joining ticket allocations to ticket types under the same event
+- if owner-scoped event lookup fails, the current implementation returns an empty list instead of raising an event-not-found style error
 
 **Important current behavior**
 
@@ -478,6 +480,10 @@ Example request:
 - creates the ticket type
 - does **not** generate concrete tickets yet
 
+**Important current behavior**
+
+Creating a ticket type does **not** currently recompute `setup_status`. That means `GET /api/events/{event_id}/readiness` can stay stale until some later event-side recomputation happens.
+
 **Helpful read route**
 
 ```http
@@ -523,6 +529,10 @@ Example request:
 - starts ticket numbering from `event_day.next_ticket_index`
 - increments `next_ticket_index`
 
+**Important current behavior**
+
+Creating a ticket allocation does **not** currently recompute `setup_status`. That means readiness may still show `tickets` as incomplete until some later recomputation happens.
+
 **Helpful read route**
 
 ```http
@@ -550,6 +560,10 @@ GET /api/events/{event_id}/readiness
   - `completed_sections`
   - `missing_sections`
   - `blocking_issues`
+
+**Important current behavior**
+
+`GET /api/events/{event_id}/readiness` reads the stored `setup_status`; it does not recalculate everything on the fly inside the readiness route itself.
 
 **Current readiness sections**
 
@@ -603,6 +617,10 @@ Backend behavior:
 - rejects only if the day is already `ended`
 - sets `scan_status = active`
 - sets `scan_started_at` the first time scanning is started
+
+**Important current behavior**
+
+`start-scan` is not currently limited to only `not_started`. It can be called again for a paused day because the only hard rejection is `ended`.
 
 ### Pause scan
 
@@ -668,6 +686,23 @@ How each field is derived:
 ### The frontend should compose the editor state from multiple routes
 
 `GET /api/events/{event_id}` returns only the event shell. It does not embed event days, ticket types, or ticket allocations. The frontend should fetch those sections separately.
+
+### Ticketing list routes currently fail soft on missing owner-scoped event access
+
+`GET /api/events/{event_id}/ticket-types` and `GET /api/events/{event_id}/ticket-allocations` currently return empty lists if the owner-scoped event lookup fails. They do not currently raise a stronger not-found or forbidden-style domain error.
+
+### Readiness is currently stored-state driven, not always instantly recomputed
+
+The backend recomputes `setup_status` during:
+- event basic-info patch
+- event day create
+- event day delete
+
+The backend does **not** currently recompute `setup_status` during:
+- ticket type creation
+- ticket allocation creation
+
+So readiness is accurate after event-side edits, but ticket progress can temporarily lag behind the actual ticket setup until a later recomputation happens.
 
 ### Progressive patching is currently supported in these three editable sections
 
