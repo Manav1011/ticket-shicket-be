@@ -8,6 +8,9 @@ from config import AppEnvironment, settings
 from handlers import start_exception_handlers
 from lifespan import lifespan
 from utils.schema import BaseValidationResponse
+from apps.organizer import organizer_router
+from apps.event import event_router
+from apps.ticketing import ticketing_router
 from apps.user import user_router, protected_user_router
 from apps.guest import guest_router, protected_guest_router
 
@@ -56,6 +59,9 @@ def create_app(debug: bool = False) -> FastAPI:
     base_router.include_router(protected_user_router)
     base_router.include_router(guest_router)
     base_router.include_router(protected_guest_router)
+    base_router.include_router(organizer_router)
+    base_router.include_router(event_router)
+    base_router.include_router(ticketing_router)
     _app.include_router(base_router, responses={422: {"model": BaseValidationResponse}})
 
     init_middlewares(_app)    

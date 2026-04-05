@@ -4,6 +4,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy.engine import Connection
 
+import db.model_registry  # noqa: F401
 from db.base import Base
 from db.session import engine
 

@@ -81,6 +81,8 @@ erDiagram
         TEXT description
         TEXT event_type
         TEXT status
+        TEXT event_access_type
+        JSONB setup_status
         TEXT location_mode
         TEXT timezone
         DATE start_date
@@ -133,6 +135,10 @@ erDiagram
         DATE date
         TIMESTAMP start_time
         TIMESTAMP end_time
+        TEXT scan_status
+        TIMESTAMP scan_started_at
+        TIMESTAMP scan_paused_at
+        TIMESTAMP scan_ended_at
         INT next_ticket_index
         TIMESTAMP created_at
         TIMESTAMP updated_at
@@ -164,6 +170,8 @@ erDiagram
         UUID event_day_id FK
         UUID ticket_type_id FK
         INT ticket_index
+        TEXT seat_label
+        JSONB seat_metadata
         UUID owner_user_id FK
         TEXT status
         UUID locked_by_order_id FK

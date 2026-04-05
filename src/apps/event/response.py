@@ -1,0 +1,50 @@
+from datetime import date, datetime
+from uuid import UUID
+
+from utils.schema import BaseResponse, CamelCaseModel
+
+
+class EventResponse(CamelCaseModel):
+    id: UUID
+    organizer_page_id: UUID
+    created_by_user_id: UUID
+    title: str | None = None
+    slug: str | None = None
+    description: str | None = None
+    event_type: str | None = None
+    status: str
+    event_access_type: str
+    setup_status: dict
+    location_mode: str | None = None
+    timezone: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    venue_name: str | None = None
+    venue_address: str | None = None
+    venue_city: str | None = None
+    venue_state: str | None = None
+    venue_country: str | None = None
+    venue_latitude: float | None = None
+    venue_longitude: float | None = None
+    venue_google_place_id: str | None = None
+    online_event_url: str | None = None
+    recorded_event_url: str | None = None
+    published_at: datetime | None = None
+
+
+class EventDayResponse(CamelCaseModel):
+    id: UUID
+    event_id: UUID
+    day_index: int
+    date: date
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    scan_status: str
+    scan_started_at: datetime | None = None
+    scan_paused_at: datetime | None = None
+    scan_ended_at: datetime | None = None
+    next_ticket_index: int
+
+
+class EventEnvelopeResponse(BaseResponse[EventResponse]):
+    pass

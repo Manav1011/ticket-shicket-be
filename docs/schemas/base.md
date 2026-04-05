@@ -1,4 +1,4 @@
-# TicketShicket Base Schema (v5)
+# TicketShicket Base Schema (v6)
 
 This document captures the current core schema direction for TicketShicket.
 
@@ -14,6 +14,8 @@ This structure supports:
 - multiple organizer pages per user
 - public and private organizer pages
 - draft-first event creation
+- open and ticketed event access modes
+- setup progress tracking for guided event completion
 - S3-backed media and content blocks for the public event page
 - the existing ticketing, allocation, ordering, and scanning model
 
@@ -121,18 +123,20 @@ CREATE TABLE events (
     organizer_page_id UUID NOT NULL REFERENCES organizer_pages(id) ON DELETE CASCADE,
     created_by_user_id UUID NOT NULL REFERENCES users(id),
 
-    title TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
+    title TEXT,
+    slug TEXT UNIQUE,
     description TEXT,
 
     event_type TEXT, -- concert / conference / meetup / workshop / custom
     status TEXT NOT NULL DEFAULT 'draft', -- draft / published / archived
+    event_access_type TEXT NOT NULL DEFAULT 'ticketed', -- open / ticketed
+    setup_status JSONB NOT NULL DEFAULT '{}'::jsonb, -- section completion flags for guided setup
 
-    location_mode TEXT NOT NULL DEFAULT 'venue', -- venue / online / recorded / hybrid
+    location_mode TEXT, -- venue / online / recorded / hybrid
 
-    timezone TEXT NOT NULL,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
+    timezone TEXT,
+    start_date DATE,
+    end_date DATE,
 
     venue_name TEXT,
     venue_address TEXT,
@@ -209,6 +213,11 @@ CREATE TABLE event_days (
     start_time TIMESTAMP,
     end_time TIMESTAMP,
 
+    scan_status TEXT NOT NULL DEFAULT 'not_started', -- not_started / active / paused / ended
+    scan_started_at TIMESTAMP,
+    scan_paused_at TIMESTAMP,
+    scan_ended_at TIMESTAMP,
+
     next_ticket_index INT NOT NULL DEFAULT 1,
 
     created_at TIMESTAMP DEFAULT now(),
@@ -265,6 +274,8 @@ CREATE TABLE tickets (
     ticket_type_id UUID NOT NULL REFERENCES ticket_types(id),
 
     ticket_index INT NOT NULL,
+    seat_label TEXT,
+    seat_metadata JSONB,
 
     owner_user_id UUID REFERENCES users(id),
 
@@ -414,10 +425,14 @@ CREATE TABLE event_day_bitmap_snapshots (
 - `events` owns many `ticket_types`
 - `events` owns many `event_media_assets`
 - `events` owns many `event_faqs`
+- `events` can be either `open` or `ticketed`
+- `events` track section completion through `setup_status`
 - `event_days` owns many `day_ticket_allocations`
 - `ticket_types` are allocated across event days through `day_ticket_allocations`
 - `event_days` own many `tickets`
+- `event_days` control scanning state through `scan_status`
 - `tickets` belong to one `user` when assigned
+- `tickets` can optionally carry seat labels and metadata for future reserved seating
 - `allocations` track ticket movement between users
 - `orders` record payment state, not ownership
 - `scan_logs` and `event_day_bitmap_snapshots` support real-time validation and recovery
@@ -443,3 +458,12 @@ For phase 1, the important ticketing entities are:
 - `tickets`
 
 The rest of the schema supports ownership movement, payment, and scanning once the core event setup flow is stable.
+
+Suggested backend rules for this version:
+
+- draft creation only needs an organizer page
+- draft events may keep core publish fields empty until the organizer fills them
+- `open` events do not create ticket rows or allocations
+- `ticketed` events use the full ticket flow
+- scanning is controlled manually per `event_day`
+- publish-time validation should be stricter than draft-time validation
