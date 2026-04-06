@@ -4,19 +4,37 @@ This document outlines the recommended module implementation order for TicketShi
 
 ---
 
-## 🚀 Phase 0: Foundation (Non-negotiable base)
 
-### 1. Event Management Module
+## 🚀 Phase 0: User & Guest Management (Non-negotiable base)
+
+### 1. User Management Module
 **Why first?**
+- All other modules depend on a robust user system for authentication, authorization, and ownership.
+
+**Prerequisites:**
+- Project setup (FastAPI / Go / DB)
+
+### 2. Guest Management Module
+**Why now?**
+- Enables guest flows, invitations, and non-registered user participation.
+
+**Prerequisites:**
+- User module done
+
+---
+
+## 🧱 Phase 1: Event & Event Day Foundation
+
+### 3. Event Management Module
+**Why now?**
 - Everything depends on Event.
 
 **Prerequisites:**
-- Basic user system (even minimal: user_id)
-- Project setup (FastAPI / Go / DB)
+- User system (even minimal: user_id)
 - Auth (basic)
 
-### 2. Event Day Module
-**Why early?**
+### 4. Event Day Module
+**Why now?**
 - Multi-day affects ticket creation, scanning, validation.
 
 **Prerequisites:**
@@ -24,11 +42,12 @@ This document outlines the recommended module implementation order for TicketShi
 
 ---
 
-## 🧱 Phase 1: Core Ticket System (MOST IMPORTANT)
+
+## 🧱 Phase 2: Core Ticket System (MOST IMPORTANT)
 
 👉 If this is wrong, everything breaks later
 
-### 3. Ticket Type Module
+### 5. Ticket Type Module
 **Why now?**
 - Defines structure before creating tickets
 
@@ -36,7 +55,7 @@ This document outlines the recommended module implementation order for TicketShi
 - Event
 - Event Day
 
-### 4. Ticket Inventory Module
+### 6. Ticket Inventory Module
 **Why critical?**
 - This is your core asset layer
 
@@ -52,16 +71,17 @@ This document outlines the recommended module implementation order for TicketShi
 
 ---
 
-## 🔄 Phase 2: Ownership & Movement
 
-### 5. Allocation Module (🔥 CORE LOGIC)
+## 🔄 Phase 3: Ownership & Movement
+
+### 7. Allocation Module (🔥 CORE LOGIC)
 **Why before orders?**
 - Ownership = Allocation (not Order)
 
 **Prerequisites:**
 - Ticket module stable
 
-### 6. Allocation Mapping Module
+### 8. Allocation Mapping Module
 **Why now?**
 - Needed to track ticket-level movements
 
@@ -70,9 +90,10 @@ This document outlines the recommended module implementation order for TicketShi
 
 ---
 
-## 💰 Phase 3: Payment Layer
 
-### 7. Order Module
+## 💰 Phase 4: Payment Layer
+
+### 9. Order Module
 **Why after allocation?**
 - Order triggers allocation, not vice versa
 
@@ -80,7 +101,7 @@ This document outlines the recommended module implementation order for TicketShi
 - Allocation logic clear
 - Ticket locking concept understood
 
-### 8. Ticket Locking Module
+### 10. Ticket Locking Module
 **Why now?**
 - Needed before integrating payments
 
@@ -88,7 +109,7 @@ This document outlines the recommended module implementation order for TicketShi
 - Ticket module
 - Order module
 
-### 9. Coupon Module (Optional but clean to add here)
+### 11. Coupon Module (Optional but clean to add here)
 **Why here?**
 - Extends order layer only
 
@@ -97,16 +118,18 @@ This document outlines the recommended module implementation order for TicketShi
 
 ---
 
-## 📲 Phase 4: Basic End-to-End Flow
+
+## 📲 Phase 5: Basic End-to-End Flow
 
 At this point you should support:
 - User → Buy Ticket → Payment → Ownership updated
 
 ---
 
-## ⚡ Phase 5: Scanning System (Real-time Layer)
 
-### 10. QR & Scan Module
+## ⚡ Phase 6: Scanning System (Real-time Layer)
+
+### 12. QR & Scan Module
 **Why late?**
 - Depends on tickets, ownership, event days
 
@@ -114,7 +137,7 @@ At this point you should support:
 - Ticket system complete
 - EventDay
 
-### 11. Real-Time Validation Module (Redis layer)
+### 13. Real-Time Validation Module (Redis layer)
 **Why now?**
 - Optimization layer — not core logic
 
@@ -124,16 +147,17 @@ At this point you should support:
 
 ---
 
-## 📊 Phase 6: Persistence & Reliability
 
-### 12. Scan Logs Module
+## 📊 Phase 7: Persistence & Reliability
+
+### 14. Scan Logs Module
 **Why after scanning?**
 - To persist real-time decisions
 
 **Prerequisites:**
 - Scan system working
 
-### 13. Recovery Module
+### 15. Recovery Module
 **Why last?**
 - Only needed after system is running
 
@@ -145,33 +169,38 @@ At this point you should support:
 
 ## 🧠 FINAL BUILD ORDER (Sprint Plan)
 
+
 **Phase 0:**
-1. Event
-2. EventDay
+1. User
+2. Guest
 
 **Phase 1:**
-3. TicketType
-4. Ticket
+3. Event
+4. EventDay
 
 **Phase 2:**
-5. Allocation
-6. AllocationTicket
+5. TicketType
+6. Ticket
 
 **Phase 3:**
-7. Order
-8. Ticket Locking
-9. Coupon
+7. Allocation
+8. AllocationTicket
 
 **Phase 4:**
-→ End-to-end purchase flow
+9. Order
+10. Ticket Locking
+11. Coupon
 
 **Phase 5:**
-10. QR Scan
-11. Real-time validation (Redis)
+→ End-to-end purchase flow
 
 **Phase 6:**
-12. Scan Logs
-13. Recovery
+12. QR Scan
+13. Real-time validation (Redis)
+
+**Phase 7:**
+14. Scan Logs
+15. Recovery
 
 ---
 

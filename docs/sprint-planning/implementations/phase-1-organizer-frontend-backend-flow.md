@@ -1,7 +1,11 @@
-# Phase 1 Organizer Frontend and Backend Flow
 
-_Generated: 2026-04-06_  
-_Scope: Current Phase 1 + Phase 1B backend implementation only_
+# Organizer Journey: Backend & Frontend Flow
+
+_Generated: 2026-04-06_
+
+_Scope: Covers Phase 1 (Event & Event Day Foundation), Phase 2 (Core Ticket System), and the beginnings of Phase 3 (Ownership & Movement) from the phase planning document. It also includes scan lifecycle controls (early Phase 6), but does not cover payments, public event pages, or advanced scanning/validation._
+
+_See phase-planning.md for the full roadmap and phase breakdown. This document details the implemented flows and backend/frontend routes for the organizer journey as of this stage._
 
 ## Purpose
 
