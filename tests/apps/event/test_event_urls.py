@@ -27,13 +27,17 @@ async def test_create_draft_event_returns_draft_summary():
     owner_id = uuid4()
     organizer_id = uuid4()
     request = SimpleNamespace(state=SimpleNamespace(user=SimpleNamespace(id=owner_id)))
-    body = CreateDraftEventRequest(organizer_page_id=organizer_id)
+    body = CreateDraftEventRequest(
+        organizer_page_id=organizer_id,
+        title="Test Event",
+        event_access_type="ticketed",
+    )
     service = AsyncMock()
     service.create_draft_event.return_value = SimpleNamespace(
         id=uuid4(),
         organizer_page_id=organizer_id,
         created_by_user_id=owner_id,
-        title=None,
+        title="Test Event",
         slug=None,
         description=None,
         event_type=None,

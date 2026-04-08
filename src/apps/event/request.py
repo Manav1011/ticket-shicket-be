@@ -1,4 +1,5 @@
 from datetime import date as Date, datetime
+from typing import Literal
 from uuid import UUID
 
 from utils.schema import CamelCaseModel
@@ -6,6 +7,8 @@ from utils.schema import CamelCaseModel
 
 class CreateDraftEventRequest(CamelCaseModel):
     organizer_page_id: UUID
+    title: str
+    event_access_type: Literal["open", "ticketed"]
 
 
 class UpdateEventBasicInfoRequest(CamelCaseModel):

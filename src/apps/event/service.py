@@ -9,7 +9,7 @@ class EventService:
         self.repository = repository
         self.organizer_repository = organizer_repository
 
-    async def create_draft_event(self, owner_user_id, organizer_page_id):
+    async def create_draft_event(self, owner_user_id, organizer_page_id, title, event_access_type):
         organizer = await self.organizer_repository.get_by_id_for_owner(
             organizer_page_id, owner_user_id
         )
@@ -19,12 +19,12 @@ class EventService:
         event = EventModel(
             organizer_page_id=organizer_page_id,
             created_by_user_id=owner_user_id,
-            title=None,
+            title=title,
             slug=None,
             description=None,
             event_type=None,
             status="draft",
-            event_access_type="ticketed",
+            event_access_type=event_access_type,
             setup_status={},
             location_mode=None,
             timezone=None,
@@ -137,46 +137,78 @@ class EventService:
         if event:
             await self._refresh_setup_status(event)
 
-    async def start_scan(self, owner_user_id, event_day_id):
+    async def start_scan(self, owner_user_id, event_day_id, notes: str | None = None):
         day = await self.repository.get_event_day_for_owner(event_day_id, owner_user_id)
         if not day:
             raise EventNotFound
         if day.scan_status == "ended":
             raise InvalidScanTransition
+        previous_status = day.scan_status
         day.scan_status = "active"
         if day.scan_started_at is None:
             day.scan_started_at = datetime.utcnow()
+        await self.repository.create_scan_status_history(
+            event_day_id=event_day_id,
+            changed_by_user_id=owner_user_id,
+            previous_status=previous_status,
+            new_status="active",
+            notes=notes,
+        )
         await self.repository.session.flush()
         return day
 
-    async def pause_scan(self, owner_user_id, event_day_id):
+    async def pause_scan(self, owner_user_id, event_day_id, notes: str | None = None):
         day = await self.repository.get_event_day_for_owner(event_day_id, owner_user_id)
         if not day:
             raise EventNotFound
         if day.scan_status != "active":
             raise InvalidScanTransition
+        previous_status = day.scan_status
         day.scan_status = "paused"
         day.scan_paused_at = datetime.utcnow()
+        await self.repository.create_scan_status_history(
+            event_day_id=event_day_id,
+            changed_by_user_id=owner_user_id,
+            previous_status=previous_status,
+            new_status="paused",
+            notes=notes,
+        )
         await self.repository.session.flush()
         return day
 
-    async def resume_scan(self, owner_user_id, event_day_id):
+    async def resume_scan(self, owner_user_id, event_day_id, notes: str | None = None):
         day = await self.repository.get_event_day_for_owner(event_day_id, owner_user_id)
         if not day:
             raise EventNotFound
         if day.scan_status != "paused":
             raise InvalidScanTransition
+        previous_status = day.scan_status
         day.scan_status = "active"
+        await self.repository.create_scan_status_history(
+            event_day_id=event_day_id,
+            changed_by_user_id=owner_user_id,
+            previous_status=previous_status,
+            new_status="active",
+            notes=notes,
+        )
         await self.repository.session.flush()
         return day
 
-    async def end_scan(self, owner_user_id, event_day_id):
+    async def end_scan(self, owner_user_id, event_day_id, notes: str | None = None):
         day = await self.repository.get_event_day_for_owner(event_day_id, owner_user_id)
         if not day:
             raise EventNotFound
         if day.scan_status == "ended":
             raise InvalidScanTransition
+        previous_status = day.scan_status
         day.scan_status = "ended"
         day.scan_ended_at = datetime.utcnow()
+        await self.repository.create_scan_status_history(
+            event_day_id=event_day_id,
+            changed_by_user_id=owner_user_id,
+            previous_status=previous_status,
+            new_status="ended",
+            notes=notes,
+        )
         await self.repository.session.flush()
         return day

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.organizer.models import OrganizerPageModel
 from apps.ticketing.models import DayTicketAllocationModel, TicketTypeModel
 
-from .models import EventDayModel, EventModel
+from .models import EventDayModel, EventModel, ScanStatusHistoryModel
 
 
 class EventRepository:
@@ -91,3 +91,33 @@ class EventRepository:
             .join(TicketTypeModel, DayTicketAllocationModel.ticket_type_id == TicketTypeModel.id)
             .where(TicketTypeModel.event_id == event_id)
         )
+
+    async def create_scan_status_history(
+        self,
+        event_day_id: UUID,
+        changed_by_user_id: UUID,
+        previous_status: str,
+        new_status: str,
+        notes: str | None = None,
+    ) -> ScanStatusHistoryModel:
+        history = ScanStatusHistoryModel(
+            event_day_id=event_day_id,
+            changed_by_user_id=changed_by_user_id,
+            previous_status=previous_status,
+            new_status=new_status,
+            notes=notes,
+        )
+        self._session.add(history)
+        await self._session.flush()
+        await self._session.refresh(history)
+        return history
+
+    async def list_scan_status_history(
+        self, event_day_id: UUID
+    ) -> list[ScanStatusHistoryModel]:
+        result = await self._session.scalars(
+            select(ScanStatusHistoryModel)
+            .where(ScanStatusHistoryModel.event_day_id == event_day_id)
+            .order_by(ScanStatusHistoryModel.created_at.desc())
+        )
+        return list(result.all())

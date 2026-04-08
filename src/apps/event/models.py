@@ -76,3 +76,17 @@ class EventDayModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     next_ticket_index: Mapped[int] = mapped_column(
         Integer, default=1, server_default=text("1"), nullable=False
     )
+
+
+class ScanStatusHistoryModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
+    __tablename__ = "scan_status_history"
+
+    event_day_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("event_days.id"), index=True, nullable=False
+    )
+    changed_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), index=True, nullable=False
+    )
+    previous_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    new_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)

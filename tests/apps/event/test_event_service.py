@@ -23,13 +23,13 @@ async def test_create_draft_event_uses_organizer_ownership_and_defaults():
     event_repo.session.refresh = AsyncMock()
     service = EventService(event_repo, organizer_repo)
 
-    event = await service.create_draft_event(owner_id, organizer_id)
+    event = await service.create_draft_event(owner_id, organizer_id, "Test Event", "ticketed")
 
     assert event.organizer_page_id == organizer_id
     assert event.status == "draft"
     assert event.event_access_type == "ticketed"
     assert event.setup_status == {}
-    assert event.title is None
+    assert event.title == "Test Event"
     assert event.slug is None
     assert event.start_date is None
     assert event.end_date is None

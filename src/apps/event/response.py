@@ -62,5 +62,15 @@ class EventReadinessResponse(CamelCaseModel):
     blocking_issues: list[str]
 
 
+class ScanStatusHistoryResponse(CamelCaseModel):
+    id: UUID
+    event_day_id: UUID
+    changed_by_user_id: UUID
+    previous_status: str
+    new_status: str
+    changed_at: datetime
+    notes: str | None = None
+
+
 class EventEnvelopeResponse(BaseResponse[EventResponse]):
     pass

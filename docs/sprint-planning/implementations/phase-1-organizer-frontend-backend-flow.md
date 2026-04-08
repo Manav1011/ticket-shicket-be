@@ -214,7 +214,9 @@ Example request:
 
 ```json
 {
-  "organizerPageId": "uuid"
+  "organizerPageId": "uuid",
+  "title": "Ahmedabad Startup Meetup",
+  "eventAccessType": "ticketed"
 }
 ```
 
@@ -226,10 +228,10 @@ Example request:
   - `status = draft`
   - `organizer_page_id`
   - `created_by_user_id`
-  - `event_access_type = ticketed` by default
+  - `title` (from request)
+  - `event_access_type` (from request, either "open" or "ticketed")
   - `setup_status = {}`
 - leaves progressive fields nullable:
-  - `title`
   - `slug`
   - `description`
   - `event_type`
@@ -240,7 +242,7 @@ Example request:
 
 **Why this matters**
 
-This is the core of the draft-first UX. The event can exist before the organizer has entered the rest of the event information.
+Requiring `title` and `event_access_type` at creation prevents orphaned empty draft shells from piling up. The organizer chooses the event path (open vs ticketed) upfront, and every draft has identity from the start. All other fields remain progressive.
 
 ### 5. Frontend opens the draft event editor
 
@@ -736,7 +738,7 @@ If the frontend wants to follow the current backend cleanly, the practical order
 
 1. `GET /api/organizers`
 2. `POST /api/organizers` if the user has none
-3. `POST /api/events/drafts`
+3. `POST /api/events/drafts` with `organizerPageId`, `title`, and `eventAccessType`
 4. `GET /api/events/{event_id}`
 5. `PATCH /api/events/{event_id}/basic-info`
 6. `POST /api/events/{event_id}/days`

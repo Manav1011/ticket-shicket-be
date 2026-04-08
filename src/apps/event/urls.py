@@ -11,7 +11,7 @@ from utils.schema import BaseResponse
 from apps.organizer.repository import OrganizerRepository
 from .repository import EventRepository
 from .request import CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest, UpdateEventDayRequest
-from .response import EventDayResponse, EventReadinessResponse, EventResponse
+from .response import EventDayResponse, EventReadinessResponse, EventResponse, ScanStatusHistoryResponse
 from .service import EventService
 
 router = APIRouter(prefix="/api/events", tags=["Event"], dependencies=[Depends(get_current_user)])
@@ -29,7 +29,12 @@ async def create_draft_event(
     body: Annotated[CreateDraftEventRequest, Body()],
     service: Annotated[EventService, Depends(get_event_service)],
 ) -> BaseResponse[EventResponse]:
-    event = await service.create_draft_event(request.state.user.id, body.organizer_page_id)
+    event = await service.create_draft_event(
+        request.state.user.id,
+        body.organizer_page_id,
+        body.title,
+        body.event_access_type,
+    )
     return BaseResponse(data=EventResponse.model_validate(event))
 
 
@@ -152,3 +157,21 @@ async def end_scan(
 ) -> BaseResponse[EventDayResponse]:
     day = await service.end_scan(request.state.user.id, event_day_id)
     return BaseResponse(data=EventDayResponse.model_validate(day))
+
+
+@router.get("/days/{event_day_id}/scan-history")
+async def get_scan_status_history(
+    event_day_id: UUID,
+    request: Request,
+    service: Annotated[EventService, Depends(get_event_service)],
+) -> BaseResponse[list[ScanStatusHistoryResponse]]:
+    day = await service.repository.get_event_day_for_owner(event_day_id, request.state.user.id)
+    if not day:
+        from .exceptions import EventNotFound
+        raise EventNotFound
+    history = await service.repository.list_scan_status_history(event_day_id)
+    return BaseResponse(
+        data=[
+            ScanStatusHistoryResponse.model_validate(h) for h in history
+        ]
+    )
