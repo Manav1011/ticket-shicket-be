@@ -57,7 +57,7 @@ class EventService:
         await self.repository.session.refresh(event)
         return event
 
-    def _build_setup_status(self, event, day_count, ticket_type_count, allocation_count):
+    async def _build_setup_status(self, event, day_count, ticket_type_count, allocation_count):
         basic_info_complete = all(
             [
                 getattr(event, "title", None),
@@ -70,17 +70,23 @@ class EventService:
         tickets_complete = getattr(event, "event_access_type", None) == EventAccessType.open or (
             ticket_type_count > 0 and allocation_count > 0
         )
+
+        # Check if banner asset exists
+        banner_assets = await self.repository.list_media_assets(event.id, asset_type="banner")
+        assets_complete = len(banner_assets) > 0
+
         return {
             "basic_info": basic_info_complete,
             "schedule": schedule_complete,
             "tickets": tickets_complete,
+            "assets": assets_complete,
         }
 
     async def _refresh_setup_status(self, event):
         day_count = await self.repository.count_event_days(event.id)
         ticket_type_count = await self.repository.count_ticket_types(event.id)
         allocation_count = await self.repository.count_ticket_allocations(event.id)
-        event.setup_status = self._build_setup_status(
+        event.setup_status = await self._build_setup_status(
             event, day_count, ticket_type_count, allocation_count
         )
         await self.repository.session.flush()
