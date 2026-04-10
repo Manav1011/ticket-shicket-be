@@ -1,11 +1,24 @@
 from datetime import datetime
 from uuid import UUID
+import json
 
 from apps.event.enums import EventAccessType, LocationMode
 
 from .exceptions import EventNotFound, InvalidScanTransition, OrganizerOwnershipError
 from .models import EventModel
 from .response import FieldErrorResponse
+
+
+def _serialize_for_json(obj):
+    """Recursively convert UUID objects to strings for JSON serialization."""
+    if isinstance(obj, UUID):
+        return str(obj)
+    elif isinstance(obj, dict):
+        return {k: _serialize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [_serialize_for_json(item) for item in obj]
+    else:
+        return obj
 
 
 class EventService:
@@ -205,7 +218,9 @@ class EventService:
 
         if not validation["can_publish"]:
             from .exceptions import CannotPublishEvent
-            raise CannotPublishEvent(validation)
+            # Convert UUID objects to strings for JSON serialization
+            validation_serializable = _serialize_for_json(validation)
+            raise CannotPublishEvent(validation_serializable)
 
         event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)
         event.status = "published"
