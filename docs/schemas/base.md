@@ -151,6 +151,7 @@ CREATE TABLE events (
     recorded_event_url TEXT,
 
     published_at TIMESTAMP,
+    is_published BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
 );

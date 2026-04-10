@@ -1,7 +1,11 @@
 from datetime import datetime
+from uuid import UUID
+
+from apps.event.enums import EventAccessType, LocationMode
 
 from .exceptions import EventNotFound, InvalidScanTransition, OrganizerOwnershipError
 from .models import EventModel
+from .response import FieldErrorResponse
 
 
 class EventService:
@@ -46,7 +50,7 @@ class EventService:
             ]
         )
         schedule_complete = day_count > 0
-        tickets_complete = getattr(event, "event_access_type", None) == "open" or (
+        tickets_complete = getattr(event, "event_access_type", None) == EventAccessType.open or (
             ticket_type_count > 0 and allocation_count > 0
         )
         return {
@@ -64,6 +68,152 @@ class EventService:
         )
         await self.repository.session.flush()
         return event.setup_status
+
+    def _validate_basic_info(self, event) -> list[FieldErrorResponse]:
+        """Validate basic_info section based on location_mode and event_access_type."""
+        errors = []
+
+        # Required for all events
+        if not getattr(event, 'title', None):
+            errors.append(FieldErrorResponse(field="title", message="Title is required", code="MISSING_REQUIRED_FIELD"))
+        if not getattr(event, 'event_access_type', None):
+            errors.append(FieldErrorResponse(field="event_access_type", message="Event access type is required", code="MISSING_REQUIRED_FIELD"))
+        if not getattr(event, 'location_mode', None):
+            errors.append(FieldErrorResponse(field="location_mode", message="Location mode is required", code="MISSING_REQUIRED_FIELD"))
+        if not getattr(event, 'timezone', None):
+            errors.append(FieldErrorResponse(field="timezone", message="Timezone is required", code="MISSING_REQUIRED_FIELD"))
+
+        # Location-specific validation
+        lm = getattr(event, 'location_mode', None)
+
+        # I3: Validate location_mode is a known value
+        if lm is not None and lm not in (LocationMode.venue, LocationMode.online, LocationMode.recorded, LocationMode.hybrid):
+            errors.append(FieldErrorResponse(field="location_mode", message=f"Invalid location_mode: {lm}", code="INVALID_FIELD_VALUE"))
+
+        if lm in (LocationMode.venue, LocationMode.hybrid):
+            venue_fields = [
+                ('venue_name', 'Venue name is required for venue events'),
+                ('venue_address', 'Venue address is required for venue events'),
+                ('venue_city', 'Venue city is required for venue events'),
+                ('venue_country', 'Venue country is required for venue events'),
+            ]
+            for field, msg in venue_fields:
+                if not getattr(event, field, None):
+                    errors.append(FieldErrorResponse(field=field, message=msg, code="MISSING_REQUIRED_FIELD"))
+
+        if lm in (LocationMode.online, LocationMode.hybrid):
+            if not getattr(event, 'online_event_url', None):
+                errors.append(FieldErrorResponse(field="online_event_url", message="Online event URL is required for online events", code="MISSING_REQUIRED_FIELD"))
+
+        if lm == LocationMode.recorded:
+            if not getattr(event, 'recorded_event_url', None):
+                errors.append(FieldErrorResponse(field="recorded_event_url", message="Recorded event URL is required for recorded events", code="MISSING_REQUIRED_FIELD"))
+
+        return errors
+
+    def _validate_schedule(self, event, days: list) -> list[FieldErrorResponse]:
+        """Validate schedule section - day count and day-level requirements."""
+        errors = []
+
+        if len(days) == 0:
+            errors.append(FieldErrorResponse(field="days", message="At least 1 event day is required", code="MISSING_REQUIRED_FIELD"))
+            return errors
+
+        for day in days:
+            if not getattr(day, 'date', None):
+                errors.append(FieldErrorResponse(field=f"day_{day.day_index}.date", message=f"Day {day.day_index}: date is required", code="MISSING_REQUIRED_FIELD"))
+
+            # start_time required for ticketed events
+            if getattr(event, 'event_access_type', None) == EventAccessType.ticketed:
+                if not getattr(day, 'start_time', None):
+                    errors.append(FieldErrorResponse(field=f"day_{day.day_index}.start_time", message=f"Day {day.day_index}: start time is required for ticketed events", code="MISSING_REQUIRED_FIELD"))
+
+        return errors
+
+    def _validate_tickets(self, event, ticket_types: list, allocations: list) -> list[FieldErrorResponse]:
+        """Validate tickets section - requires ticket types and allocations for ticketed events."""
+        errors = []
+
+        if getattr(event, 'event_access_type', None) == EventAccessType.open:
+            return errors
+
+        if len(ticket_types) == 0:
+            errors.append(FieldErrorResponse(field="ticket_types", message="At least 1 ticket type is required", code="MISSING_REQUIRED_FIELD"))
+
+        if len(allocations) == 0:
+            errors.append(FieldErrorResponse(field="allocations", message="At least 1 ticket allocation is required", code="MISSING_REQUIRED_FIELD"))
+            return errors
+
+        for alloc in allocations:
+            if getattr(alloc, 'quantity', 0) <= 0:
+                errors.append(FieldErrorResponse(field=f"allocation_{getattr(alloc, 'id', 'unknown')}.quantity", message="Allocation quantity must be greater than 0", code="INVALID_FIELD_VALUE"))
+
+        return errors
+
+    async def validate_for_publish(self, owner_user_id: UUID, event_id: UUID):
+        """Run all validations and return structured response for publish readiness."""
+        event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)
+        if not event:
+            raise EventNotFound
+
+        days = await self.repository.list_event_days(event_id)
+        ticket_types = await self.repository.list_ticket_types(event_id)
+        allocations = await self.repository.list_allocations(event_id)
+
+        basic_info_errors = self._validate_basic_info(event)
+        schedule_errors = self._validate_schedule(event, days)
+        ticket_errors = self._validate_tickets(event, ticket_types, allocations)
+
+        basic_info_complete = len(basic_info_errors) == 0
+        schedule_complete = len(schedule_errors) == 0
+        tickets_complete = len(ticket_errors) == 0
+
+        # Build blocking issues
+        blocking_issues = []
+        if not basic_info_complete:
+            blocking_issues.append("Complete basic_info section")
+        if not schedule_complete:
+            blocking_issues.append("Complete schedule section")
+        if not tickets_complete:
+            blocking_issues.append("Complete tickets section")
+
+        # Determine redirect hint (first incomplete section with errors)
+        redirect_hint = None
+        if not basic_info_complete and basic_info_errors:
+            redirect_hint = {"section": "basic_info", "fields": [e.field for e in basic_info_errors]}
+        elif not schedule_complete and schedule_errors:
+            redirect_hint = {"section": "schedule", "fields": [e.field for e in schedule_errors]}
+        elif not tickets_complete and ticket_errors:
+            redirect_hint = {"section": "tickets", "fields": [e.field for e in ticket_errors]}
+
+        return {
+            "can_publish": basic_info_complete and schedule_complete and tickets_complete,
+            "event_id": event_id,
+            "published_at": None,
+            "sections": {
+                "basic_info": {"complete": basic_info_complete, "errors": basic_info_errors},
+                "schedule": {"complete": schedule_complete, "errors": schedule_errors},
+                "tickets": {"complete": tickets_complete, "errors": ticket_errors},
+            },
+            "blocking_issues": blocking_issues,
+            "redirect_hint": redirect_hint,
+        }
+
+    async def publish_event(self, owner_user_id: UUID, event_id: UUID):
+        """Publish event if all validations pass. Returns updated event."""
+        validation = await self.validate_for_publish(owner_user_id, event_id)
+
+        if not validation["can_publish"]:
+            from .exceptions import CannotPublishEvent
+            raise CannotPublishEvent(validation)
+
+        event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)
+        event.status = "published"
+        event.is_published = True
+        event.published_at = datetime.utcnow()
+        await self.repository.session.flush()
+        await self.repository.session.refresh(event)
+        return event
 
     async def get_event_detail(self, owner_user_id, event_id):
         event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)

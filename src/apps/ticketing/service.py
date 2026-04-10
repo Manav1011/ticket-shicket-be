@@ -1,4 +1,15 @@
-from .exceptions import OpenEventDoesNotSupportTickets, TicketTypeNotFound
+from sqlalchemy.exc import IntegrityError
+
+from apps.event.enums import EventAccessType
+
+from .exceptions import (
+    DuplicateAllocation,
+    InvalidAllocation,
+    InvalidPrice,
+    InvalidQuantity,
+    OpenEventDoesNotSupportTickets,
+    TicketTypeNotFound,
+)
 from .models import TicketTypeModel
 
 
@@ -12,8 +23,12 @@ class TicketingService:
         self, owner_user_id, event_id, name, category, price, currency
     ):
         event = await self.event_repository.get_by_id_for_owner(event_id, owner_user_id)
-        if event.event_access_type != "ticketed":
+        if event.event_access_type != EventAccessType.ticketed:
             raise OpenEventDoesNotSupportTickets
+
+        # C2: Validate price >= 0
+        if price < 0:
+            raise InvalidPrice
 
         ticket_type = TicketTypeModel(
             event_id=event_id,
@@ -43,19 +58,35 @@ class TicketingService:
         self, owner_user_id, event_id, event_day_id, ticket_type_id, quantity
     ):
         event = await self.event_repository.get_by_id_for_owner(event_id, owner_user_id)
-        if event.event_access_type != "ticketed":
+        if event.event_access_type != EventAccessType.ticketed:
             raise OpenEventDoesNotSupportTickets
 
+        # C1: Verify ticket type belongs to this event
         ticket_type = await self.repository.get_ticket_type_for_event(ticket_type_id, event_id)
         if not ticket_type:
             raise TicketTypeNotFound
 
+        # C1: Verify day belongs to this event
         day = await self.event_day_repository.get_event_day_for_owner(
             event_day_id, owner_user_id
         )
-        allocation = await self.repository.create_day_allocation(
-            event_day_id, ticket_type_id, quantity
-        )
+        if not day or day.event_id != event_id:
+            raise InvalidAllocation("Event day does not belong to this event")
+
+        # I1: Validate quantity > 0
+        if quantity <= 0:
+            raise InvalidQuantity
+
+        # C3: Handle duplicate allocation gracefully
+        try:
+            allocation = await self.repository.create_day_allocation(
+                event_day_id, ticket_type_id, quantity
+            )
+        except IntegrityError as e:
+            if "uq_day_ticket_allocations" in str(e):
+                raise DuplicateAllocation
+            raise
+
         await self.repository.bulk_create_tickets(
             event_id,
             event_day_id,

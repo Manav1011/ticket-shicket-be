@@ -59,6 +59,7 @@ async def test_create_draft_event_returns_draft_summary():
         online_event_url=None,
         recorded_event_url=None,
         published_at=None,
+        is_published=False,
     )
 
     response = await create_draft_event(request=request, body=body, service=service)
@@ -124,6 +125,7 @@ async def test_get_event_detail_returns_owner_scoped_event():
         online_event_url=None,
         recorded_event_url=None,
         published_at=None,
+        is_published=False,
     )
 
     response = await get_event_detail(event_id=event_id, request=request, service=service)
@@ -171,6 +173,7 @@ async def test_update_basic_info_returns_recomputed_setup_status():
         online_event_url=None,
         recorded_event_url=None,
         published_at=None,
+        is_published=False,
     )
 
     response = await update_basic_info(
@@ -213,6 +216,7 @@ async def test_update_basic_info_forwards_only_set_fields():
         online_event_url=None,
         recorded_event_url=None,
         published_at=None,
+        is_published=False,
     )
 
     response = await update_basic_info(

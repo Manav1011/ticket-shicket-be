@@ -11,7 +11,7 @@ from utils.schema import BaseResponse
 from apps.organizer.repository import OrganizerRepository
 from .repository import EventRepository
 from .request import CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest, UpdateEventDayRequest
-from .response import EventDayResponse, EventReadinessResponse, EventResponse, ScanStatusHistoryResponse
+from .response import EventDayResponse, EventReadinessResponse, EventResponse, PublishValidationResponse, ScanStatusHistoryResponse
 from .service import EventService
 
 router = APIRouter(prefix="/api/events", tags=["Event"], dependencies=[Depends(get_current_user)])
@@ -71,6 +71,28 @@ async def get_event_readiness(
 ) -> BaseResponse[EventReadinessResponse]:
     readiness = await service.get_readiness(request.state.user.id, event_id)
     return BaseResponse(data=EventReadinessResponse.model_validate(readiness))
+
+
+@router.get("/{event_id}/publish-validations")
+async def get_publish_validations(
+    event_id: UUID,
+    request: Request,
+    service: Annotated[EventService, Depends(get_event_service)],
+) -> BaseResponse[PublishValidationResponse]:
+    """Check if event is ready to publish, return section-by-section validation errors."""
+    validation = await service.validate_for_publish(request.state.user.id, event_id)
+    return BaseResponse(data=PublishValidationResponse.model_validate(validation))
+
+
+@router.post("/{event_id}/publish")
+async def publish_event(
+    event_id: UUID,
+    request: Request,
+    service: Annotated[EventService, Depends(get_event_service)],
+) -> BaseResponse[EventResponse]:
+    """Publish event. Returns 400 with validation errors if not ready."""
+    event = await service.publish_event(request.state.user.id, event_id)
+    return BaseResponse(data=EventResponse.model_validate(event))
 
 
 @router.post("/{event_id}/days")

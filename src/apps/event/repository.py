@@ -92,6 +92,23 @@ class EventRepository:
             .where(TicketTypeModel.event_id == event_id)
         )
 
+    async def list_ticket_types(self, event_id: UUID) -> list[TicketTypeModel]:
+        result = await self._session.scalars(
+            select(TicketTypeModel)
+            .where(TicketTypeModel.event_id == event_id)
+            .order_by(TicketTypeModel.created_at.asc())
+        )
+        return list(result.all())
+
+    async def list_allocations(self, event_id: UUID) -> list[DayTicketAllocationModel]:
+        result = await self._session.scalars(
+            select(DayTicketAllocationModel)
+            .join(TicketTypeModel, DayTicketAllocationModel.ticket_type_id == TicketTypeModel.id)
+            .where(TicketTypeModel.event_id == event_id)
+            .order_by(DayTicketAllocationModel.created_at.asc())
+        )
+        return list(result.all())
+
     async def create_scan_status_history(
         self,
         event_day_id: UUID,

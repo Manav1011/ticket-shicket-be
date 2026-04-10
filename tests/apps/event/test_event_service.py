@@ -278,3 +278,174 @@ async def test_update_event_day_preserves_omitted_fields():
     assert updated.start_time == datetime(2026, 4, 15, 11, 0, 0)
     assert updated.end_time == datetime(2026, 4, 15, 12, 0, 0)
     assert updated.day_index == 1
+
+
+@pytest.mark.asyncio
+async def test_validate_for_publish_open_venue_complete():
+    """Open event with venue and all basic info complete should be ready."""
+    owner_id = uuid4()
+    event_id = uuid4()
+    event = SimpleNamespace(
+        id=event_id,
+        title="Open Workshop",
+        event_access_type="open",
+        location_mode="venue",
+        timezone="Asia/Kolkata",
+        venue_name="Community Hall",
+        venue_address="123 Main St",
+        venue_city="Pune",
+        venue_country="India",
+        online_event_url=None,
+        recorded_event_url=None,
+    )
+    day = SimpleNamespace(
+        id=uuid4(),
+        event_id=event_id,
+        day_index=1,
+        date=datetime(2026, 4, 15).date(),
+        start_time=None,
+        end_time=None,
+    )
+    organizer_repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.get_by_id_for_owner.return_value = event
+    event_repo.list_event_days.return_value = [day]
+    event_repo.list_ticket_types.return_value = []
+    event_repo.list_allocations.return_value = []
+    service = EventService(event_repo, organizer_repo)
+
+    validation = await service.validate_for_publish(owner_id, event_id)
+
+    assert validation["can_publish"] is True
+    assert validation["sections"]["basic_info"]["complete"] is True
+    assert validation["sections"]["schedule"]["complete"] is True
+    assert validation["sections"]["tickets"]["complete"] is True
+
+
+@pytest.mark.asyncio
+async def test_validate_for_publish_ticketed_missing_tickets():
+    """Ticketed event without ticket types should fail validation."""
+    owner_id = uuid4()
+    event_id = uuid4()
+    event = SimpleNamespace(
+        id=event_id,
+        title="Ticketed Workshop",
+        event_access_type="ticketed",
+        location_mode="venue",
+        timezone="Asia/Kolkata",
+        venue_name="Community Hall",
+        venue_address="123 Main St",
+        venue_city="Pune",
+        venue_country="India",
+        online_event_url=None,
+        recorded_event_url=None,
+    )
+    day = SimpleNamespace(
+        id=uuid4(),
+        event_id=event_id,
+        day_index=1,
+        date=datetime(2026, 4, 15).date(),
+        start_time=datetime(2026, 4, 15, 10, 0, 0),
+        end_time=None,
+    )
+    organizer_repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.get_by_id_for_owner.return_value = event
+    event_repo.list_event_days.return_value = [day]
+    event_repo.list_ticket_types.return_value = []
+    event_repo.list_allocations.return_value = []
+    service = EventService(event_repo, organizer_repo)
+
+    validation = await service.validate_for_publish(owner_id, event_id)
+
+    assert validation["can_publish"] is False
+    assert validation["sections"]["tickets"]["complete"] is False
+    assert len(validation["sections"]["tickets"]["errors"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_validate_for_publish_ticketed_no_start_time():
+    """Ticketed event day without start_time should fail schedule validation."""
+    owner_id = uuid4()
+    event_id = uuid4()
+    event = SimpleNamespace(
+        id=event_id,
+        title="Ticketed Workshop",
+        event_access_type="ticketed",
+        location_mode="venue",
+        timezone="Asia/Kolkata",
+        venue_name="Community Hall",
+        venue_address="123 Main St",
+        venue_city="Pune",
+        venue_country="India",
+        online_event_url=None,
+        recorded_event_url=None,
+    )
+    day = SimpleNamespace(
+        id=uuid4(),
+        event_id=event_id,
+        day_index=1,
+        date=datetime(2026, 4, 15).date(),
+        start_time=None,
+        end_time=None,
+    )
+    organizer_repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.get_by_id_for_owner.return_value = event
+    event_repo.list_event_days.return_value = [day]
+    event_repo.list_ticket_types.return_value = [SimpleNamespace(id=uuid4(), name="General")]
+    event_repo.list_allocations.return_value = [SimpleNamespace(id=uuid4(), quantity=50)]
+    service = EventService(event_repo, organizer_repo)
+
+    validation = await service.validate_for_publish(owner_id, event_id)
+
+    assert validation["can_publish"] is False
+    assert validation["sections"]["schedule"]["complete"] is False
+    assert any("start_time" in e.field for e in validation["sections"]["schedule"]["errors"])
+
+
+@pytest.mark.asyncio
+async def test_publish_event_sets_published_fields():
+    """Publishing event should set status, is_published, and published_at."""
+    owner_id = uuid4()
+    event_id = uuid4()
+    event = SimpleNamespace(
+        id=event_id,
+        title="Complete Event",
+        event_access_type="open",
+        location_mode="venue",
+        timezone="Asia/Kolkata",
+        venue_name="Community Hall",
+        venue_address="123 Main St",
+        venue_city="Pune",
+        venue_country="India",
+        online_event_url=None,
+        recorded_event_url=None,
+        status="draft",
+        is_published=False,
+        published_at=None,
+    )
+    day = SimpleNamespace(
+        id=uuid4(),
+        event_id=event_id,
+        day_index=1,
+        date=datetime(2026, 4, 15).date(),
+        start_time=None,
+        end_time=None,
+    )
+    organizer_repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.get_by_id_for_owner.return_value = event
+    event_repo.list_event_days.return_value = [day]
+    event_repo.list_ticket_types.return_value = []
+    event_repo.list_allocations.return_value = []
+    event_repo.session = AsyncMock()
+    event_repo.session.flush = AsyncMock()
+    event_repo.session.refresh = AsyncMock()
+    service = EventService(event_repo, organizer_repo)
+
+    published_event = await service.publish_event(owner_id, event_id)
+
+    assert event.status == "published"
+    assert event.is_published is True
+    assert event.published_at is not None

@@ -51,7 +51,7 @@ async def test_open_event_rejects_ticket_type_creation():
             owner_user_id=uuid4(),
             event_id=event.id,
             name="General",
-            category="PUBLIC",
+            category="public",
             price=0,
             currency="INR",
         )
@@ -71,7 +71,7 @@ async def test_list_ticket_setup_returns_ticket_types_and_allocations_for_owner_
             id=uuid4(),
             event_id=event_id,
             name="General",
-            category="PUBLIC",
+            category="public",
             price=0,
             currency="INR",
         )

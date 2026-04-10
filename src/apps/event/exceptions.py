@@ -12,3 +12,7 @@ class EventNotFound(NotFoundError):
 
 class InvalidScanTransition(UnprocessableEntityError):
     message = "Invalid scan state transition."
+
+
+class CannotPublishEvent(UnprocessableEntityError):
+    message = "Event cannot be published due to validation errors."

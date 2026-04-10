@@ -1,5 +1,7 @@
 from utils.schema import CamelCaseModel
 
+from apps.organizer.enums import OrganizerVisibility
+
 
 class CreateOrganizerPageRequest(CamelCaseModel):
     name: str
@@ -11,7 +13,7 @@ class CreateOrganizerPageRequest(CamelCaseModel):
     instagram_url: str | None = None
     facebook_url: str | None = None
     youtube_url: str | None = None
-    visibility: str = "private"
+    visibility: OrganizerVisibility = OrganizerVisibility.private
 
 
 class UpdateOrganizerPageRequest(CamelCaseModel):
@@ -24,4 +26,4 @@ class UpdateOrganizerPageRequest(CamelCaseModel):
     instagram_url: str | None = None
     facebook_url: str | None = None
     youtube_url: str | None = None
-    visibility: str | None = None
+    visibility: OrganizerVisibility | None = None

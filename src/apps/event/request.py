@@ -1,22 +1,22 @@
 from datetime import date as Date, datetime
-from typing import Literal
 from uuid import UUID
 
+from apps.event.enums import EventAccessType, LocationMode
 from utils.schema import CamelCaseModel
 
 
 class CreateDraftEventRequest(CamelCaseModel):
     organizer_page_id: UUID
     title: str
-    event_access_type: Literal["open", "ticketed"]
+    event_access_type: EventAccessType
 
 
 class UpdateEventBasicInfoRequest(CamelCaseModel):
     title: str | None = None
     description: str | None = None
     event_type: str | None = None
-    event_access_type: str | None = None
-    location_mode: str | None = None
+    event_access_type: EventAccessType | None = None
+    location_mode: LocationMode | None = None
     timezone: str | None = None
 
 

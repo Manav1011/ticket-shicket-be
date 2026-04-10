@@ -1,10 +1,11 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, text
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from apps.event.enums import EventAccessType, EventStatus, EventType, LocationMode, ScanStatus
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
 
 
@@ -24,16 +25,16 @@ class EventModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
 
     event_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     status: Mapped[str] = mapped_column(
-        String(32), default="draft", server_default=text("'draft'"), nullable=False
+        Enum(EventStatus), default=EventStatus.draft, server_default=text("'draft'"), nullable=False
     )
     event_access_type: Mapped[str] = mapped_column(
-        String(32), default="ticketed", server_default=text("'ticketed'"), nullable=False
+        Enum(EventAccessType), default=EventAccessType.ticketed, server_default=text("'ticketed'"), nullable=False
     )
     setup_status: Mapped[dict] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
     )
 
-    location_mode: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    location_mode: Mapped[str | None] = mapped_column(Enum(LocationMode), nullable=True)
 
     timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -52,6 +53,9 @@ class EventModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     recorded_event_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    is_published: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
 
 
 class EventDayModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
@@ -67,7 +71,7 @@ class EventDayModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     end_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     scan_status: Mapped[str] = mapped_column(
-        String(32), default="not_started", server_default=text("'not_started'"), nullable=False
+        Enum(ScanStatus), default=ScanStatus.not_started, server_default=text("'not_started'"), nullable=False
     )
     scan_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     scan_paused_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

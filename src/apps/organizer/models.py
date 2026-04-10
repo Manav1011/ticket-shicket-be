@@ -1,8 +1,9 @@
 import uuid
 
-from sqlalchemy import ForeignKey, String, text
+from sqlalchemy import Enum, ForeignKey, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
+from apps.organizer.enums import OrganizerStatus, OrganizerVisibility
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
 
 
@@ -22,8 +23,8 @@ class OrganizerPageModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     facebook_url: Mapped[str | None] = mapped_column(nullable=True)
     youtube_url: Mapped[str | None] = mapped_column(nullable=True)
     visibility: Mapped[str] = mapped_column(
-        String(32), default="private", server_default=text("'private'"), nullable=False
+        Enum(OrganizerVisibility), default=OrganizerVisibility.private, server_default=text("'private'"), nullable=False
     )
     status: Mapped[str] = mapped_column(
-        String(32), default="active", server_default=text("'active'"), nullable=False
+        Enum(OrganizerStatus), default=OrganizerStatus.active, server_default=text("'active'"), nullable=False
     )

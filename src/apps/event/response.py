@@ -40,6 +40,7 @@ class EventResponse(CamelCaseModel):
     online_event_url: str | None = None
     recorded_event_url: str | None = None
     published_at: datetime | None = None
+    is_published: bool
 
 
 class EventDayResponse(CamelCaseModel):
@@ -70,6 +71,26 @@ class ScanStatusHistoryResponse(CamelCaseModel):
     new_status: str
     changed_at: datetime
     notes: str | None = None
+
+
+class FieldErrorResponse(CamelCaseModel):
+    field: str
+    message: str
+    code: str
+
+
+class SectionValidationResult(CamelCaseModel):
+    complete: bool
+    errors: list[FieldErrorResponse]
+
+
+class PublishValidationResponse(CamelCaseModel):
+    can_publish: bool
+    event_id: UUID
+    published_at: datetime | None = None
+    sections: dict[str, SectionValidationResult]
+    blocking_issues: list[str]
+    redirect_hint: dict | None = None
 
 
 class EventEnvelopeResponse(BaseResponse[EventResponse]):
