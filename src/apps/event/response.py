@@ -41,6 +41,7 @@ class EventResponse(CamelCaseModel):
     recorded_event_url: str | None = None
     published_at: datetime | None = None
     is_published: bool
+    media_assets: list["MediaAssetResponse"] = []
 
 
 class EventDayResponse(CamelCaseModel):
