@@ -55,6 +55,13 @@ class Settings(BaseSettings):
 
     REDIS_URL: Optional[str] = Field(None, alias="REDIS_URL")
 
+    # S3 Configuration
+    AWS_ACCESS_KEY_ID: Optional[str] = Field("test", alias="AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY: Optional[str] = Field("test", alias="AWS_SECRET_ACCESS_KEY")
+    AWS_S3_BUCKET: Optional[str] = Field("ticket-shicket-media", alias="AWS_S3_BUCKET")
+    AWS_S3_REGION: Optional[str] = Field("us-east-1", alias="AWS_S3_REGION")
+    AWS_S3_ENDPOINT_URL: Optional[str] = Field(None, alias="AWS_S3_ENDPOINT_URL")
+
     # Sentry variables
     SENTRY_SDK_DSN: str | None = Field(None, alias="SENTRY_SDK_DSN")
 
