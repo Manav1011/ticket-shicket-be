@@ -24,3 +24,7 @@ class DuplicateAllocation(UnprocessableEntityError):
 
 class InvalidAllocation(UnprocessableEntityError):
     message = "Invalid ticket allocation."
+
+
+class CannotDecreaseQuantity(BadRequestError):
+    message = "Ticket quantity can only be increased, not decreased."
