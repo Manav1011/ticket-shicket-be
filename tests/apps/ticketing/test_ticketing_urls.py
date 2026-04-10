@@ -4,12 +4,17 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from apps.ticketing.request import AllocateTicketTypeRequest, CreateTicketTypeRequest
+from apps.ticketing.request import (
+    AllocateTicketTypeRequest,
+    CreateTicketTypeRequest,
+    UpdateTicketAllocationQuantityRequest,
+)
 from apps.ticketing.urls import (
     create_ticket_allocation,
     create_ticket_type,
     list_ticket_allocations,
     list_ticket_types,
+    update_ticket_allocation_quantity,
 )
 
 
@@ -102,3 +107,54 @@ async def test_list_ticket_allocations_returns_day_allocations():
     response = await list_ticket_allocations(event_id=event_id, request=request, service=service)
 
     assert response.data[0].quantity == 25
+
+
+@pytest.mark.asyncio
+async def test_update_ticket_allocation_quantity_increases_successfully():
+    """Test PATCH endpoint for increasing allocation quantity."""
+    owner_id = uuid4()
+    event_id = uuid4()
+    allocation_id = uuid4()
+    request = SimpleNamespace(state=SimpleNamespace(user=SimpleNamespace(id=owner_id)))
+    body = UpdateTicketAllocationQuantityRequest(quantity=75)
+    service = AsyncMock()
+    service.update_allocation_quantity.return_value = SimpleNamespace(
+        id=allocation_id,
+        event_day_id=uuid4(),
+        ticket_type_id=uuid4(),
+        quantity=75,
+    )
+
+    response = await update_ticket_allocation_quantity(
+        event_id=event_id, allocation_id=allocation_id, request=request, body=body, service=service
+    )
+
+    assert response.data.quantity == 75
+    service.update_allocation_quantity.assert_awaited_once_with(
+        owner_id, event_id, allocation_id, 75
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_ticket_allocation_quantity_calls_service_correctly():
+    """Test that endpoint passes correct parameters to service."""
+    owner_id = uuid4()
+    event_id = uuid4()
+    allocation_id = uuid4()
+    request = SimpleNamespace(state=SimpleNamespace(user=SimpleNamespace(id=owner_id)))
+    body = UpdateTicketAllocationQuantityRequest(quantity=100)
+    service = AsyncMock()
+    service.update_allocation_quantity.return_value = SimpleNamespace(
+        id=allocation_id,
+        event_day_id=uuid4(),
+        ticket_type_id=uuid4(),
+        quantity=100,
+    )
+
+    await update_ticket_allocation_quantity(
+        event_id=event_id, allocation_id=allocation_id, request=request, body=body, service=service
+    )
+
+    service.update_allocation_quantity.assert_awaited_once_with(
+        owner_id, event_id, allocation_id, 100
+    )
