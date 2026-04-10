@@ -208,7 +208,7 @@ async def upload_media_asset(
     caption: Annotated[str | None, Form()] = None,
     alt_text: Annotated[str | None, Form()] = None,
     request: Request = Depends(),
-    service: Annotated[EventService, Depends(get_event_service)] = Depends(),
+    service: Annotated[EventService, Depends(get_event_service)],
 ):
     """Upload media asset to event."""
     from .exceptions import InvalidAsset
@@ -237,7 +237,7 @@ async def list_media_assets(
     event_id: UUID,
     asset_type: str | None = None,
     request: Request = Depends(),
-    service: Annotated[EventService, Depends(get_event_service)] = Depends(),
+    service: Annotated[EventService, Depends(get_event_service)],
 ):
     """List media assets for event."""
     assets = await service.list_media_assets(
@@ -253,7 +253,7 @@ async def delete_media_asset(
     event_id: UUID,
     asset_id: UUID,
     request: Request = Depends(),
-    service: Annotated[EventService, Depends(get_event_service)] = Depends(),
+    service: Annotated[EventService, Depends(get_event_service)],
 ):
     """Delete media asset from event."""
     await service.delete_media_asset(
@@ -270,7 +270,7 @@ async def update_media_asset_metadata(
     asset_id: UUID,
     body: Annotated[UpdateMediaAssetMetadataRequest, Body()],
     request: Request = Depends(),
-    service: Annotated[EventService, Depends(get_event_service)] = Depends(),
+    service: Annotated[EventService, Depends(get_event_service)],
 ):
     """Update media asset metadata."""
     asset = await service.update_media_asset_metadata(
