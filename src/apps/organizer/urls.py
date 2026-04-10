@@ -77,8 +77,8 @@ async def list_organizer_events(
 async def upload_organizer_logo(
     organizer_id: UUID,
     file: UploadFile = File(...),
-    request: Request = Depends(),
-    service: Annotated[OrganizerService, Depends(get_organizer_service)] = Depends(),
+    request: Request,
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
 ) -> BaseResponse[OrganizerPageResponse]:
     """
     Upload logo image for organizer page.
@@ -115,8 +115,8 @@ async def upload_organizer_logo(
 async def upload_organizer_cover(
     organizer_id: UUID,
     file: UploadFile = File(...),
-    request: Request = Depends(),
-    service: Annotated[OrganizerService, Depends(get_organizer_service)] = Depends(),
+    request: Request,
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
 ) -> BaseResponse[OrganizerPageResponse]:
     """
     Upload cover image for organizer page.
