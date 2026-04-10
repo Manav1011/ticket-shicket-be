@@ -31,6 +31,10 @@ class EventService:
         self.organizer_repository = organizer_repository
 
     async def create_draft_event(self, owner_user_id, organizer_page_id, title, event_access_type):
+        if not title or not title.strip():
+            from .exceptions import ValidationError
+            raise ValidationError("Title is required")
+
         organizer = await self.organizer_repository.get_by_id_for_owner(
             organizer_page_id, owner_user_id
         )
@@ -173,6 +177,14 @@ class EventService:
 
         return errors
 
+    async def _validate_assets(self, event) -> list[FieldErrorResponse]:
+        """Validate assets section - requires at least one banner image."""
+        errors = []
+        banner_assets = await self.repository.list_media_assets(event.id, asset_type="banner")
+        if len(banner_assets) == 0:
+            errors.append(FieldErrorResponse(field="banner", message="At least 1 banner image is required", code="MISSING_REQUIRED_FIELD"))
+        return errors
+
     async def validate_for_publish(self, owner_user_id: UUID, event_id: UUID):
         """Run all validations and return structured response for publish readiness."""
         event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)
@@ -186,10 +198,12 @@ class EventService:
         basic_info_errors = self._validate_basic_info(event)
         schedule_errors = self._validate_schedule(event, days)
         ticket_errors = self._validate_tickets(event, ticket_types, allocations)
+        assets_errors = await self._validate_assets(event)
 
         basic_info_complete = len(basic_info_errors) == 0
         schedule_complete = len(schedule_errors) == 0
         tickets_complete = len(ticket_errors) == 0
+        assets_complete = len(assets_errors) == 0
 
         # Build blocking issues
         blocking_issues = []
@@ -199,6 +213,8 @@ class EventService:
             blocking_issues.append("Complete schedule section")
         if not tickets_complete:
             blocking_issues.append("Complete tickets section")
+        if not assets_complete:
+            blocking_issues.append("Upload a banner image")
 
         # Determine redirect hint (first incomplete section with errors)
         redirect_hint = None
@@ -208,15 +224,18 @@ class EventService:
             redirect_hint = {"section": "schedule", "fields": [e.field for e in schedule_errors]}
         elif not tickets_complete and ticket_errors:
             redirect_hint = {"section": "tickets", "fields": [e.field for e in ticket_errors]}
+        elif not assets_complete and assets_errors:
+            redirect_hint = {"section": "assets", "fields": [e.field for e in assets_errors]}
 
         return {
-            "can_publish": basic_info_complete and schedule_complete and tickets_complete,
+            "can_publish": basic_info_complete and schedule_complete and tickets_complete and assets_complete,
             "event_id": event_id,
             "published_at": None,
             "sections": {
                 "basic_info": {"complete": basic_info_complete, "errors": basic_info_errors},
                 "schedule": {"complete": schedule_complete, "errors": schedule_errors},
                 "tickets": {"complete": tickets_complete, "errors": ticket_errors},
+                "assets": {"complete": assets_complete, "errors": assets_errors},
             },
             "blocking_issues": blocking_issues,
             "redirect_hint": redirect_hint,
@@ -264,6 +283,7 @@ class EventService:
             "basic_info": False,
             "schedule": False,
             "tickets": False,
+            "assets": False,
         }
         missing_sections = [name for name, done in status.items() if not done]
         blocking_issues = []
@@ -273,6 +293,8 @@ class EventService:
             blocking_issues.append("Add at least one event day")
         if not status["tickets"]:
             blocking_issues.append("Add ticket types and allocations or switch event to open")
+        if not status["assets"]:
+            blocking_issues.append("Upload a banner image")
         return {
             "completed_sections": [name for name, done in status.items() if done],
             "missing_sections": missing_sections,

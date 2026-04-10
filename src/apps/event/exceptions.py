@@ -20,3 +20,7 @@ class CannotPublishEvent(UnprocessableEntityError):
 
 class InvalidAsset(UnprocessableEntityError):
     message = "Invalid asset or asset does not belong to this event."
+
+
+class ValidationError(UnprocessableEntityError):
+    message = "Validation error."
