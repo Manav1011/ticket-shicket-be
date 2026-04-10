@@ -246,6 +246,7 @@ class EventService:
         for field, value in payload.items():
             setattr(event, field, value)
 
+        await self.repository.session.flush()
         await self._refresh_setup_status(event)
         return event
 
