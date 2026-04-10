@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.organizer.models import OrganizerPageModel
 from apps.ticketing.models import DayTicketAllocationModel, TicketTypeModel
 
-from .models import EventDayModel, EventModel, ScanStatusHistoryModel
+from .models import EventDayModel, EventModel, ScanStatusHistoryModel, EventMediaAssetModel
 
 
 class EventRepository:
@@ -18,8 +18,8 @@ class EventRepository:
     def session(self) -> AsyncSession:
         return self._session
 
-    def add(self, event: EventModel) -> None:
-        self._session.add(event)
+    def add(self, entity) -> None:
+        self._session.add(entity)
 
     async def get_by_id_for_owner(
         self, event_id: UUID, owner_user_id: UUID
@@ -138,3 +138,32 @@ class EventRepository:
             .order_by(ScanStatusHistoryModel.created_at.desc())
         )
         return list(result.all())
+
+    async def list_media_assets(
+        self, event_id: UUID, asset_type: str | None = None
+    ) -> list[EventMediaAssetModel]:
+        """List media assets for event, optionally filtered by type."""
+        query = select(EventMediaAssetModel).where(
+            EventMediaAssetModel.event_id == event_id
+        )
+
+        if asset_type:
+            query = query.where(EventMediaAssetModel.asset_type == asset_type)
+
+        query = query.order_by(
+            EventMediaAssetModel.sort_order.asc(), EventMediaAssetModel.created_at.asc()
+        )
+
+        result = await self._session.scalars(query)
+        return list(result.all())
+
+    async def get_media_asset_by_id(self, asset_id: UUID) -> Optional[EventMediaAssetModel]:
+        """Get media asset by ID."""
+        return await self._session.scalar(
+            select(EventMediaAssetModel).where(EventMediaAssetModel.id == asset_id)
+        )
+
+    async def delete_media_asset(self, asset: EventMediaAssetModel) -> None:
+        """Delete media asset from database."""
+        await self._session.delete(asset)
+        await self._session.flush()
