@@ -109,10 +109,11 @@ class OrganizerService:
         # Upload to S3: organizers/{organizer_id}/logo_{uuid}_{filename}
         s3_client = get_s3_client()
         storage_key = s3_client.upload_file(
-            event_id=organizer_page_id,
+            resource_id=organizer_page_id,
             asset_type="logo",
             file_name=file_name,
             file_content=file_content,
+            path_prefix="organizers",
         )
         public_url = s3_client.generate_public_url(storage_key)
 
@@ -158,10 +159,11 @@ class OrganizerService:
         # Upload to S3: organizers/{organizer_id}/cover_{uuid}_{filename}
         s3_client = get_s3_client()
         storage_key = s3_client.upload_file(
-            event_id=organizer_page_id,
+            resource_id=organizer_page_id,
             asset_type="cover",
             file_name=file_name,
             file_content=file_content,
+            path_prefix="organizers",
         )
         public_url = s3_client.generate_public_url(storage_key)
 

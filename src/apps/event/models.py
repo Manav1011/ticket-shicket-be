@@ -5,7 +5,7 @@ from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numer
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from apps.event.enums import EventAccessType, EventStatus, EventType, LocationMode, ScanStatus
+from apps.event.enums import AssetType, EventAccessType, EventStatus, LocationMode, ScanStatus
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
 
 
@@ -103,11 +103,11 @@ class EventMediaAssetModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
         ForeignKey("events.id"), index=True, nullable=False
     )
     asset_type: Mapped[str] = mapped_column(
-        String(50), nullable=False
+        Enum(AssetType), nullable=False
     )  # banner / gallery_image / gallery_video / promo_video
     storage_key: Mapped[str] = mapped_column(
         String(500), nullable=False
-    )  # S3 path: events/{event_id}/{type}_{uuid}_{filename}
+    )  # S3 path: events/{event_id}/{asset_type}_{uuid}_{filename}
     public_url: Mapped[str] = mapped_column(
         String(2048), nullable=False
     )  # Public or presigned URL

@@ -22,19 +22,21 @@ class S3Client:
 
     def upload_file(
         self,
-        event_id: UUID,
+        resource_id: UUID,
         asset_type: str,
         file_name: str,
         file_content: bytes,
+        path_prefix: str = "events",
     ) -> str:
         """
         Upload file to S3 and return storage key.
 
         Args:
-            event_id: UUID of the event
-            asset_type: Type of asset (banner, gallery_image, gallery_video, promo_video)
+            resource_id: UUID of the resource (event or organizer)
+            asset_type: Type of asset (banner, gallery_image, logo, cover, etc.)
             file_name: Original filename
             file_content: File bytes
+            path_prefix: Path prefix for organization (default: "events")
 
         Returns:
             Storage key (path in S3)
@@ -42,11 +44,11 @@ class S3Client:
         Raises:
             ClientError: If S3 upload fails
         """
-        # Create storage key: events/{event_id}/{asset_type}_{uuid}_{filename}
+        # Create storage key: {path_prefix}/{resource_id}/{asset_type}_{uuid}_{filename}
         from uuid import uuid4
 
         unique_id = str(uuid4())[:8]
-        storage_key = f"events/{event_id}/{asset_type}_{unique_id}_{file_name}"
+        storage_key = f"{path_prefix}/{resource_id}/{asset_type}_{unique_id}_{file_name}"
 
         try:
             self.client.put_object(

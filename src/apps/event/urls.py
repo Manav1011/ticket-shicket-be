@@ -201,6 +201,7 @@ async def get_scan_status_history(
 
 @router.post("/{event_id}/media-assets", response_model=BaseResponse[MediaAssetResponse])
 async def upload_media_asset(
+    request: Request,
     event_id: UUID,
     asset_type: Annotated[str, Form(...)],
     file: Annotated[UploadFile, File(...)],
@@ -208,7 +209,6 @@ async def upload_media_asset(
     title: Annotated[str | None, Form()] = None,
     caption: Annotated[str | None, Form()] = None,
     alt_text: Annotated[str | None, Form()] = None,
-    request: Request,
 ):
     """Upload media asset to event."""
     from .exceptions import InvalidAsset
@@ -234,14 +234,14 @@ async def upload_media_asset(
 
 @router.get("/{event_id}/media-assets", response_model=BaseResponse[list[MediaAssetResponse]])
 async def list_media_assets(
+    request: Request,
     event_id: UUID,
     service: Annotated[EventService, Depends(get_event_service)],
-    request: Request,
     asset_type: str | None = None,
 ):
     """List media assets for event."""
     assets = await service.list_media_assets(
-        owner_user_id=current_user.id,
+        owner_user_id=request.state.user.id,
         event_id=event_id,
         asset_type=asset_type,
     )
@@ -250,14 +250,14 @@ async def list_media_assets(
 
 @router.delete("/{event_id}/media-assets/{asset_id}", response_model=BaseResponse[dict])
 async def delete_media_asset(
+    request: Request,
     event_id: UUID,
     asset_id: UUID,
     service: Annotated[EventService, Depends(get_event_service)],
-    request: Request,
 ):
     """Delete media asset from event."""
     await service.delete_media_asset(
-        owner_user_id=current_user.id,
+        owner_user_id=request.state.user.id,
         event_id=event_id,
         asset_id=asset_id,
     )
@@ -266,15 +266,15 @@ async def delete_media_asset(
 
 @router.patch("/{event_id}/media-assets/{asset_id}", response_model=BaseResponse[MediaAssetResponse])
 async def update_media_asset_metadata(
+    request: Request,
     event_id: UUID,
     asset_id: UUID,
     body: Annotated[UpdateMediaAssetMetadataRequest, Body()],
     service: Annotated[EventService, Depends(get_event_service)],
-    request: Request,
 ):
     """Update media asset metadata."""
     asset = await service.update_media_asset_metadata(
-        owner_user_id=current_user.id,
+        owner_user_id=request.state.user.id,
         event_id=event_id,
         asset_id=asset_id,
         title=body.title,

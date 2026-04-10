@@ -3,7 +3,7 @@ version: "3.8"
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: fastapi_postgres
+    container_name: ticket_shicket_postgres
     environment:
       POSTGRES_USER: testuser
       POSTGRES_PASSWORD: testpass
@@ -20,7 +20,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: fastapi_redis
+    container_name: ticket_shicket_redis
     ports:
       - "6379:6379"
     volumes:
@@ -33,7 +33,7 @@ services:
 
   localstack:
     image: localstack/localstack:latest
-    container_name: fastapi_localstack
+    container_name: ticket_shicket_localstack
     ports:
       - "4566:4566"
     environment:
