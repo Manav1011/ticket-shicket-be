@@ -40,6 +40,23 @@ This document outlines the recommended module implementation order for TicketShi
 **Prerequisites:**
 - Event module done
 
+### 5. Media Assets Module (Event & Organizer)
+**Why now?**
+- Enables media uploads (banners, gallery, promo) for events and organizer profiles.
+- Part of event setup readiness; organizer branding for profile pages.
+- Reuses S3 integration and file validation across modules.
+
+**What to ensure here:**
+- S3 storage integration (upload/delete/URL generation)
+- File validation (type, size, dimensions)
+- Media metadata tracking (title, caption, alt_text, sort_order, is_primary)
+- Event readiness includes "assets" section (banner present = complete)
+- Organizer media endpoints (logo, cover image)
+
+**Prerequisites:**
+- Event module done
+- S3 / LocalStack configured
+
 ---
 
 
@@ -177,30 +194,31 @@ At this point you should support:
 **Phase 1:**
 3. Event
 4. EventDay
+5. Media Assets (Event & Organizer)
 
 **Phase 2:**
-5. TicketType
-6. Ticket
+6. TicketType
+7. Ticket
 
 **Phase 3:**
-7. Allocation
-8. AllocationTicket
+8. Allocation
+9. AllocationTicket
 
 **Phase 4:**
-9. Order
-10. Ticket Locking
-11. Coupon
+10. Order
+11. Ticket Locking
+12. Coupon
 
 **Phase 5:**
 → End-to-end purchase flow
 
 **Phase 6:**
-12. QR Scan
-13. Real-time validation (Redis)
+13. QR Scan
+14. Real-time validation (Redis)
 
 **Phase 7:**
-14. Scan Logs
-15. Recovery
+15. Scan Logs
+16. Recovery
 
 ---
 
