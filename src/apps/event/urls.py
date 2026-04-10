@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Request
+from fastapi import APIRouter, Body, Depends, Request, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.dependencies import get_current_user
@@ -10,8 +10,8 @@ from utils.schema import BaseResponse
 
 from apps.organizer.repository import OrganizerRepository
 from .repository import EventRepository
-from .request import CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest, UpdateEventDayRequest
-from .response import EventDayResponse, EventReadinessResponse, EventResponse, PublishValidationResponse, ScanStatusHistoryResponse
+from .request import CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest, UpdateEventDayRequest, UpdateMediaAssetMetadataRequest
+from .response import EventDayResponse, EventReadinessResponse, EventResponse, PublishValidationResponse, ScanStatusHistoryResponse, MediaAssetResponse
 from .service import EventService
 
 router = APIRouter(prefix="/api/events", tags=["Event"], dependencies=[Depends(get_current_user)])
@@ -197,3 +197,90 @@ async def get_scan_status_history(
             ScanStatusHistoryResponse.model_validate(h) for h in history
         ]
     )
+
+
+@router.post("/{event_id}/media-assets", response_model=BaseResponse[MediaAssetResponse])
+async def upload_media_asset(
+    event_id: UUID,
+    asset_type: Annotated[str, Form(...)],
+    file: Annotated[UploadFile, File(...)],
+    title: Annotated[str | None, Form(None)] = None,
+    caption: Annotated[str | None, Form(None)] = None,
+    alt_text: Annotated[str | None, Form(None)] = None,
+    request: Request = Depends(),
+    service: Annotated[EventService, Depends(get_event_service)] = Depends(),
+):
+    """Upload media asset to event."""
+    from .exceptions import InvalidAsset
+    from src.utils.file_validation import FileValidationError
+
+    try:
+        file_content = await file.read()
+        asset = await service.upload_media_asset(
+            owner_user_id=request.state.user.id,
+            event_id=event_id,
+            asset_type=asset_type,
+            file_name=file.filename,
+            file_content=file_content,
+            title=title,
+            caption=caption,
+            alt_text=alt_text,
+        )
+        return BaseResponse(data=MediaAssetResponse.model_validate(asset))
+    except FileValidationError as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{event_id}/media-assets", response_model=BaseResponse[list[MediaAssetResponse]])
+async def list_media_assets(
+    event_id: UUID,
+    asset_type: str | None = None,
+    request: Request = Depends(),
+    service: Annotated[EventService, Depends(get_event_service)] = Depends(),
+):
+    """List media assets for event."""
+    assets = await service.list_media_assets(
+        owner_user_id=request.state.user.id,
+        event_id=event_id,
+        asset_type=asset_type,
+    )
+    return BaseResponse(data=[MediaAssetResponse.model_validate(a) for a in assets])
+
+
+@router.delete("/{event_id}/media-assets/{asset_id}", response_model=BaseResponse[dict])
+async def delete_media_asset(
+    event_id: UUID,
+    asset_id: UUID,
+    request: Request = Depends(),
+    service: Annotated[EventService, Depends(get_event_service)] = Depends(),
+):
+    """Delete media asset from event."""
+    await service.delete_media_asset(
+        owner_user_id=request.state.user.id,
+        event_id=event_id,
+        asset_id=asset_id,
+    )
+    return BaseResponse(data={"message": "Asset deleted"})
+
+
+@router.patch("/{event_id}/media-assets/{asset_id}", response_model=BaseResponse[MediaAssetResponse])
+async def update_media_asset_metadata(
+    event_id: UUID,
+    asset_id: UUID,
+    body: Annotated[UpdateMediaAssetMetadataRequest, Body()],
+    request: Request = Depends(),
+    service: Annotated[EventService, Depends(get_event_service)] = Depends(),
+):
+    """Update media asset metadata."""
+    asset = await service.update_media_asset_metadata(
+        owner_user_id=request.state.user.id,
+        event_id=event_id,
+        asset_id=asset_id,
+        title=body.title,
+        caption=body.caption,
+        alt_text=body.alt_text,
+        sort_order=body.sort_order,
+        is_primary=body.is_primary,
+    )
+    return BaseResponse(data=MediaAssetResponse.model_validate(asset))
