@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, File, UploadFile
+from fastapi import APIRouter, Body, Depends, File, UploadFile, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.event.response import EventSummaryResponse
