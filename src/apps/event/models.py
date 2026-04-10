@@ -94,3 +94,27 @@ class ScanStatusHistoryModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     previous_status: Mapped[str] = mapped_column(String(32), nullable=False)
     new_status: Mapped[str] = mapped_column(String(32), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class EventMediaAssetModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
+    __tablename__ = "event_media_assets"
+
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id"), index=True, nullable=False
+    )
+    asset_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # banner / gallery_image / gallery_video / promo_video
+    storage_key: Mapped[str] = mapped_column(
+        String(500), nullable=False
+    )  # S3 path: events/{event_id}/{type}_{uuid}_{filename}
+    public_url: Mapped[str] = mapped_column(
+        String(2048), nullable=False
+    )  # Public or presigned URL
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    caption: Mapped[str | None] = mapped_column(Text, nullable=True)
+    alt_text: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    is_primary: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false")
+    )
