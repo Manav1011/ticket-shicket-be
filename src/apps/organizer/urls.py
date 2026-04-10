@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Request, File, UploadFile
+from fastapi import APIRouter, Body, Depends, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.event.response import EventSummaryResponse
@@ -77,31 +77,17 @@ async def list_organizer_events(
 async def upload_organizer_logo(
     organizer_id: UUID,
     file: Annotated[UploadFile, File(...)],
-    request: Request = Depends(),
-    service: Annotated[OrganizerService, Depends(get_organizer_service)] = Depends(),
-) -> BaseResponse[OrganizerPageResponse]:
-    """
-    Upload logo image for organizer page.
-
-    Args:
-        organizer_id: Organizer page UUID
-        file: Image file (JPG, PNG, WebP, max 5MB)
-        request: HTTP request (contains user_id)
-
-    Returns:
-        Updated organizer page with new logo_url
-
-    Raises:
-        OrganizerPageNotFound: If organizer doesn't exist or user doesn't own it
-        FileValidationError: If file fails validation (400 Bad Request)
-    """
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+    current_user = Depends(get_current_user),
+):
+    """Upload logo image for organizer page."""
     from src.utils.file_validation import FileValidationError
     from fastapi import HTTPException
 
     try:
         file_content = await file.read()
         organizer = await service.upload_logo(
-            owner_user_id=request.state.user.id,
+            owner_user_id=current_user.id,
             organizer_page_id=organizer_id,
             file_name=file.filename,
             file_content=file_content,
@@ -115,31 +101,17 @@ async def upload_organizer_logo(
 async def upload_organizer_cover(
     organizer_id: UUID,
     file: Annotated[UploadFile, File(...)],
-    request: Request = Depends(),
-    service: Annotated[OrganizerService, Depends(get_organizer_service)] = Depends(),
-) -> BaseResponse[OrganizerPageResponse]:
-    """
-    Upload cover image for organizer page.
-
-    Args:
-        organizer_id: Organizer page UUID
-        file: Image file (JPG, PNG, WebP, max 5MB)
-        request: HTTP request (contains user_id)
-
-    Returns:
-        Updated organizer page with new cover_image_url
-
-    Raises:
-        OrganizerPageNotFound: If organizer doesn't exist or user doesn't own it
-        FileValidationError: If file fails validation (400 Bad Request)
-    """
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+    current_user = Depends(get_current_user),
+):
+    """Upload cover image for organizer page."""
     from src.utils.file_validation import FileValidationError
     from fastapi import HTTPException
 
     try:
         file_content = await file.read()
         organizer = await service.upload_cover_image(
-            owner_user_id=request.state.user.id,
+            owner_user_id=current_user.id,
             organizer_page_id=organizer_id,
             file_name=file.filename,
             file_content=file_content,
