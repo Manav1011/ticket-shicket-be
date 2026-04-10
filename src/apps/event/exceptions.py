@@ -16,3 +16,7 @@ class InvalidScanTransition(UnprocessableEntityError):
 
 class CannotPublishEvent(UnprocessableEntityError):
     message = "Event cannot be published due to validation errors."
+
+
+class InvalidAsset(UnprocessableEntityError):
+    message = "Invalid asset or asset does not belong to this event."

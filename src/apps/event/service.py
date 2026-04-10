@@ -4,9 +4,11 @@ import json
 
 from apps.event.enums import EventAccessType, LocationMode
 
-from .exceptions import EventNotFound, InvalidScanTransition, OrganizerOwnershipError
-from .models import EventModel
+from .exceptions import EventNotFound, InvalidScanTransition, OrganizerOwnershipError, InvalidAsset
+from .models import EventModel, EventMediaAssetModel
 from .response import FieldErrorResponse
+from src.utils.s3_client import get_s3_client
+from src.utils.file_validation import FileValidator, FileValidationError
 
 
 def _serialize_for_json(obj):
@@ -380,3 +382,124 @@ class EventService:
         )
         await self.repository.session.flush()
         return day
+
+    async def upload_media_asset(
+        self,
+        owner_user_id: UUID,
+        event_id: UUID,
+        asset_type: str,
+        file_name: str,
+        file_content: bytes,
+        title: str | None = None,
+        caption: str | None = None,
+        alt_text: str | None = None,
+    ) -> EventMediaAssetModel:
+        """Upload media asset to S3 and store metadata."""
+        event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)
+        if not event:
+            raise EventNotFound
+
+        # Validate file based on asset type
+        if asset_type == "banner":
+            FileValidator.validate_banner_image(file_name, file_content)
+        elif asset_type == "gallery_image":
+            FileValidator.validate_gallery_image(file_name, file_content)
+        elif asset_type == "gallery_video":
+            FileValidator.validate_gallery_video(file_name, file_content)
+        else:
+            raise InvalidAsset(f"Invalid asset_type: {asset_type}")
+
+        # Upload to S3
+        s3_client = get_s3_client()
+        storage_key = s3_client.upload_file(event_id, asset_type, file_name, file_content)
+        public_url = s3_client.generate_public_url(storage_key)
+
+        # Store metadata
+        asset = EventMediaAssetModel(
+            event_id=event_id,
+            asset_type=asset_type,
+            storage_key=storage_key,
+            public_url=public_url,
+            title=title,
+            caption=caption,
+            alt_text=alt_text,
+            sort_order=0,
+            is_primary=False,
+        )
+        self.repository.add(asset)
+        await self.repository.session.flush()
+        await self.repository.session.refresh(asset)
+
+        # Update readiness status if banner
+        if asset_type == "banner":
+            await self._refresh_setup_status(event)
+
+        return asset
+
+    async def list_media_assets(
+        self, owner_user_id: UUID, event_id: UUID, asset_type: str | None = None
+    ) -> list[EventMediaAssetModel]:
+        """List media assets for an event."""
+        event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)
+        if not event:
+            raise EventNotFound
+
+        return await self.repository.list_media_assets(event_id, asset_type)
+
+    async def delete_media_asset(
+        self, owner_user_id: UUID, event_id: UUID, asset_id: UUID
+    ) -> None:
+        """Delete media asset from S3 and database."""
+        event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)
+        if not event:
+            raise EventNotFound
+
+        asset = await self.repository.get_media_asset_by_id(asset_id)
+        if not asset or asset.event_id != event_id:
+            raise InvalidAsset("Asset not found or does not belong to this event")
+
+        # Delete from S3
+        s3_client = get_s3_client()
+        s3_client.delete_file(asset.storage_key)
+
+        # Delete from database
+        await self.repository.delete_media_asset(asset)
+
+        # Update readiness if was banner
+        if asset.asset_type == "banner":
+            await self._refresh_setup_status(event)
+
+    async def update_media_asset_metadata(
+        self,
+        owner_user_id: UUID,
+        event_id: UUID,
+        asset_id: UUID,
+        title: str | None = None,
+        caption: str | None = None,
+        alt_text: str | None = None,
+        sort_order: int | None = None,
+        is_primary: bool | None = None,
+    ) -> EventMediaAssetModel:
+        """Update media asset metadata."""
+        event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)
+        if not event:
+            raise EventNotFound
+
+        asset = await self.repository.get_media_asset_by_id(asset_id)
+        if not asset or asset.event_id != event_id:
+            raise InvalidAsset("Asset not found or does not belong to this event")
+
+        if title is not None:
+            asset.title = title
+        if caption is not None:
+            asset.caption = caption
+        if alt_text is not None:
+            asset.alt_text = alt_text
+        if sort_order is not None:
+            asset.sort_order = sort_order
+        if is_primary is not None:
+            asset.is_primary = is_primary
+
+        await self.repository.session.flush()
+        await self.repository.session.refresh(asset)
+        return asset
