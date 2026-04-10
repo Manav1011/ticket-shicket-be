@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from utils.schema import BaseResponse, CamelCaseModel
@@ -17,6 +18,11 @@ class OrganizerPageResponse(CamelCaseModel):
     youtube_url: str | None = None
     visibility: str
     status: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class OrganizerPageListResponse(BaseResponse[OrganizerPageResponse]):
