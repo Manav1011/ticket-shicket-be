@@ -35,6 +35,15 @@ class TicketingRepository:
         )
         return list(result.all())
 
+    async def get_allocation_by_id(
+        self, allocation_id: UUID
+    ) -> Optional[DayTicketAllocationModel]:
+        return await self._session.scalar(
+            select(DayTicketAllocationModel).where(
+                DayTicketAllocationModel.id == allocation_id
+            )
+        )
+
     async def get_ticket_type_for_event(
         self, ticket_type_id: UUID, event_id: UUID
     ) -> Optional[TicketTypeModel]:
