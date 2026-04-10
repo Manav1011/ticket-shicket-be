@@ -76,9 +76,9 @@ async def list_organizer_events(
 @router.post("/{organizer_id}/logo")
 async def upload_organizer_logo(
     organizer_id: UUID,
-    file: UploadFile = File(...),
-    request: Request,
-    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+    file: Annotated[UploadFile, File(...)],
+    request: Request = Depends(),
+    service: Annotated[OrganizerService, Depends(get_organizer_service)] = Depends(),
 ) -> BaseResponse[OrganizerPageResponse]:
     """
     Upload logo image for organizer page.
@@ -114,9 +114,9 @@ async def upload_organizer_logo(
 @router.post("/{organizer_id}/cover")
 async def upload_organizer_cover(
     organizer_id: UUID,
-    file: UploadFile = File(...),
-    request: Request,
-    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+    file: Annotated[UploadFile, File(...)],
+    request: Request = Depends(),
+    service: Annotated[OrganizerService, Depends(get_organizer_service)] = Depends(),
 ) -> BaseResponse[OrganizerPageResponse]:
     """
     Upload cover image for organizer page.
