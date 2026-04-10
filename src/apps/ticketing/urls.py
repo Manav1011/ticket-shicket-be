@@ -10,7 +10,11 @@ from utils.schema import BaseResponse
 
 from apps.event.repository import EventRepository
 from .repository import TicketingRepository
-from .request import AllocateTicketTypeRequest, CreateTicketTypeRequest
+from .request import (
+    AllocateTicketTypeRequest,
+    CreateTicketTypeRequest,
+    UpdateTicketAllocationQuantityRequest,
+)
 from .response import DayTicketAllocationResponse, TicketTypeResponse
 from .service import TicketingService
 
@@ -70,5 +74,19 @@ async def create_ticket_allocation(
 ) -> BaseResponse[DayTicketAllocationResponse]:
     allocation = await service.allocate_ticket_type_to_day(
         request.state.user.id, event_id, **body.model_dump()
+    )
+    return BaseResponse(data=DayTicketAllocationResponse.model_validate(allocation))
+
+
+@router.patch("/{event_id}/ticket-allocations/{allocation_id}")
+async def update_ticket_allocation_quantity(
+    event_id: UUID,
+    allocation_id: UUID,
+    request: Request,
+    body: Annotated[UpdateTicketAllocationQuantityRequest, Body()],
+    service: Annotated[TicketingService, Depends(get_ticketing_service)],
+) -> BaseResponse[DayTicketAllocationResponse]:
+    allocation = await service.update_allocation_quantity(
+        request.state.user.id, event_id, allocation_id, body.quantity
     )
     return BaseResponse(data=DayTicketAllocationResponse.model_validate(allocation))
