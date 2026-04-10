@@ -15,3 +15,7 @@ class AllocateTicketTypeRequest(CamelCaseModel):
     event_day_id: UUID
     ticket_type_id: UUID
     quantity: int
+
+
+class UpdateTicketAllocationQuantityRequest(CamelCaseModel):
+    quantity: int
