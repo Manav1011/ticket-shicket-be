@@ -204,9 +204,9 @@ async def upload_media_asset(
     event_id: UUID,
     asset_type: Annotated[str, Form(...)],
     file: Annotated[UploadFile, File(...)],
-    title: Annotated[str | None, Form(None)] = None,
-    caption: Annotated[str | None, Form(None)] = None,
-    alt_text: Annotated[str | None, Form(None)] = None,
+    title: Annotated[str | None, Form()] = None,
+    caption: Annotated[str | None, Form()] = None,
+    alt_text: Annotated[str | None, Form()] = None,
     request: Request = Depends(),
     service: Annotated[EventService, Depends(get_event_service)] = Depends(),
 ):
