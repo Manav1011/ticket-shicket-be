@@ -208,7 +208,7 @@ async def upload_media_asset(
     title: Annotated[str | None, Form()] = None,
     caption: Annotated[str | None, Form()] = None,
     alt_text: Annotated[str | None, Form()] = None,
-    request: Request = Depends(),
+    current_user = Depends(get_current_user),
 ):
     """Upload media asset to event."""
     from .exceptions import InvalidAsset
@@ -217,7 +217,7 @@ async def upload_media_asset(
     try:
         file_content = await file.read()
         asset = await service.upload_media_asset(
-            owner_user_id=request.state.user.id,
+            owner_user_id=current_user.id,
             event_id=event_id,
             asset_type=asset_type,
             file_name=file.filename,
@@ -236,12 +236,12 @@ async def upload_media_asset(
 async def list_media_assets(
     event_id: UUID,
     service: Annotated[EventService, Depends(get_event_service)],
-    request: Request = Depends(),
+    current_user = Depends(get_current_user),
     asset_type: str | None = None,
 ):
     """List media assets for event."""
     assets = await service.list_media_assets(
-        owner_user_id=request.state.user.id,
+        owner_user_id=current_user.id,
         event_id=event_id,
         asset_type=asset_type,
     )
@@ -253,11 +253,11 @@ async def delete_media_asset(
     event_id: UUID,
     asset_id: UUID,
     service: Annotated[EventService, Depends(get_event_service)],
-    request: Request = Depends(),
+    current_user = Depends(get_current_user),
 ):
     """Delete media asset from event."""
     await service.delete_media_asset(
-        owner_user_id=request.state.user.id,
+        owner_user_id=current_user.id,
         event_id=event_id,
         asset_id=asset_id,
     )
@@ -270,11 +270,11 @@ async def update_media_asset_metadata(
     asset_id: UUID,
     body: Annotated[UpdateMediaAssetMetadataRequest, Body()],
     service: Annotated[EventService, Depends(get_event_service)],
-    request: Request = Depends(),
+    current_user = Depends(get_current_user),
 ):
     """Update media asset metadata."""
     asset = await service.update_media_asset_metadata(
-        owner_user_id=request.state.user.id,
+        owner_user_id=current_user.id,
         event_id=event_id,
         asset_id=asset_id,
         title=body.title,
