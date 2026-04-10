@@ -77,8 +77,8 @@ async def list_organizer_events(
 async def upload_organizer_logo(
     organizer_id: UUID,
     file: Annotated[UploadFile, File(...)],
+    request: Request,
     service: Annotated[OrganizerService, Depends(get_organizer_service)],
-    current_user = Depends(get_current_user),
 ):
     """Upload logo image for organizer page."""
     from src.utils.file_validation import FileValidationError
@@ -87,7 +87,7 @@ async def upload_organizer_logo(
     try:
         file_content = await file.read()
         organizer = await service.upload_logo(
-            owner_user_id=current_user.id,
+            owner_user_id=request.state.user.id,
             organizer_page_id=organizer_id,
             file_name=file.filename,
             file_content=file_content,
@@ -101,8 +101,8 @@ async def upload_organizer_logo(
 async def upload_organizer_cover(
     organizer_id: UUID,
     file: Annotated[UploadFile, File(...)],
+    request: Request,
     service: Annotated[OrganizerService, Depends(get_organizer_service)],
-    current_user = Depends(get_current_user),
 ):
     """Upload cover image for organizer page."""
     from src.utils.file_validation import FileValidationError
@@ -111,7 +111,7 @@ async def upload_organizer_cover(
     try:
         file_content = await file.read()
         organizer = await service.upload_cover_image(
-            owner_user_id=current_user.id,
+            owner_user_id=request.state.user.id,
             organizer_page_id=organizer_id,
             file_name=file.filename,
             file_content=file_content,
