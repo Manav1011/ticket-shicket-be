@@ -42,3 +42,11 @@ class UpdateEventDayRequest(CamelCaseModel):
     date: Date | None = None
     start_time: datetime | None = None
     end_time: datetime | None = None
+
+
+class UpdateMediaAssetMetadataRequest(CamelCaseModel):
+    title: str | None = None
+    caption: str | None = None
+    alt_text: str | None = None
+    sort_order: int | None = None
+    is_primary: bool | None = None

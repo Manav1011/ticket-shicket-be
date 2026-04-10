@@ -93,5 +93,23 @@ class PublishValidationResponse(CamelCaseModel):
     redirect_hint: dict | None = None
 
 
+class MediaAssetResponse(CamelCaseModel):
+    id: UUID
+    event_id: UUID
+    asset_type: str
+    storage_key: str
+    public_url: str
+    title: str | None = None
+    caption: str | None = None
+    alt_text: str | None = None
+    sort_order: int
+    is_primary: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class EventEnvelopeResponse(BaseResponse[EventResponse]):
     pass
