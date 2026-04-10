@@ -10,9 +10,11 @@ from .response import FieldErrorResponse
 
 
 def _serialize_for_json(obj):
-    """Recursively convert UUID objects to strings for JSON serialization."""
+    """Recursively convert UUID objects and Pydantic models to JSON-serializable format."""
     if isinstance(obj, UUID):
         return str(obj)
+    elif hasattr(obj, 'model_dump'):  # Pydantic model
+        return _serialize_for_json(obj.model_dump())
     elif isinstance(obj, dict):
         return {k: _serialize_for_json(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):
