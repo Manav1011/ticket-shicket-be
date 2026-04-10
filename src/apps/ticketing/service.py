@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from apps.event.enums import EventAccessType
 
 from .exceptions import (
+    CannotDecreaseQuantity,
     DuplicateAllocation,
     InvalidAllocation,
     InvalidPrice,
@@ -96,4 +97,53 @@ class TicketingService:
         )
         day.next_ticket_index += quantity
         await self.repository.session.flush()
+        return allocation
+
+    async def update_allocation_quantity(
+        self, owner_user_id, event_id, allocation_id, new_quantity
+    ):
+        # C1: Verify event ownership
+        event = await self.event_repository.get_by_id_for_owner(event_id, owner_user_id)
+        if event is None:
+            raise InvalidAllocation("Event not found or access denied")
+
+        # C1: Verify allocation exists
+        allocation = await self.repository.get_allocation_by_id(allocation_id)
+        if allocation is None:
+            raise InvalidAllocation("Allocation not found")
+
+        # C1: Verify allocation belongs to this event
+        day = await self.event_day_repository.get_event_day_for_owner(
+            allocation.event_day_id, owner_user_id
+        )
+        if day is None or day.event_id != event_id:
+            raise InvalidAllocation("Allocation does not belong to this event")
+
+        # I1: Validate new quantity > 0
+        if new_quantity <= 0:
+            raise InvalidQuantity
+
+        # I1: Prevent quantity decrease
+        if new_quantity < allocation.quantity:
+            raise CannotDecreaseQuantity
+
+        # C4: If no change, return allocation as-is (idempotent)
+        if new_quantity == allocation.quantity:
+            return allocation
+
+        # C4: Calculate quantity increase and bulk-create new tickets
+        quantity_increase = new_quantity - allocation.quantity
+        await self.repository.bulk_create_tickets(
+            event_id,
+            allocation.event_day_id,
+            allocation.ticket_type_id,
+            start_index=day.next_ticket_index,
+            quantity=quantity_increase,
+        )
+
+        # C4: Update allocation and day state
+        allocation.quantity = new_quantity
+        day.next_ticket_index += quantity_increase
+        await self.repository.session.flush()
+        await self.repository.session.refresh(allocation)
         return allocation
