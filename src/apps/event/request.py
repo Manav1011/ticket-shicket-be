@@ -18,6 +18,16 @@ class UpdateEventBasicInfoRequest(CamelCaseModel):
     event_access_type: EventAccessType | None = None
     location_mode: LocationMode | None = None
     timezone: str | None = None
+    venue_name: str | None = None
+    venue_address: str | None = None
+    venue_city: str | None = None
+    venue_state: str | None = None
+    venue_country: str | None = None
+    venue_latitude: float | None = None
+    venue_longitude: float | None = None
+    venue_google_place_id: str | None = None
+    online_event_url: str | None = None
+    recorded_event_url: str | None = None
 
 
 class CreateEventDayRequest(CamelCaseModel):
