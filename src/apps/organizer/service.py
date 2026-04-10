@@ -1,7 +1,10 @@
 import re
+from uuid import UUID
 
 from .exceptions import OrganizerNotFound, OrganizerSlugAlreadyExists
 from .models import OrganizerPageModel
+from src.utils.s3_client import get_s3_client
+from src.utils.file_validation import FileValidator, FileValidationError
 
 
 class OrganizerService:
@@ -66,6 +69,104 @@ class OrganizerService:
         for field, value in payload.items():
             setattr(organizer, field, value)
 
+        await self.repository.session.flush()
+        await self.repository.session.refresh(organizer)
+        return organizer
+
+    async def upload_logo(
+        self,
+        owner_user_id: UUID,
+        organizer_page_id: UUID,
+        file_name: str,
+        file_content: bytes,
+    ) -> OrganizerPageModel:
+        """
+        Upload logo image for organizer page.
+
+        Args:
+            owner_user_id: Page owner
+            organizer_page_id: Organizer page UUID
+            file_name: Original filename
+            file_content: File bytes
+
+        Returns:
+            Updated OrganizerPageModel with logo_url
+
+        Raises:
+            OrganizerNotFound: If organizer page doesn't exist or user doesn't own it
+            FileValidationError: If file validation fails
+        """
+        # Verify ownership
+        organizer = await self.repository.get_by_id_for_owner(
+            organizer_page_id, owner_user_id
+        )
+        if not organizer:
+            raise OrganizerNotFound
+
+        # Validate logo image (required: max 5MB, jpg/png/webp, min 200x200)
+        FileValidator.validate_banner_image(file_name, file_content)
+
+        # Upload to S3: organizers/{organizer_id}/logo_{uuid}_{filename}
+        s3_client = get_s3_client()
+        storage_key = s3_client.upload_file(
+            event_id=organizer_page_id,
+            asset_type="logo",
+            file_name=file_name,
+            file_content=file_content,
+        )
+        public_url = s3_client.generate_public_url(storage_key)
+
+        # Update organizer page
+        organizer.logo_url = public_url
+        await self.repository.session.flush()
+        await self.repository.session.refresh(organizer)
+        return organizer
+
+    async def upload_cover_image(
+        self,
+        owner_user_id: UUID,
+        organizer_page_id: UUID,
+        file_name: str,
+        file_content: bytes,
+    ) -> OrganizerPageModel:
+        """
+        Upload cover image for organizer page.
+
+        Args:
+            owner_user_id: Page owner
+            organizer_page_id: Organizer page UUID
+            file_name: Original filename
+            file_content: File bytes
+
+        Returns:
+            Updated OrganizerPageModel with cover_image_url
+
+        Raises:
+            OrganizerNotFound: If organizer page doesn't exist or user doesn't own it
+            FileValidationError: If file validation fails
+        """
+        # Verify ownership
+        organizer = await self.repository.get_by_id_for_owner(
+            organizer_page_id, owner_user_id
+        )
+        if not organizer:
+            raise OrganizerNotFound
+
+        # Validate cover image (reuse banner validation: max 5MB, jpg/png/webp, min 200x200)
+        FileValidator.validate_banner_image(file_name, file_content)
+
+        # Upload to S3: organizers/{organizer_id}/cover_{uuid}_{filename}
+        s3_client = get_s3_client()
+        storage_key = s3_client.upload_file(
+            event_id=organizer_page_id,
+            asset_type="cover",
+            file_name=file_name,
+            file_content=file_content,
+        )
+        public_url = s3_client.generate_public_url(storage_key)
+
+        # Update organizer page
+        organizer.cover_image_url = public_url
         await self.repository.session.flush()
         await self.repository.session.refresh(organizer)
         return organizer
