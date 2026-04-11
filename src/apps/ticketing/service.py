@@ -1,5 +1,4 @@
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import flag_modified
 
 from apps.event.enums import EventAccessType
 
@@ -42,10 +41,6 @@ class TicketingService:
         self.repository.add(ticket_type)
         if getattr(event, 'tickets_pending', False):
             event.tickets_pending = False
-        # Also update setup_status so readiness reflects tickets are complete
-        if hasattr(event, 'setup_status') and isinstance(event.setup_status, dict):
-            event.setup_status['tickets'] = True
-            flag_modified(event, 'setup_status')
         await self.repository.session.flush()
         await self.repository.session.refresh(ticket_type)
         return ticket_type
@@ -98,10 +93,6 @@ class TicketingService:
         # Clear tickets_pending flag now that allocation was created successfully
         if getattr(event, 'tickets_pending', False):
             event.tickets_pending = False
-        # Also update setup_status so readiness reflects tickets are complete
-        if hasattr(event, 'setup_status') and isinstance(event.setup_status, dict):
-            event.setup_status['tickets'] = True
-            flag_modified(event, 'setup_status')
 
         await self.repository.bulk_create_tickets(
             event_id,
