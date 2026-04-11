@@ -516,3 +516,25 @@ async def test_publish_ticketed_event_without_tickets_sets_tickets_pending():
     assert event.tickets_pending is True
     assert event.status == "published"
     assert event.is_published is True
+
+
+@pytest.mark.asyncio
+async def test_setup_status_tickets_false_when_tickets_pending():
+    owner_id = uuid4()
+    event_id = uuid4()
+    event = SimpleNamespace(id=event_id, title="Ticketed Workshop", event_access_type="ticketed", location_mode="venue", timezone="Asia/Kolkata", setup_status={}, tickets_pending=True)
+    day = SimpleNamespace(id=uuid4(), event_id=event_id, day_index=1, date=datetime(2026, 4, 15).date(), start_time=datetime(2026, 4, 15, 10, 0, 0), end_time=None)
+    organizer_repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.get_by_id_for_owner.return_value = event
+    event_repo.list_event_days.return_value = [day]
+    event_repo.list_ticket_types.return_value = []
+    event_repo.list_allocations.return_value = []
+    event_repo.count_event_days.return_value = 1
+    event_repo.count_ticket_types.return_value = 0
+    event_repo.count_ticket_allocations.return_value = 0
+    event_repo.session = AsyncMock()
+    event_repo.list_media_assets = AsyncMock(return_value=[])
+    service = EventService(event_repo, organizer_repo)
+    setup_status = await service._build_setup_status(event, 1, 0, 0)
+    assert setup_status["tickets"] is False
