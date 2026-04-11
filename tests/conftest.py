@@ -8,8 +8,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from PIL import Image
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add project root and src to path:
+# - project root allows 'from src.utils.s3_client' to resolve to 'src/utils/s3_client'
+# - src allows 'from apps.event import ...' to resolve to 'src/apps/event/...'
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "src"))
 
 
 # =============================================================================

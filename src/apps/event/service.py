@@ -193,17 +193,17 @@ class EventService:
 
         basic_info_complete = len(basic_info_errors) == 0
         schedule_complete = len(schedule_errors) == 0
-        tickets_complete = len(ticket_errors) == 0
+        # tickets_complete is based on actual ticket presence, not error count
+        tickets_present = len(ticket_types) > 0 and len(allocations) > 0
+        tickets_complete = (event.event_access_type == EventAccessType.open) or tickets_present
         assets_complete = len(assets_errors) == 0
 
-        # Build blocking issues
+        # Build blocking issues (tickets no longer blocks publish - tickets_pending handles that)
         blocking_issues = []
         if not basic_info_complete:
             blocking_issues.append("Complete basic_info section")
         if not schedule_complete:
             blocking_issues.append("Complete schedule section")
-        if not tickets_complete:
-            blocking_issues.append("Complete tickets section")
         if not assets_complete:
             blocking_issues.append("Upload a banner image")
 
@@ -219,7 +219,7 @@ class EventService:
             redirect_hint = {"section": "assets", "fields": [e.field for e in assets_errors]}
 
         return {
-            "can_publish": basic_info_complete and schedule_complete and tickets_complete and assets_complete,
+            "can_publish": basic_info_complete and schedule_complete and assets_complete,
             "event_id": event_id,
             "published_at": None,
             "sections": {

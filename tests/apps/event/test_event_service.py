@@ -167,7 +167,7 @@ async def test_get_readiness_reports_missing_sections_from_setup_status():
     event_repo.session = AsyncMock()
     event_repo.get_by_id_for_owner.return_value = SimpleNamespace(
         id=event_id,
-        setup_status={"basic_info": True, "schedule": False, "tickets": False},
+        setup_status={"basic_info": True, "schedule": False, "tickets": False, "assets": False},
     )
     service = EventService(event_repo, organizer_repo)
 
@@ -312,6 +312,7 @@ async def test_validate_for_publish_open_venue_complete():
     event_repo.list_event_days.return_value = [day]
     event_repo.list_ticket_types.return_value = []
     event_repo.list_allocations.return_value = []
+    event_repo.list_media_assets = AsyncMock(return_value=[SimpleNamespace(id=uuid4(), asset_type="banner", storage_key="test.jpg", public_url="https://test.com/test.jpg")])
     service = EventService(event_repo, organizer_repo)
 
     validation = await service.validate_for_publish(owner_id, event_id)
@@ -324,7 +325,7 @@ async def test_validate_for_publish_open_venue_complete():
 
 @pytest.mark.asyncio
 async def test_validate_for_publish_ticketed_missing_tickets():
-    """Ticketed event without ticket types should fail validation."""
+    """Ticketed event without tickets can publish (tickets_pending mode) but section marked incomplete."""
     owner_id = uuid4()
     event_id = uuid4()
     event = SimpleNamespace(
@@ -354,13 +355,16 @@ async def test_validate_for_publish_ticketed_missing_tickets():
     event_repo.list_event_days.return_value = [day]
     event_repo.list_ticket_types.return_value = []
     event_repo.list_allocations.return_value = []
+    event_repo.list_media_assets = AsyncMock(return_value=[SimpleNamespace(id=uuid4(), asset_type="banner", storage_key="test.jpg", public_url="https://test.com/test.jpg")])
     service = EventService(event_repo, organizer_repo)
 
     validation = await service.validate_for_publish(owner_id, event_id)
 
-    assert validation["can_publish"] is False
+    # Ticketed events without tickets can now publish (tickets_pending mode)
+    # but the tickets section is still marked incomplete for the organizer dashboard
+    assert validation["can_publish"] is True
     assert validation["sections"]["tickets"]["complete"] is False
-    assert len(validation["sections"]["tickets"]["errors"]) > 0
+    assert len(validation["sections"]["tickets"]["errors"]) == 0
 
 
 @pytest.mark.asyncio
@@ -401,8 +405,8 @@ async def test_validate_for_publish_ticketed_without_tickets_allows_publish():
 
     validation = await service.validate_for_publish(owner_id, event_id)
 
-    # tickets section passes validation (no errors) and can_publish is True
-    assert validation["sections"]["tickets"]["complete"] is True
+    # tickets section: can_publish=True (tickets don't block publish), but section marked incomplete
+    assert validation["sections"]["tickets"]["complete"] is False
     assert validation["can_publish"] is True
     assert len(validation["sections"]["tickets"]["errors"]) == 0  # no errors returned
 
@@ -483,6 +487,7 @@ async def test_publish_event_sets_published_fields():
     event_repo.list_event_days.return_value = [day]
     event_repo.list_ticket_types.return_value = []
     event_repo.list_allocations.return_value = []
+    event_repo.list_media_assets = AsyncMock(return_value=[SimpleNamespace(id=uuid4(), asset_type="banner", storage_key="test.jpg", public_url="https://test.com/test.jpg")])
     event_repo.session = AsyncMock()
     event_repo.session.flush = AsyncMock()
     event_repo.session.refresh = AsyncMock()
