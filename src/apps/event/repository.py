@@ -1,13 +1,13 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.organizer.models import OrganizerPageModel
 from apps.ticketing.models import DayTicketAllocationModel, TicketTypeModel
 
-from .models import EventDayModel, EventModel, ScanStatusHistoryModel, EventMediaAssetModel
+from .models import EventDayModel, EventModel, ScanStatusHistoryModel, EventMediaAssetModel, EventResellerModel
 
 
 class EventRepository:
@@ -167,3 +167,43 @@ class EventRepository:
         """Delete media asset from database."""
         await self._session.delete(asset)
         await self._session.flush()
+
+    async def create_event_reseller(
+        self,
+        user_id: UUID,
+        event_id: UUID,
+        invited_by_id: UUID,
+        permissions: dict,
+    ) -> EventResellerModel:
+        from datetime import datetime
+        reseller = EventResellerModel(
+            user_id=user_id,
+            event_id=event_id,
+            invited_by_id=invited_by_id,
+            permissions=permissions,
+            accepted_at=datetime.utcnow(),
+        )
+        self._session.add(reseller)
+        await self._session.flush()
+        await self._session.refresh(reseller)
+        return reseller
+
+    async def get_reseller_for_event(
+        self, user_id: UUID, event_id: UUID
+    ) -> Optional[EventResellerModel]:
+        return await self._session.scalar(
+            select(EventResellerModel).where(
+                and_(
+                    EventResellerModel.user_id == user_id,
+                    EventResellerModel.event_id == event_id,
+                )
+            )
+        )
+
+    async def list_resellers_for_event(self, event_id: UUID) -> list[EventResellerModel]:
+        result = await self._session.scalars(
+            select(EventResellerModel)
+            .where(EventResellerModel.event_id == event_id)
+            .order_by(EventResellerModel.created_at.desc())
+        )
+        return list(result.all())
