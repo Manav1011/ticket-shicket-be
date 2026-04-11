@@ -2,7 +2,7 @@ from uuid import UUID
 
 from .exceptions import InviteNotFound, InviteAlreadyProcessed, NotInviteRecipient
 from .models import InviteModel
-from .enums import InviteStatus
+from .enums import InviteStatus, InviteType
 
 
 class InviteService:
@@ -15,6 +15,7 @@ class InviteService:
         target_user_id: UUID,
         created_by_id: UUID,
         metadata: dict,
+        invite_type: str = InviteType.reseller.value,
     ) -> InviteModel:
         event_id = metadata.get("event_id")
         if event_id:
@@ -29,6 +30,7 @@ class InviteService:
             target_user_id=target_user_id,
             created_by_id=created_by_id,
             status=InviteStatus.pending.value,
+            invite_type=invite_type,
             meta=metadata,
         )
         self.repository.add(invite)

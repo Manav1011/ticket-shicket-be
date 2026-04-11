@@ -6,3 +6,7 @@ class InviteStatus(str, Enum):
     accepted = "accepted"
     declined = "declined"
     cancelled = "cancelled"
+
+
+class InviteType(str, Enum):
+    reseller = "reseller"

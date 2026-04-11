@@ -19,6 +19,7 @@ def test_invite_response():
         target_user_id=uuid4(),
         created_by_id=uuid4(),
         status="pending",
+        invite_type="reseller",
         meta={},
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),

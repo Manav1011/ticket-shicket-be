@@ -336,10 +336,12 @@ async def create_reseller_invite(
     meta["event_id"] = str(event_id)
     if body.metadata and body.metadata.permissions:
         meta["permissions"] = body.metadata.permissions
+    from apps.user.invite.enums import InviteType
     invite = await invite_service.create_invite(
         target_user_id=target_user.id,
         created_by_id=request.state.user.id,
         metadata=meta,
+        invite_type=InviteType.reseller.value,
     )
     return BaseResponse(data=InviteResponse.model_validate(invite))
 

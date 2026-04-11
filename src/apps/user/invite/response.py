@@ -8,6 +8,7 @@ class InviteResponse(CamelCaseModel):
     target_user_id: UUID
     created_by_id: UUID
     status: str
+    invite_type: str
     meta: dict
     expires_at: datetime | None = None
     created_at: datetime

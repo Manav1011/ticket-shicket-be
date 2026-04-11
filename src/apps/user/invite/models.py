@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
+from .enums import InviteType
 
 
 class InviteModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
@@ -19,6 +20,9 @@ class InviteModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     )
     status: Mapped[str] = mapped_column(
         String(20), default="pending", nullable=False, index=True
+    )
+    invite_type: Mapped[str] = mapped_column(
+        String(50), default=InviteType.reseller.value, nullable=False
     )
     meta: Mapped[dict] = mapped_column(
         JSONB, default=dict, nullable=False, server_default="{}"
