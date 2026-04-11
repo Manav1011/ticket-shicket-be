@@ -246,6 +246,12 @@ class EventService:
         event.status = "published"
         event.is_published = True
         event.published_at = datetime.utcnow()
+        # Set tickets_pending flag if ticketed event has no tickets
+        ticket_types = await self.repository.list_ticket_types(event_id)
+        allocations = await self.repository.list_allocations(event_id)
+        if (event.event_access_type == EventAccessType.ticketed and
+                (len(ticket_types) == 0 or len(allocations) == 0)):
+            event.tickets_pending = True
         await self.repository.session.flush()
         await self.repository.session.refresh(event)
         return event
