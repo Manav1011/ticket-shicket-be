@@ -22,6 +22,10 @@ from utils.schema import BaseResponse
 from utils.cookies import set_auth_cookies
 from config import settings
 
+from apps.user.invite.service import InviteService as UserInviteService
+from apps.user.invite.repository import InviteRepository as UserInviteRepository
+from apps.user.invite.response import InviteResponse
+
 router = APIRouter(prefix="/api/user", tags=["User"])
 protected_router = APIRouter(prefix="/api/user", tags=["User"], dependencies=[Depends(get_current_user)])
 
@@ -31,6 +35,25 @@ def get_user_service(session: Annotated[AsyncSession, Depends(db_session)]) -> U
         UserRepository(session),
         TokenBlocklist(redis=redis),
     )
+
+
+def get_user_invite_service(session: Annotated[AsyncSession, Depends(db_session)]) -> UserInviteService:
+    return UserInviteService(
+        repository=UserInviteRepository(session),
+        user_repository=UserRepository(session),
+    )
+
+
+# ==================== PROTECTED USER ROUTES ====================
+
+
+@protected_router.get("/me/invites")
+async def list_pending_invites(
+    request: Request,
+    service: Annotated[UserInviteService, Depends(get_user_invite_service)],
+) -> BaseResponse[list[InviteResponse]]:
+    invites = await service.list_pending_invites_for_user(request.state.user.id)
+    return BaseResponse(data=[InviteResponse.model_validate(i) for i in invites])
 
 
 # ==================== PUBLIC ROUTES ====================
