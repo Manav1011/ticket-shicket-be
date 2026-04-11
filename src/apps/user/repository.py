@@ -32,6 +32,16 @@ class UserRepository:
             select(UserModel).where(func.lower(UserModel.email) == normalized_email)
         )
 
+    async def find_by_email(self, email: str) -> Optional[UserModel]:
+        return await self._session.scalar(
+            select(UserModel).where(UserModel.email == email.lower())
+        )
+
+    async def find_by_phone(self, phone: str) -> Optional[UserModel]:
+        return await self._session.scalar(
+            select(UserModel).where(UserModel.phone == phone)
+        )
+
     async def get_by_email_or_phone(self, email: str, phone: str) -> Optional[UserModel]:
         normalized_email = email.strip().lower()
         return await self._session.scalar(
