@@ -364,6 +364,50 @@ async def test_validate_for_publish_ticketed_missing_tickets():
 
 
 @pytest.mark.asyncio
+async def test_validate_for_publish_ticketed_without_tickets_allows_publish():
+    """Ticketed event without tickets should NOT fail validation (tickets_pending mode)."""
+    owner_id = uuid4()
+    event_id = uuid4()
+    event = SimpleNamespace(
+        id=event_id,
+        title="Ticketed Workshop",
+        event_access_type="ticketed",
+        location_mode="venue",
+        timezone="Asia/Kolkata",
+        venue_name="Community Hall",
+        venue_address="123 Main St",
+        venue_city="Pune",
+        venue_country="India",
+        online_event_url=None,
+        recorded_event_url=None,
+        tickets_pending=False,
+    )
+    day = SimpleNamespace(
+        id=uuid4(),
+        event_id=event_id,
+        day_index=1,
+        date=datetime(2026, 4, 15).date(),
+        start_time=datetime(2026, 4, 15, 10, 0, 0),
+        end_time=None,
+    )
+    organizer_repo = AsyncMock()
+    event_repo = AsyncMock()
+    event_repo.get_by_id_for_owner.return_value = event
+    event_repo.list_event_days.return_value = [day]
+    event_repo.list_ticket_types.return_value = []
+    event_repo.list_allocations.return_value = []
+    event_repo.list_media_assets.return_value = [SimpleNamespace(id=uuid4(), asset_type="banner")]
+    service = EventService(event_repo, organizer_repo)
+
+    validation = await service.validate_for_publish(owner_id, event_id)
+
+    # tickets section passes validation (no errors) and can_publish is True
+    assert validation["sections"]["tickets"]["complete"] is True
+    assert validation["can_publish"] is True
+    assert len(validation["sections"]["tickets"]["errors"]) == 0  # no errors returned
+
+
+@pytest.mark.asyncio
 async def test_validate_for_publish_ticketed_no_start_time():
     """Ticketed event day without start_time should fail schedule validation."""
     owner_id = uuid4()

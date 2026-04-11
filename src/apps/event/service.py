@@ -158,23 +158,14 @@ class EventService:
         return errors
 
     def _validate_tickets(self, event, ticket_types: list, allocations: list) -> list[FieldErrorResponse]:
-        """Validate tickets section - requires ticket types and allocations for ticketed events."""
         errors = []
-
         if getattr(event, 'event_access_type', None) == EventAccessType.open:
             return errors
-
-        if len(ticket_types) == 0:
-            errors.append(FieldErrorResponse(field="ticket_types", message="At least 1 ticket type is required", code="MISSING_REQUIRED_FIELD"))
-
-        if len(allocations) == 0:
-            errors.append(FieldErrorResponse(field="allocations", message="At least 1 ticket allocation is required", code="MISSING_REQUIRED_FIELD"))
+        if len(ticket_types) == 0 or len(allocations) == 0:
             return errors
-
         for alloc in allocations:
             if getattr(alloc, 'quantity', 0) <= 0:
                 errors.append(FieldErrorResponse(field=f"allocation_{getattr(alloc, 'id', 'unknown')}.quantity", message="Allocation quantity must be greater than 0", code="INVALID_FIELD_VALUE"))
-
         return errors
 
     async def _validate_assets(self, event) -> list[FieldErrorResponse]:
