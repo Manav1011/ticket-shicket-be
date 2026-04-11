@@ -497,6 +497,28 @@ curl -X POST http://localhost:8080/api/events/716b20d4-994a-4889-a36a-e3ff617515
 
 ---
 
+### N10: Invalid lookup_type (CRITICAL #4 FIXED)
+
+**Request:**
+```bash
+curl -X POST http://localhost:8080/api/events/716b20d4-994a-4889-a36a-e3ff61751530/reseller-invites \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ORG_TOKEN>" \
+  -d '{"lookup_type": "invalid", "lookup_value": "test@example.com"}'
+```
+
+**Response:**
+```json
+{
+    "status": "Error",
+    "code": 400,
+    "message": "lookup_type must be 'email' or 'phone'"
+}
+```
+**Result:** PASS - Invalid lookup_type properly rejected with 400 BadRequest
+
+---
+
 ## Summary
 
 | Test ID | Status | Description |
@@ -519,7 +541,7 @@ curl -X POST http://localhost:8080/api/events/716b20d4-994a-4889-a36a-e3ff617515
 | N7 | PASS | Unauthenticated access - rejected |
 | N8 | PASS | Invite by phone - works |
 | N9 | PASS | Duplicate pending invite - rejected (BUG-007 FIXED) |
-| N9 | PASS | Duplicate pending invite - rejected (BUG-007 FIXED) |
+| N10 | PASS | Invalid lookup_type - rejected |
 
 ---
 
