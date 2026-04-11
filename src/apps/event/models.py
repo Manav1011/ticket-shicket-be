@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from apps.event.enums import AssetType, EventAccessType, EventStatus, LocationMode, ScanStatus
@@ -118,3 +118,24 @@ class EventMediaAssetModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     is_primary: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false")
     )
+
+
+class EventResellerModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
+    __tablename__ = "event_resellers"
+    __table_args__ = (
+        UniqueConstraint("user_id", "event_id", name="uq_event_reseller_user_event"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("events.id"), nullable=False, index=True
+    )
+    invited_by_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    permissions: Mapped[dict] = mapped_column(
+        JSONB, default=dict, nullable=False, server_default="{}"
+    )
+    accepted_at: Mapped[datetime | None] = mapped_column(nullable=True)
