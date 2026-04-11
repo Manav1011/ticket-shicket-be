@@ -351,3 +351,53 @@ async def list_event_resellers(
 
     resellers = await event_service.repository.list_resellers_for_event(event_id)
     return BaseResponse(data=[ResellerResponse.model_validate(r) for r in resellers])
+
+
+@router.post("/invites/{invite_id}/accept")
+async def accept_invite(
+    invite_id: UUID,
+    request: Request,
+    event_service: Annotated[EventService, Depends(get_event_service)],
+    invite_service: Annotated[UserInviteService, Depends(get_user_invite_service)],
+) -> BaseResponse[ResellerResponse]:
+    result = await invite_service.accept_invite(request.state.user.id, invite_id)
+
+    # Create event reseller record
+    event_id = UUID(result["event_id"])
+    permissions = result["permissions"]
+
+    reseller = await event_service.repository.create_event_reseller(
+        user_id=request.state.user.id,
+        event_id=event_id,
+        invited_by_id=result["invite"].created_by_id,
+        permissions=permissions,
+    )
+    return BaseResponse(data=ResellerResponse.model_validate(reseller))
+
+
+@router.post("/invites/{invite_id}/decline")
+async def decline_invite(
+    invite_id: UUID,
+    request: Request,
+    invite_service: Annotated[UserInviteService, Depends(get_user_invite_service)],
+) -> BaseResponse[dict]:
+    await invite_service.decline_invite(request.state.user.id, invite_id)
+    return BaseResponse(data={"declined": True})
+
+
+@router.delete("/events/{event_id}/reseller-invites/{invite_id}")
+async def cancel_reseller_invite(
+    event_id: UUID,
+    invite_id: UUID,
+    request: Request,
+    event_service: Annotated[EventService, Depends(get_event_service)],
+    invite_service: Annotated[UserInviteService, Depends(get_user_invite_service)],
+) -> BaseResponse[dict]:
+    # Verify organizer owns event
+    event = await event_service.repository.get_by_id_for_owner(event_id, request.state.user.id)
+    if not event:
+        from apps.event.exceptions import OrganizerOwnershipError
+        raise OrganizerOwnershipError
+
+    await invite_service.cancel_invite(request.state.user.id, invite_id)
+    return BaseResponse(data={"cancelled": True})
