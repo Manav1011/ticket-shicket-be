@@ -51,7 +51,7 @@ class InviteService:
         return {
             "invite": invite,
             "event_id": meta.get("event_id"),
-            "permissions": meta.get("permissions", []),
+            "permissions": meta.get("permissions", {}),
         }
 
     async def decline_invite(self, user_id: UUID, invite_id: UUID) -> None:

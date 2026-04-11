@@ -385,7 +385,7 @@ async def decline_invite(
     return BaseResponse(data={"declined": True})
 
 
-@router.delete("/events/{event_id}/reseller-invites/{invite_id}")
+@router.delete("/{event_id}/reseller-invites/{invite_id}")
 async def cancel_reseller_invite(
     event_id: UUID,
     invite_id: UUID,
