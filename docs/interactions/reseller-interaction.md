@@ -102,6 +102,7 @@ curl -X POST http://localhost:8080/api/events/716b20d4-994a-4889-a36a-e3ff617515
         "targetUserId": "b3efdc2e-9b54-467c-8a80-d7983cfcc9cc",
         "createdById": "128086a3-c419-43b2-9fe8-70d4120c687b",
         "status": "pending",
+        "inviteType": "reseller",
         "meta": {
             "event_id": "716b20d4-994a-4889-a36a-e3ff61751530"
         },
@@ -136,6 +137,7 @@ curl -X GET http://localhost:8080/api/user/me/invites \
             "targetUserId": "b3efdc2e-9b54-467c-8a80-d7983cfcc9cc",
             "createdById": "128086a3-c419-43b2-9fe8-70d4120c687b",
             "status": "pending",
+            "inviteType": "reseller",
             "meta": {
                 "event_id": "716b20d4-994a-4889-a36a-e3ff61751530"
             },
@@ -235,6 +237,7 @@ curl -X POST http://localhost:8080/api/events/716b20d4-994a-4889-a36a-e3ff617515
         "targetUserId": "b3efdc2e-9b54-467c-8a80-d7983cfcc9cc",
         "createdById": "128086a3-c419-43b2-9fe8-70d4120c687b",
         "status": "pending",
+        "inviteType": "reseller",
         "meta": {
             "event_id": "716b20d4-994a-4889-a36a-e3ff61751530"
         }
@@ -461,6 +464,7 @@ curl -X POST http://localhost:8080/api/events/716b20d4-994a-4889-a36a-e3ff617515
         "targetUserId": "b3efdc2e-9b54-467c-8a80-d7983cfcc9cc",
         "createdById": "128086a3-c419-43b2-9fe8-70d4120c687b",
         "status": "pending",
+        "inviteType": "reseller",
         "meta": {
             "event_id": "716b20d4-994a-4889-a36a-e3ff61751530"
         }
@@ -543,6 +547,34 @@ curl -X POST http://localhost:8080/api/events/716b20d4-994a-4889-a36a-e3ff617515
 - Added duplicate check in `InviteService.create_invite`
 - Returns 409 Conflict if pending invite exists
 
+---
+
+## Feature: Explicit Invite Type
+
+All reseller invites now include an explicit `inviteType: "reseller"` field in the response, making invites queryable by type and extensible for future invite types (group, team, etc.).
+
+**Example Response:**
+```json
+{
+    "status": "SUCCESS",
+    "code": 200,
+    "data": {
+        "id": "2db80b15-bc23-4c14-981f-51cc21a0cf1b",
+        "targetUserId": "990986d2-b969-4538-932f-b062491707ff",
+        "createdById": "128086a3-c419-43b2-9fe8-70d4120c687b",
+        "status": "pending",
+        "inviteType": "reseller",
+        "meta": {
+            "event_id": "716b20d4-994a-4889-a36a-e3ff61751530"
+        },
+        "expiresAt": null,
+        "createdAt": "2026-04-11T13:23:25.641272",
+        "updatedAt": "2026-04-11T13:23:25.641275"
+    }
+}
+```
+
+---
 ---
 
 ## API Endpoints Summary
