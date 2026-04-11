@@ -326,9 +326,16 @@ async def create_reseller_invite(
         from exceptions import NotFoundError
         raise NotFoundError("User not found")
 
+    # Prevent self-invite
+    if target_user.id == request.state.user.id:
+        from exceptions import ForbiddenError
+        raise ForbiddenError("Cannot invite yourself as a reseller")
+
     # Create invite
     meta = body.metadata.model_dump() if body.metadata else {}
     meta["event_id"] = str(event_id)
+    if body.metadata and body.metadata.permissions:
+        meta["permissions"] = body.metadata.permissions
     invite = await invite_service.create_invite(
         target_user_id=target_user.id,
         created_by_id=request.state.user.id,

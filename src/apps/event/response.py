@@ -121,6 +121,6 @@ class ResellerResponse(CamelCaseModel):
     user_id: UUID
     event_id: UUID
     invited_by_id: UUID
-    permissions: dict
+    permissions: dict | list[str]
     accepted_at: datetime | None = None
     created_at: datetime

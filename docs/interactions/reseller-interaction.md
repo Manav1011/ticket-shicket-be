@@ -499,9 +499,25 @@ curl -X POST http://localhost:8080/api/events/716b20d4-994a-4889-a36a-e3ff617515
 
 | Bug ID | Severity | Description |
 |--------|----------|-------------|
-| BUG-005 | Medium | Empty permissions returned on accept |
-| BUG-006 | Medium | Organizer can invite themselves |
-| BUG-007 | Medium | Duplicate pending invites allowed for same user/event |
+| BUG-005 | Medium | Empty permissions returned on accept - **FIXED** |
+| BUG-006 | Medium | Organizer can invite themselves - **FIXED** |
+| BUG-007 | Medium | Duplicate pending invites allowed for same user/event - **FIXED** |
+
+---
+
+## Fixes Applied
+
+### BUG-005 Fix: Permissions passed through meta
+- Added `permissions` to meta when creating invite in `apps/event/urls.py`
+- Changed `permissions` field in `ResellerResponse` to accept `dict | list[str]`
+
+### BUG-006 Fix: Self-invite blocked
+- Added check in `create_reseller_invite` endpoint: `if target_user.id == request.state.user.id` → 403 Forbidden
+
+### BUG-007 Fix: Duplicate pending invites blocked
+- Added `get_pending_invite_for_user_event` method in `InviteRepository`
+- Added duplicate check in `InviteService.create_invite`
+- Returns 409 Conflict if pending invite exists
 
 ---
 

@@ -16,6 +16,15 @@ class InviteService:
         created_by_id: UUID,
         metadata: dict,
     ) -> InviteModel:
+        event_id = metadata.get("event_id")
+        if event_id:
+            existing = await self.repository.get_pending_invite_for_user_event(
+                target_user_id, event_id
+            )
+            if existing:
+                raise InviteAlreadyProcessed(
+                    "A pending invite already exists for this user and event"
+                )
         invite = InviteModel(
             target_user_id=target_user_id,
             created_by_id=created_by_id,

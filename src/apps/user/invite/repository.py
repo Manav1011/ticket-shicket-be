@@ -39,3 +39,16 @@ class InviteRepository:
     async def update_invite_status(self, invite: InviteModel, status: str) -> None:
         invite.status = status
         await self._session.flush()
+
+    async def get_pending_invite_for_user_event(
+        self, target_user_id: UUID, event_id: UUID
+    ) -> Optional[InviteModel]:
+        return await self._session.scalar(
+            select(InviteModel).where(
+                and_(
+                    InviteModel.target_user_id == target_user_id,
+                    InviteModel.status == "pending",
+                    InviteModel.meta.contains({"event_id": str(event_id)}),
+                )
+            )
+        )
