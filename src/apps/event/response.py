@@ -114,3 +114,13 @@ class MediaAssetResponse(CamelCaseModel):
 
 class EventEnvelopeResponse(BaseResponse[EventResponse]):
     pass
+
+
+class ResellerResponse(CamelCaseModel):
+    id: UUID
+    user_id: UUID
+    event_id: UUID
+    invited_by_id: UUID
+    permissions: dict
+    accepted_at: datetime | None = None
+    created_at: datetime

@@ -11,8 +11,14 @@ from utils.schema import BaseResponse
 from apps.organizer.repository import OrganizerRepository
 from .repository import EventRepository
 from .request import CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest, UpdateEventDayRequest, UpdateMediaAssetMetadataRequest
-from .response import EventDayResponse, EventReadinessResponse, EventResponse, PublishValidationResponse, ScanStatusHistoryResponse, MediaAssetResponse
+from .response import EventDayResponse, EventReadinessResponse, EventResponse, PublishValidationResponse, ScanStatusHistoryResponse, MediaAssetResponse, ResellerResponse
 from .service import EventService
+
+from apps.user.invite.service import InviteService as UserInviteService
+from apps.user.invite.repository import InviteRepository as UserInviteRepository
+from apps.user.invite.request import CreateInviteRequest
+from apps.user.invite.response import InviteResponse
+from apps.user.repository import UserRepository
 
 router = APIRouter(prefix="/api/events", tags=["Event"], dependencies=[Depends(get_current_user)])
 
@@ -21,6 +27,15 @@ def get_event_service(
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> EventService:
     return EventService(EventRepository(session), OrganizerRepository(session))
+
+
+def get_user_invite_service(
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> UserInviteService:
+    return UserInviteService(
+        repository=UserInviteRepository(session),
+        user_repository=UserRepository(session),
+    )
 
 
 @router.post("/drafts")
@@ -284,3 +299,55 @@ async def update_media_asset_metadata(
         is_primary=body.is_primary,
     )
     return BaseResponse(data=MediaAssetResponse.model_validate(asset))
+
+
+@router.post("/{event_id}/reseller-invites")
+async def create_reseller_invite(
+    event_id: UUID,
+    request: Request,
+    body: Annotated[CreateInviteRequest, Body()],
+    event_service: Annotated[EventService, Depends(get_event_service)],
+    invite_service: Annotated[UserInviteService, Depends(get_user_invite_service)],
+) -> BaseResponse[InviteResponse]:
+    # Verify organizer owns event
+    event = await event_service.repository.get_by_id_for_owner(event_id, request.state.user.id)
+    if not event:
+        from apps.event.exceptions import OrganizerOwnershipError
+        raise OrganizerOwnershipError
+
+    # Find target user by email or phone
+    target_user = None
+    if body.lookup_type == "email":
+        target_user = await invite_service.user_repository.find_by_email(body.lookup_value)
+    elif body.lookup_type == "phone":
+        target_user = await invite_service.user_repository.find_by_phone(body.lookup_value)
+
+    if not target_user:
+        from exceptions import NotFoundError
+        raise NotFoundError("User not found")
+
+    # Create invite
+    meta = body.metadata.model_dump() if body.metadata else {}
+    meta["event_id"] = str(event_id)
+    invite = await invite_service.create_invite(
+        target_user_id=target_user.id,
+        created_by_id=request.state.user.id,
+        metadata=meta,
+    )
+    return BaseResponse(data=InviteResponse.model_validate(invite))
+
+
+@router.get("/{event_id}/resellers")
+async def list_event_resellers(
+    event_id: UUID,
+    request: Request,
+    event_service: Annotated[EventService, Depends(get_event_service)],
+) -> BaseResponse[list[ResellerResponse]]:
+    # Verify organizer owns event
+    event = await event_service.repository.get_by_id_for_owner(event_id, request.state.user.id)
+    if not event:
+        from apps.event.exceptions import OrganizerOwnershipError
+        raise OrganizerOwnershipError
+
+    resellers = await event_service.repository.list_resellers_for_event(event_id)
+    return BaseResponse(data=[ResellerResponse.model_validate(r) for r in resellers])
