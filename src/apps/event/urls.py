@@ -316,6 +316,10 @@ async def create_reseller_invite(
         raise OrganizerOwnershipError
 
     # Find target user by email or phone
+    if body.lookup_type not in ("email", "phone"):
+        from exceptions import BadRequestError
+        raise BadRequestError("lookup_type must be 'email' or 'phone'")
+
     target_user = None
     if body.lookup_type == "email":
         target_user = await invite_service.user_repository.find_by_email(body.lookup_value)
@@ -371,8 +375,27 @@ async def accept_invite(
 ) -> BaseResponse[ResellerResponse]:
     result = await invite_service.accept_invite(request.state.user.id, invite_id)
 
-    # Create event reseller record
-    event_id = UUID(result["event_id"])
+    # Validate event_id exists
+    event_id_str = result["event_id"]
+    if not event_id_str:
+        from apps.user.invite.exceptions import InviteNotFound
+        raise InviteNotFound("Invite missing event_id in metadata")
+
+    event_id = UUID(event_id_str)
+
+    # Check if event exists
+    event = await event_service.repository.get_by_id(event_id)
+    if not event:
+        from apps.event.exceptions import EventNotFound
+        raise EventNotFound("Event not found")
+
+    # Check if reseller already exists (prevent race condition)
+    existing = await event_service.repository.get_reseller_for_event(
+        request.state.user.id, event_id
+    )
+    if existing:
+        return BaseResponse(data=ResellerResponse.model_validate(existing))
+
     permissions = result["permissions"]
 
     reseller = await event_service.repository.create_event_reseller(
@@ -407,6 +430,15 @@ async def cancel_reseller_invite(
     if not event:
         from apps.event.exceptions import OrganizerOwnershipError
         raise OrganizerOwnershipError
+
+    # Get invite to verify it belongs to this event before cancelling
+    try:
+        invite = await invite_service.get_invite_by_id(invite_id)
+        if invite and invite.meta and invite.meta.get("event_id") != str(event_id):
+            from exceptions import ForbiddenError
+            raise ForbiddenError("Invite does not belong to this event")
+    except Exception:
+        pass  # Let cancel_invite handle invite validation
 
     await invite_service.cancel_invite(request.state.user.id, invite_id)
     return BaseResponse(data={"cancelled": True})

@@ -33,6 +33,11 @@ class EventRepository:
             )
         )
 
+    async def get_by_id(self, event_id: UUID) -> Optional[EventModel]:
+        return await self._session.scalar(
+            select(EventModel).where(EventModel.id == event_id)
+        )
+
     async def create_event_day(
         self, event_id, day_index, day_date, start_time=None, end_time=None
     ) -> EventDayModel:
