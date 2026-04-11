@@ -288,3 +288,46 @@ async def test_update_allocation_quantity_requires_event_ownership():
 
     with pytest.raises(InvalidAllocation):
         await service.update_allocation_quantity(other_user_id, event_id, allocation_id, 50)
+
+
+@pytest.mark.asyncio
+async def test_create_ticket_type_clears_tickets_pending():
+    owner_id = uuid4()
+    event_id = uuid4()
+    event = SimpleNamespace(id=event_id, event_access_type="ticketed", tickets_pending=True)
+    event_repo = AsyncMock()
+    event_repo.get_by_id_for_owner.return_value = event
+    repo = AsyncMock()
+    repo.add = MagicMock()
+    repo.session = AsyncMock()
+    repo.session.flush = AsyncMock()
+    repo.session.refresh = AsyncMock()
+    event_day_repo = AsyncMock()
+    service = TicketingService(repo, event_repo, event_day_repo)
+    await service.create_ticket_type(owner_id, event_id, "General Admission", "general", 0, "USD")
+    assert event.tickets_pending is False
+
+
+@pytest.mark.asyncio
+async def test_allocate_ticket_clears_tickets_pending():
+    owner_id = uuid4()
+    event_id = uuid4()
+    event_day_id = uuid4()
+    ticket_type_id = uuid4()
+    event = SimpleNamespace(id=event_id, event_access_type="ticketed", tickets_pending=True)
+    day = SimpleNamespace(id=event_day_id, event_id=event_id, next_ticket_index=1)
+    ticket_type = SimpleNamespace(id=ticket_type_id, event_id=event_id, name="General")
+    event_repo = AsyncMock()
+    event_repo.get_by_id_for_owner.return_value = event
+    repo = AsyncMock()
+    repo.get_ticket_type_for_event.return_value = ticket_type
+    repo.create_day_allocation.return_value = SimpleNamespace(id=uuid4(), event_day_id=event_day_id, ticket_type_id=ticket_type_id, quantity=50)
+    repo.bulk_create_tickets = AsyncMock()
+    repo.session = AsyncMock()
+    repo.session.flush = AsyncMock()
+    repo.session.refresh = AsyncMock()
+    event_day_repo = AsyncMock()
+    event_day_repo.get_event_day_for_owner.return_value = day
+    service = TicketingService(repo, event_repo, event_day_repo)
+    await service.allocate_ticket_type_to_day(owner_id, event_id, event_day_id, ticket_type_id, 50)
+    assert event.tickets_pending is False

@@ -39,6 +39,8 @@ class TicketingService:
             currency=currency,
         )
         self.repository.add(ticket_type)
+        if getattr(event, 'tickets_pending', False):
+            event.tickets_pending = False
         await self.repository.session.flush()
         await self.repository.session.refresh(ticket_type)
         return ticket_type
@@ -83,6 +85,8 @@ class TicketingService:
             allocation = await self.repository.create_day_allocation(
                 event_day_id, ticket_type_id, quantity
             )
+            if getattr(event, 'tickets_pending', False):
+                event.tickets_pending = False
         except IntegrityError as e:
             if "uq_day_ticket_allocations" in str(e):
                 raise DuplicateAllocation
