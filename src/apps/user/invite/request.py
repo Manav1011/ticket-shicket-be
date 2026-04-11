@@ -3,7 +3,7 @@ from utils.schema import CamelCaseModel
 
 
 class ResellerMetadata(CamelCaseModel):
-    event_id: UUID
+    event_id: UUID | None = None  # Optional - backend will set this
     permissions: list[str] = []
 
 
