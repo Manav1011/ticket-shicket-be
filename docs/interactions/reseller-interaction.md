@@ -471,6 +471,28 @@ curl -X POST http://localhost:8080/api/events/716b20d4-994a-4889-a36a-e3ff617515
 
 ---
 
+### N9: Duplicate Pending Invite (BUG-007 FIXED)
+
+**Request:**
+```bash
+curl -X POST http://localhost:8080/api/events/716b20d4-994a-4889-a36a-e3ff61751530/reseller-invites \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ORG_TOKEN>" \
+  -d '{"lookup_type": "email", "lookup_value": "test-reseller@example.com"}'
+```
+
+**Response:**
+```json
+{
+    "status": "Error",
+    "code": 409,
+    "message": "A pending invite already exists for this user and event"
+}
+```
+**Result:** PASS - Duplicate invite properly rejected with 409 Conflict
+
+---
+
 ## Summary
 
 | Test ID | Status | Description |
@@ -486,12 +508,14 @@ curl -X POST http://localhost:8080/api/events/716b20d4-994a-4889-a36a-e3ff617515
 | 7.1 | PASS | Organizer cancels invite |
 | N1 | PASS | Accept already-accepted invite - rejected |
 | N2 | PASS | Invite non-existent user - rejected |
-| N3 | FAIL | Organizer invites themselves - accepted (BUG-006) |
+| N3 | PASS | Organizer invites themselves - rejected (BUG-006 FIXED) |
 | N4 | PASS | Non-owner lists resellers - rejected |
 | N5 | PASS | Non-owner creates invite - rejected |
 | N6 | PASS | Non-owner cancels invite - rejected |
 | N7 | PASS | Unauthenticated access - rejected |
 | N8 | PASS | Invite by phone - works |
+| N9 | PASS | Duplicate pending invite - rejected (BUG-007 FIXED) |
+| N9 | PASS | Duplicate pending invite - rejected (BUG-007 FIXED) |
 
 ---
 
