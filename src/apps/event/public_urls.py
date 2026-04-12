@@ -19,8 +19,9 @@ from .public_service import PublicEventService
 
 router = APIRouter(
     prefix="/api/open/events",
-    tags=["Event Engagement"],
-    dependencies=[Depends(get_current_user_or_guest)],
+    tags=["Public Events"],
+    # No router-level auth — GET routes are fully public
+    # Auth is applied only at the route level for POST /interest
 )
 
 
@@ -38,12 +39,13 @@ def get_public_event_service(session: Annotated[AsyncSession, Depends(db_session
 @router.post(
     "/{event_id}/interest",
     dependencies=[
+        Depends(get_current_user_or_guest),
         Depends(
             RateLimiter(
                 times=rate_limiter_config["request_limit"],
                 seconds=rate_limiter_config["time"],
             )
-        )
+        ),
     ],
 )
 async def mark_event_interest(

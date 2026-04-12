@@ -122,7 +122,6 @@ async def get_current_guest(
     request.state.guest = guest
     return guest
 
-
 async def get_current_user_or_guest(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
