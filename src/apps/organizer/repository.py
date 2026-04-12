@@ -59,3 +59,28 @@ class OrganizerRepository:
 
     def add(self, organizer: OrganizerPageModel) -> None:
         self._session.add(organizer)
+
+    async def get_by_id(self, organizer_id: UUID) -> Optional[OrganizerPageModel]:
+        return await self._session.scalar(
+            select(OrganizerPageModel).where(OrganizerPageModel.id == organizer_id)
+        )
+
+    async def list_public_organizers(self) -> list[OrganizerPageModel]:
+        result = await self._session.scalars(
+            select(OrganizerPageModel)
+            .where(OrganizerPageModel.status == "active")
+            .order_by(OrganizerPageModel.created_at.desc())
+        )
+        return list(result.all())
+
+    async def list_events_by_organizer_public(self, organizer_id: UUID) -> list[EventModel]:
+        result = await self._session.scalars(
+            select(EventModel)
+            .where(
+                EventModel.organizer_page_id == organizer_id,
+                EventModel.is_published == True,
+                EventModel.status == "published",
+            )
+            .order_by(EventModel.created_at.desc())
+        )
+        return list(result.all())

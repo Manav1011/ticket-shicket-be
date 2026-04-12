@@ -95,3 +95,61 @@ async def test_update_organizer_only_changes_provided_fields():
     assert updated.bio == "New bio"
     assert updated.name == "Ahmedabad Talks"
     assert updated.logo_url == "https://cdn/logo.png"
+
+
+@pytest.mark.asyncio
+async def test_list_public_organizers_returns_only_active():
+    from apps.organizer.repository import OrganizerRepository
+    
+    session = AsyncMock()
+    repo = OrganizerRepository(session)
+
+    organizers_data = [
+        SimpleNamespace(id=uuid4(), name="Org 1", status="active"),
+        SimpleNamespace(id=uuid4(), name="Org 2", status="active"),
+    ]
+    mock_result = MagicMock()
+    mock_result.all = MagicMock(return_value=organizers_data)
+    session.scalars = AsyncMock(return_value=mock_result)
+
+    organizers = await repo.list_public_organizers()
+
+    assert len(organizers) == 2
+    session.scalars.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_organizer_by_id_returns_organizer():
+    from apps.organizer.repository import OrganizerRepository
+    
+    org_id = uuid4()
+    session = AsyncMock()
+    repo = OrganizerRepository(session)
+
+    session.scalar.return_value = SimpleNamespace(id=org_id, name="Test Org")
+
+    result = await repo.get_by_id(org_id)
+
+    assert result is not None
+    assert result.id == org_id
+
+
+@pytest.mark.asyncio
+async def test_list_events_by_organizer_public_returns_published_events():
+    from apps.organizer.repository import OrganizerRepository
+    
+    org_id = uuid4()
+    session = AsyncMock()
+    repo = OrganizerRepository(session)
+
+    events_data = [
+        SimpleNamespace(id=uuid4(), title="Event 1", is_published=True),
+    ]
+    mock_result = MagicMock()
+    mock_result.all = MagicMock(return_value=events_data)
+    session.scalars = AsyncMock(return_value=mock_result)
+
+    events = await repo.list_events_by_organizer_public(org_id)
+
+    assert len(events) == 1
+    session.scalars.assert_called_once()
