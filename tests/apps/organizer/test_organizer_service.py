@@ -153,3 +153,65 @@ async def test_list_events_by_organizer_public_returns_published_events():
 
     assert len(events) == 1
     session.scalars.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_list_public_organizers_service():
+    from apps.organizer.public_service import PublicOrganizerService
+    
+    repo = AsyncMock()
+    repo.list_public_organizers.return_value = [
+        SimpleNamespace(id=uuid4(), name="Org 1"),
+        SimpleNamespace(id=uuid4(), name="Org 2"),
+    ]
+    service = PublicOrganizerService(repo)
+
+    result = await service.list_organizers()
+
+    assert len(result) == 2
+    repo.list_public_organizers.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_get_organizer_returns_organizer():
+    from apps.organizer.public_service import PublicOrganizerService
+    
+    org_id = uuid4()
+    repo = AsyncMock()
+    repo.get_by_id.return_value = SimpleNamespace(id=org_id, name="Test Org")
+    service = PublicOrganizerService(repo)
+
+    result = await service.get_organizer(org_id)
+
+    assert result is not None
+    assert result.id == org_id
+
+
+@pytest.mark.asyncio
+async def test_get_organizer_raises_not_found():
+    from apps.organizer.public_service import PublicOrganizerService
+    from exceptions import NotFoundError
+    
+    org_id = uuid4()
+    repo = AsyncMock()
+    repo.get_by_id.return_value = None
+    service = PublicOrganizerService(repo)
+
+    with pytest.raises(NotFoundError):
+        await service.get_organizer(org_id)
+
+
+@pytest.mark.asyncio
+async def test_list_events_by_organizer_returns_only_published():
+    from apps.organizer.public_service import PublicOrganizerService
+    
+    org_id = uuid4()
+    repo = AsyncMock()
+    repo.list_events_by_organizer_public.return_value = [
+        SimpleNamespace(id=uuid4(), title="Event 1", is_published=True),
+    ]
+    service = PublicOrganizerService(repo)
+
+    result = await service.list_events_by_organizer(org_id)
+
+    assert len(result) == 1
