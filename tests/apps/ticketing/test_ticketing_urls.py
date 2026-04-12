@@ -23,14 +23,14 @@ async def test_create_ticket_type_returns_ticket_type_dto():
     owner_id = uuid4()
     event_id = uuid4()
     request = SimpleNamespace(state=SimpleNamespace(user=SimpleNamespace(id=owner_id)))
-    body = CreateTicketTypeRequest(name="General", category="public", price=0, currency="INR")
+    body = CreateTicketTypeRequest(name="General", category="public", price=100, currency="INR")
     service = AsyncMock()
     service.create_ticket_type.return_value = SimpleNamespace(
         id=uuid4(),
         event_id=event_id,
         name="General",
         category="public",
-        price=0,
+        price=100,
         currency="INR",
     )
 

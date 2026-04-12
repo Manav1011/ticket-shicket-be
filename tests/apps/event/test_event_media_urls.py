@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-from src.apps.event.service import EventService
+from apps.event.service import EventService
 
 
 @pytest.fixture

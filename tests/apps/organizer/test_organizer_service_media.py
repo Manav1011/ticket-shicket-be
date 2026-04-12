@@ -4,8 +4,8 @@ from uuid import uuid4
 from PIL import Image
 from io import BytesIO
 
-from src.apps.organizer.service import OrganizerService
-from src.apps.organizer.exceptions import OrganizerNotFound
+from apps.organizer.service import OrganizerService
+from apps.organizer.exceptions import OrganizerNotFound
 from src.utils.file_validation import FileValidationError
 
 
@@ -38,7 +38,7 @@ async def test_upload_logo_success(organizer_service_mock, valid_image_bytes):
     repo_mock.get_by_id_for_owner.return_value = organizer
     repo_mock.session = AsyncMock()
 
-    with patch("src.apps.organizer.service.get_s3_client") as mock_s3:
+    with patch("apps.organizer.service.get_s3_client") as mock_s3:
         mock_client = MagicMock()
         mock_s3.return_value = mock_client
         mock_client.upload_file.return_value = "organizers/123/logo_abc_test.png"
@@ -106,7 +106,7 @@ async def test_upload_cover_image_success(organizer_service_mock, valid_image_by
     repo_mock.get_by_id_for_owner.return_value = organizer
     repo_mock.session = AsyncMock()
 
-    with patch("src.apps.organizer.service.get_s3_client") as mock_s3:
+    with patch("apps.organizer.service.get_s3_client") as mock_s3:
         mock_client = MagicMock()
         mock_s3.return_value = mock_client
         mock_client.upload_file.return_value = "organizers/123/cover_xyz_banner.png"

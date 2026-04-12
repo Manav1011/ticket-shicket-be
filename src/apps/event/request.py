@@ -50,3 +50,7 @@ class UpdateMediaAssetMetadataRequest(CamelCaseModel):
     alt_text: str | None = None
     sort_order: int | None = None
     is_primary: bool | None = None
+
+
+class UpdateShowTicketsRequest(CamelCaseModel):
+    show_tickets: bool | None = None

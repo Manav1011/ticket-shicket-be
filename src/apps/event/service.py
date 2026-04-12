@@ -72,7 +72,7 @@ class EventService:
         )
         schedule_complete = day_count > 0
         tickets_complete = getattr(event, "event_access_type", None) == EventAccessType.open or (
-            ticket_type_count > 0 and allocation_count > 0
+            ticket_type_count > 0 and allocation_count > 0 and getattr(event, "show_tickets", False)
         )
 
         # Check if banner asset exists
@@ -193,9 +193,9 @@ class EventService:
 
         basic_info_complete = len(basic_info_errors) == 0
         schedule_complete = len(schedule_errors) == 0
-        # tickets_complete is based on actual ticket presence, not error count
+        # tickets_complete requires both real tickets AND show_tickets enabled
         tickets_present = len(ticket_types) > 0 and len(allocations) > 0
-        tickets_complete = (event.event_access_type == EventAccessType.open) or tickets_present
+        tickets_complete = (event.event_access_type == EventAccessType.open) or (tickets_present and getattr(event, 'show_tickets', False))
         assets_complete = len(assets_errors) == 0
 
         # Build blocking issues (tickets no longer blocks publish - tickets_pending handles that)
@@ -246,12 +246,6 @@ class EventService:
         event.status = "published"
         event.is_published = True
         event.published_at = datetime.utcnow()
-        # Set tickets_pending flag if ticketed event has no tickets
-        ticket_types = await self.repository.list_ticket_types(event_id)
-        allocations = await self.repository.list_allocations(event_id)
-        if (event.event_access_type == EventAccessType.ticketed and
-                (len(ticket_types) == 0 or len(allocations) == 0)):
-            event.tickets_pending = True
         await self.repository.session.flush()
         await self.repository.session.refresh(event)
         return event
@@ -270,6 +264,16 @@ class EventService:
         for field, value in payload.items():
             setattr(event, field, value)
 
+        await self.repository.session.flush()
+        await self._refresh_setup_status(event)
+        return event
+
+    async def update_show_tickets(self, owner_user_id, event_id, **payload):
+        event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)
+        if not event:
+            raise EventNotFound
+        for field, value in payload.items():
+            setattr(event, field, value)
         await self.repository.session.flush()
         await self._refresh_setup_status(event)
         return event

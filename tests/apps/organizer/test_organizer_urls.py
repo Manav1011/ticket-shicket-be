@@ -10,6 +10,7 @@ from apps.organizer.urls import create_organizer, list_organizer_events, list_or
 
 @pytest.mark.asyncio
 async def test_create_organizer_uses_current_user():
+    from datetime import datetime
     owner_id = uuid4()
     request = SimpleNamespace(state=SimpleNamespace(user=SimpleNamespace(id=owner_id)))
     service = AsyncMock()
@@ -21,13 +22,15 @@ async def test_create_organizer_uses_current_user():
         bio="Meetups",
         visibility="public",
         status="active",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
     )
     body = CreateOrganizerPageRequest(
         name="Ahmedabad Talks",
         slug="Ahmedabad Talks",
         bio="Meetups",
-        logo_url="https://cdn/logo.png",
-        cover_image_url="https://cdn/cover.png",
+        logo_url="https://cdn.example.com/logo.png",
+        cover_image_url="https://cdn.example.com/cover.png",
         website_url="https://example.com",
         instagram_url="https://instagram.com/ahmedabadtalks",
         facebook_url=None,
@@ -46,6 +49,7 @@ async def test_list_organizers_returns_owner_scoped_rows():
     owner_id = uuid4()
     request = SimpleNamespace(state=SimpleNamespace(user=SimpleNamespace(id=owner_id)))
     service = AsyncMock()
+    from datetime import datetime
     service.list_organizers.return_value = [
         SimpleNamespace(
             id=uuid4(),
@@ -61,6 +65,8 @@ async def test_list_organizers_returns_owner_scoped_rows():
             youtube_url=None,
             visibility="public",
             status="active",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
     ]
 
@@ -99,6 +105,7 @@ async def test_list_organizer_events_returns_draft_summaries():
 
 @pytest.mark.asyncio
 async def test_update_organizer_forwards_only_set_fields():
+    from datetime import datetime
     owner_id = uuid4()
     organizer_id = uuid4()
     request = SimpleNamespace(state=SimpleNamespace(user=SimpleNamespace(id=owner_id)))
@@ -110,7 +117,7 @@ async def test_update_organizer_forwards_only_set_fields():
         name="Ahmedabad Talks",
         slug="ahmedabad-talks",
         bio="New bio",
-        logo_url="https://cdn/logo.png",
+        logo_url=None,
         cover_image_url=None,
         website_url=None,
         instagram_url=None,
@@ -118,6 +125,8 @@ async def test_update_organizer_forwards_only_set_fields():
         youtube_url=None,
         visibility="public",
         status="active",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
     )
 
     response = await update_organizer(

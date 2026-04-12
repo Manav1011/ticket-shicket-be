@@ -325,7 +325,7 @@ async def test_validate_for_publish_open_venue_complete():
 
 @pytest.mark.asyncio
 async def test_validate_for_publish_ticketed_missing_tickets():
-    """Ticketed event without tickets can publish (tickets_pending mode) but section marked incomplete."""
+    """Ticketed event without tickets can publish but section marked incomplete."""
     owner_id = uuid4()
     event_id = uuid4()
     event = SimpleNamespace(
@@ -360,7 +360,7 @@ async def test_validate_for_publish_ticketed_missing_tickets():
 
     validation = await service.validate_for_publish(owner_id, event_id)
 
-    # Ticketed events without tickets can now publish (tickets_pending mode)
+    # Ticketed events without tickets can publish
     # but the tickets section is still marked incomplete for the organizer dashboard
     assert validation["can_publish"] is True
     assert validation["sections"]["tickets"]["complete"] is False
@@ -369,7 +369,7 @@ async def test_validate_for_publish_ticketed_missing_tickets():
 
 @pytest.mark.asyncio
 async def test_validate_for_publish_ticketed_without_tickets_allows_publish():
-    """Ticketed event without tickets should NOT fail validation (tickets_pending mode)."""
+    """Ticketed event without tickets should NOT fail validation."""
     owner_id = uuid4()
     event_id = uuid4()
     event = SimpleNamespace(
@@ -384,7 +384,6 @@ async def test_validate_for_publish_ticketed_without_tickets_allows_publish():
         venue_country="India",
         online_event_url=None,
         recorded_event_url=None,
-        tickets_pending=False,
     )
     day = SimpleNamespace(
         id=uuid4(),
@@ -501,55 +500,35 @@ async def test_publish_event_sets_published_fields():
 
 
 @pytest.mark.asyncio
-async def test_publish_ticketed_event_without_tickets_sets_tickets_pending():
+async def test_setup_status_tickets_false_when_show_tickets_disabled():
+    """Even with ticket types and allocations, tickets section is incomplete if show_tickets=False."""
     owner_id = uuid4()
     event_id = uuid4()
-    event = SimpleNamespace(id=event_id, title="Ticketed Workshop", event_access_type="ticketed", location_mode="venue", timezone="Asia/Kolkata", venue_name="Community Hall", venue_address="123 Main St", venue_city="Pune", venue_country="India", online_event_url=None, recorded_event_url=None, status="draft", is_published=False, published_at=None, tickets_pending=False)
+    event = SimpleNamespace(id=event_id, title="Ticketed Workshop", event_access_type="ticketed", location_mode="venue", timezone="Asia/Kolkata", setup_status={}, show_tickets=False)
     day = SimpleNamespace(id=uuid4(), event_id=event_id, day_index=1, date=datetime(2026, 4, 15).date(), start_time=datetime(2026, 4, 15, 10, 0, 0), end_time=None)
     organizer_repo = AsyncMock()
     event_repo = AsyncMock()
     event_repo.get_by_id_for_owner.return_value = event
     event_repo.list_event_days.return_value = [day]
-    event_repo.list_ticket_types.return_value = []
-    event_repo.list_allocations.return_value = []
-    event_repo.list_media_assets.return_value = [SimpleNamespace(id=uuid4(), asset_type="banner")]
-    event_repo.session = AsyncMock()
-    event_repo.session.flush = AsyncMock()
-    event_repo.session.refresh = AsyncMock()
-    service = EventService(event_repo, organizer_repo)
-    published_event = await service.publish_event(owner_id, event_id)
-    assert event.tickets_pending is True
-    assert event.status == "published"
-    assert event.is_published is True
-
-
-@pytest.mark.asyncio
-async def test_setup_status_tickets_false_when_tickets_pending():
-    owner_id = uuid4()
-    event_id = uuid4()
-    event = SimpleNamespace(id=event_id, title="Ticketed Workshop", event_access_type="ticketed", location_mode="venue", timezone="Asia/Kolkata", setup_status={}, tickets_pending=True)
-    day = SimpleNamespace(id=uuid4(), event_id=event_id, day_index=1, date=datetime(2026, 4, 15).date(), start_time=datetime(2026, 4, 15, 10, 0, 0), end_time=None)
-    organizer_repo = AsyncMock()
-    event_repo = AsyncMock()
-    event_repo.get_by_id_for_owner.return_value = event
-    event_repo.list_event_days.return_value = [day]
-    event_repo.list_ticket_types.return_value = []
-    event_repo.list_allocations.return_value = []
+    event_repo.list_ticket_types.return_value = [SimpleNamespace(id=uuid4(), name="General")]
+    event_repo.list_allocations.return_value = [SimpleNamespace(id=uuid4(), quantity=50)]
     event_repo.count_event_days.return_value = 1
-    event_repo.count_ticket_types.return_value = 0
-    event_repo.count_ticket_allocations.return_value = 0
+    event_repo.count_ticket_types.return_value = 1
+    event_repo.count_ticket_allocations.return_value = 1
     event_repo.session = AsyncMock()
-    event_repo.list_media_assets = AsyncMock(return_value=[])
+    event_repo.list_media_assets = AsyncMock(return_value=[SimpleNamespace(id=uuid4(), asset_type="banner")])
     service = EventService(event_repo, organizer_repo)
-    setup_status = await service._build_setup_status(event, 1, 0, 0)
+    # show_tickets=False, so tickets should be incomplete even with real tickets
+    setup_status = await service._build_setup_status(event, 1, 1, 1)
     assert setup_status["tickets"] is False
 
 
 @pytest.mark.asyncio
 async def test_ticketed_event_can_be_published_without_tickets_and_then_tickets_added():
+    """Ticketed event can publish without tickets; tickets section incomplete until show_tickets enabled."""
     owner_id = uuid4()
     event_id = uuid4()
-    event = SimpleNamespace(id=event_id, title="Ticketed Workshop", event_access_type="ticketed", location_mode="venue", timezone="Asia/Kolkata", venue_name="Community Hall", venue_address="123 Main St", venue_city="Pune", venue_country="India", online_event_url=None, recorded_event_url=None, status="draft", is_published=False, published_at=None, tickets_pending=False)
+    event = SimpleNamespace(id=event_id, title="Ticketed Workshop", event_access_type="ticketed", location_mode="venue", timezone="Asia/Kolkata", venue_name="Community Hall", venue_address="123 Main St", venue_city="Pune", venue_country="India", online_event_url=None, recorded_event_url=None, status="draft", is_published=False, published_at=None, show_tickets=False)
     day = SimpleNamespace(id=uuid4(), event_id=event_id, day_index=1, date=datetime(2026, 4, 15).date(), start_time=datetime(2026, 4, 15, 10, 0, 0), end_time=None)
     organizer_repo = AsyncMock()
     event_repo = AsyncMock()
@@ -564,9 +543,9 @@ async def test_ticketed_event_can_be_published_without_tickets_and_then_tickets_
     service = EventService(event_repo, organizer_repo)
     validation = await service.validate_for_publish(owner_id, event_id)
     assert validation["can_publish"] is True
-    published = await service.publish_event(owner_id, event_id)
-    assert published.tickets_pending is True
-    event.tickets_pending = False
+    assert validation["sections"]["tickets"]["complete"] is False
+    # Now add tickets
+    event.show_tickets = True
     event_repo.list_ticket_types.return_value = [SimpleNamespace(id=uuid4(), name="General")]
     event_repo.list_allocations.return_value = [SimpleNamespace(id=uuid4(), quantity=50)]
     validation2 = await service.validate_for_publish(owner_id, event_id)

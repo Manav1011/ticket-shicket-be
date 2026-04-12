@@ -26,6 +26,7 @@ async def test_readiness_marks_open_event_complete_without_ticket_setup():
     repo.count_event_days.return_value = 1
     repo.count_ticket_types.return_value = 0
     repo.count_ticket_allocations.return_value = 0
+    repo.list_media_assets = AsyncMock(return_value=[])
     repo.session = AsyncMock()
     service = EventService(repo, organizer_repo)
 
@@ -33,8 +34,8 @@ async def test_readiness_marks_open_event_complete_without_ticket_setup():
     readiness = await service.get_readiness(owner_id, event_id)
 
     assert readiness["completed_sections"] == ["basic_info", "schedule", "tickets"]
-    assert readiness["missing_sections"] == []
-    assert readiness["blocking_issues"] == []
+    assert readiness["missing_sections"] == ["assets"]
+    assert readiness["blocking_issues"] == ["Upload a banner image"]
 
 
 @pytest.mark.asyncio

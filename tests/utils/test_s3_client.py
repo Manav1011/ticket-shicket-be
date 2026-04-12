@@ -25,7 +25,7 @@ async def test_upload_file_returns_storage_key(s3_client):
     file_content = b"fake image data"
 
     storage_key = s3_client.upload_file(
-        event_id=event_id,
+        resource_id=event_id,
         asset_type="banner",
         file_name=file_name,
         file_content=file_content,

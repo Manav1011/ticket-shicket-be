@@ -17,7 +17,7 @@ async def test_create_user_returns_only_public_fields():
         first_name="Jane",
         last_name="Doe",
         email="jane@example.com",
-        phone="1234567890",
+        phone="+919876543210",
         password="hashed-password",
     )
     service = AsyncMock()
@@ -26,7 +26,7 @@ async def test_create_user_returns_only_public_fields():
         first_name="Jane",
         last_name="Doe",
         email="jane@example.com",
-        phone="1234567890",
+        phone="+919876543210",
         password="Secret123!",
     )
 

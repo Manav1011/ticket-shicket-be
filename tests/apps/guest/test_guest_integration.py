@@ -29,7 +29,7 @@ class TestGuestFullLifecycle:
     """
 
     @pytest.mark.asyncio
-    async def test_guest_login_returns_device_id_and_tokens(self, test_client):
+    async def test_guest_login_returns_device_id_and_tokens(self, async_test_client):
         """
         Step 1: Guest login creates guest record and returns tokens.
 
@@ -40,7 +40,7 @@ class TestGuestFullLifecycle:
         """
         device_id = str(uuid4())
 
-        response = test_client.post(
+        response = async_test_client.post(
             "/api/guest/login",
             headers={"X-Device-ID": device_id},
         )
@@ -54,7 +54,7 @@ class TestGuestFullLifecycle:
         assert data["device_id"] == device_id
 
     @pytest.mark.asyncio
-    async def test_guest_protected_endpoint_requires_token(self, test_client):
+    async def test_guest_protected_endpoint_requires_token(self, async_test_client):
         """
         Step 2: Guest protected endpoints require valid token.
 
@@ -62,11 +62,11 @@ class TestGuestFullLifecycle:
         - GET /api/guest/self without token returns 401
         - GET /api/guest/self with valid token returns guest info
         """
-        response = test_client.get("/api/guest/self")
+        response = async_test_client.get("/api/guest/self")
         assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_guest_convert_creates_user_and_invalidates_guest(self, test_client):
+    async def test_guest_convert_creates_user_and_invalidates_guest(self, async_test_client):
         """
         Step 3: Guest conversion creates User, links Guest, returns new tokens.
 
@@ -79,19 +79,19 @@ class TestGuestFullLifecycle:
         """
         # First login as guest
         device_id = str(uuid4())
-        login_response = test_client.post(
+        login_response = async_test_client.post(
             "/api/guest/login",
             headers={"X-Device-ID": device_id},
         )
         guest_token = login_response.json()["data"]["access_token"]
 
         # Convert to user
-        convert_response = test_client.post(
+        convert_response = async_test_client.post(
             "/api/guest/convert",
             headers={"Authorization": f"Bearer {guest_token}"},
             json={
                 "email": "newuser@example.com",
-                "phone": "1234567890",
+                "phone": "+919876543210",
                 "password": "SecurePassword123",
                 "firstName": "John",
                 "lastName": "Doe",
@@ -105,14 +105,14 @@ class TestGuestFullLifecycle:
         assert "refresh_token" in data
 
         # Guest token should now be invalid
-        guest_info_response = test_client.get(
+        guest_info_response = async_test_client.get(
             "/api/guest/self",
             headers={"Authorization": f"Bearer {guest_token}"},
         )
         assert guest_info_response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_guest_token_refresh_rotates_tokens(self, test_client):
+    async def test_guest_token_refresh_rotates_tokens(self, async_test_client):
         """
         Step 4: Guest token refresh rotates the token pair.
 
@@ -123,14 +123,14 @@ class TestGuestFullLifecycle:
         """
         # Login as guest
         device_id = str(uuid4())
-        login_response = test_client.post(
+        login_response = async_test_client.post(
             "/api/guest/login",
             headers={"X-Device-ID": device_id},
         )
         old_refresh_token = login_response.json()["data"]["refresh_token"]
 
         # Refresh tokens
-        refresh_response = test_client.post(
+        refresh_response = async_test_client.post(
             "/api/guest/refresh",
             json={"refreshToken": old_refresh_token},
         )
@@ -142,14 +142,14 @@ class TestGuestFullLifecycle:
         assert data["refresh_token"] != old_refresh_token
 
         # Old token should be revoked
-        refresh_again = test_client.post(
+        refresh_again = async_test_client.post(
             "/api/guest/refresh",
             json={"refreshToken": old_refresh_token},
         )
         assert refresh_again.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_guest_logout_revokes_token(self, test_client):
+    async def test_guest_logout_revokes_token(self, async_test_client):
         """
         Step 5: Guest logout revokes the refresh token.
 
@@ -160,21 +160,21 @@ class TestGuestFullLifecycle:
         """
         # Login as guest
         device_id = str(uuid4())
-        login_response = test_client.post(
+        login_response = async_test_client.post(
             "/api/guest/login",
             headers={"X-Device-ID": device_id},
         )
         refresh_token = login_response.json()["data"]["refresh_token"]
 
         # Logout
-        logout_response = test_client.post(
+        logout_response = async_test_client.post(
             "/api/guest/logout",
             json={"refreshToken": refresh_token},
         )
         assert logout_response.status_code == 200
 
         # Token should be revoked
-        refresh_response = test_client.post(
+        refresh_response = async_test_client.post(
             "/api/guest/refresh",
             json={"refreshToken": refresh_token},
         )
@@ -184,7 +184,7 @@ class TestGuestFullLifecycle:
 # Pytest fixture for test client would be defined in conftest.py:
 #
 # @pytest.fixture
-# async def test_client():
+# async def async_test_client():
 #     """Provides an async test client with database setup."""
 #     from httpx import AsyncClient
 #     from server import create_app

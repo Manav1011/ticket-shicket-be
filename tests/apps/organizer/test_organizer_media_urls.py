@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-from src.apps.organizer.service import OrganizerService
+from apps.organizer.service import OrganizerService
 
 
 @pytest.fixture

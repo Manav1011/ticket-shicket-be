@@ -56,7 +56,7 @@ class EventModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     is_published: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false"), nullable=False
     )
-    tickets_pending: Mapped[bool] = mapped_column(
+    show_tickets: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false"), nullable=False
     )
 

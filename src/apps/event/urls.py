@@ -10,7 +10,7 @@ from utils.schema import BaseResponse
 
 from apps.organizer.repository import OrganizerRepository
 from .repository import EventRepository
-from .request import CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest, UpdateEventDayRequest, UpdateMediaAssetMetadataRequest
+from .request import CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest, UpdateEventDayRequest, UpdateMediaAssetMetadataRequest, UpdateShowTicketsRequest
 from .response import EventDayResponse, EventReadinessResponse, EventResponse, PublishValidationResponse, ScanStatusHistoryResponse, MediaAssetResponse, ResellerResponse
 from .service import EventService
 
@@ -71,6 +71,21 @@ async def update_basic_info(
     service: Annotated[EventService, Depends(get_event_service)],
 ) -> BaseResponse[EventResponse]:
     event = await service.update_basic_info(
+        request.state.user.id,
+        event_id,
+        **body.model_dump(exclude_unset=True),
+    )
+    return BaseResponse(data=EventResponse.model_validate(event))
+
+
+@router.patch("/{event_id}/show-tickets")
+async def update_show_tickets(
+    event_id: UUID,
+    request: Request,
+    body: Annotated[UpdateShowTicketsRequest, Body()],
+    service: Annotated[EventService, Depends(get_event_service)],
+) -> BaseResponse[EventResponse]:
+    event = await service.update_show_tickets(
         request.state.user.id,
         event_id,
         **body.model_dump(exclude_unset=True),

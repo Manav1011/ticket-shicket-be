@@ -39,8 +39,6 @@ class TicketingService:
             currency=currency,
         )
         self.repository.add(ticket_type)
-        if getattr(event, 'tickets_pending', False):
-            event.tickets_pending = False
         await self.repository.session.flush()
         await self.repository.session.refresh(ticket_type)
         return ticket_type
@@ -89,10 +87,6 @@ class TicketingService:
             if "uq_day_ticket_allocations" in str(e):
                 raise DuplicateAllocation
             raise
-
-        # Clear tickets_pending flag now that allocation was created successfully
-        if getattr(event, 'tickets_pending', False):
-            event.tickets_pending = False
 
         await self.repository.bulk_create_tickets(
             event_id,
