@@ -257,3 +257,12 @@ class EventRepository:
             .order_by(EventResellerModel.created_at.desc())
         )
         return list(result.all())
+
+    async def list_published_events(self) -> list[EventModel]:
+        result = await self._session.scalars(
+            select(EventModel)
+            .where(EventModel.is_published == True)
+            .where(EventModel.status == "published")
+            .order_by(EventModel.created_at.desc())
+        )
+        return list(result.all())

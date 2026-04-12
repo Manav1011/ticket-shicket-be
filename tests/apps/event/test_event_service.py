@@ -609,3 +609,24 @@ async def test_interest_event_is_idempotent_for_same_guest_event_pair():
 
     assert result["created"] is False
     assert result["interested_counter"] == 3
+
+
+@pytest.mark.asyncio
+async def test_list_published_events_returns_only_published():
+    from apps.event.repository import EventRepository
+    
+    session = AsyncMock()
+    repo = EventRepository(session)
+
+    events_data = [
+        SimpleNamespace(id=uuid4(), title="Published Event 1", is_published=True),
+        SimpleNamespace(id=uuid4(), title="Published Event 2", is_published=True),
+    ]
+    mock_result = MagicMock()
+    mock_result.all = MagicMock(return_value=events_data)
+    session.scalars = AsyncMock(return_value=mock_result)
+
+    events = await repo.list_published_events()
+
+    assert len(events) == 2
+    session.scalars.assert_called_once()
