@@ -9,6 +9,7 @@ from handlers import start_exception_handlers
 from lifespan import lifespan
 from utils.schema import BaseValidationResponse
 from apps.organizer.urls import router as organizer_router
+from apps.organizer.public_urls import router as organizer_public_router
 from apps.event.urls import router as event_router
 from apps.event.public_urls import router as event_public_router
 from apps.ticketing.urls import router as ticketing_router
@@ -61,6 +62,7 @@ def create_app(debug: bool = False) -> FastAPI:
     base_router.include_router(guest_router)
     base_router.include_router(protected_guest_router)
     base_router.include_router(organizer_router)
+    base_router.include_router(organizer_public_router)
     base_router.include_router(event_router)
     base_router.include_router(event_public_router)
     base_router.include_router(ticketing_router)
