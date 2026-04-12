@@ -459,7 +459,7 @@ def test_event_interest_response_includes_created_and_counter():
 def test_public_interest_router_uses_combined_actor_dependency():
     from apps.event.public_urls import router
 
-    route = next(route for route in router.routes if getattr(route, "path", "") == "/api/events/{event_id}/interest")
+    route = next(route for route in router.routes if getattr(route, "path", "") == "/api/open/events/{event_id}/interest")
     dependency_names = [getattr(dep.call, "__name__", "") for dep in route.dependant.dependencies]
     assert "get_current_user_or_guest" in dependency_names
 

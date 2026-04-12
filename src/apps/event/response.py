@@ -119,6 +119,75 @@ class MediaAssetResponse(CamelCaseModel):
         from_attributes = True
 
 
+class EventDayPublicResponse(CamelCaseModel):
+    id: UUID
+    day_index: int
+    date: date
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    scan_status: str
+
+
+class MediaAssetPublicResponse(CamelCaseModel):
+    id: UUID
+    asset_type: str
+    public_url: str
+    title: str | None = None
+    caption: str | None = None
+    alt_text: str | None = None
+    sort_order: int
+    is_primary: bool
+
+
+class TicketTypePublicResponse(CamelCaseModel):
+    id: UUID
+    name: str | None = None
+    description: str | None = None
+    price: str = "0.00"
+    currency: str = "USD"
+
+
+class TicketAllocationPublicResponse(CamelCaseModel):
+    id: UUID
+    ticket_type_id: UUID
+    event_day_id: UUID
+    quantity: int
+    price: str = "0.00"
+
+
+class EventDetailResponse(CamelCaseModel):
+    id: UUID
+    title: str | None = None
+    slug: str | None = None
+    description: str | None = None
+    event_type: str | None = None
+    status: str
+    event_access_type: str
+    location_mode: str | None = None
+    timezone: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    venue_name: str | None = None
+    venue_address: str | None = None
+    venue_city: str | None = None
+    venue_state: str | None = None
+    venue_country: str | None = None
+    venue_latitude: float | None = None
+    venue_longitude: float | None = None
+    online_event_url: str | None = None
+    recorded_event_url: str | None = None
+    published_at: datetime | None = None
+    is_published: bool
+    interested_counter: int = 0
+    days: list[EventDayPublicResponse] = []
+    media_assets: list[MediaAssetPublicResponse] = []
+    ticket_types: list[TicketTypePublicResponse] = []
+    ticket_allocations: list[TicketAllocationPublicResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
 class EventEnvelopeResponse(BaseResponse[EventResponse]):
     pass
 
