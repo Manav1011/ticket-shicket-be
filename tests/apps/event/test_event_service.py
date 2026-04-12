@@ -630,3 +630,62 @@ async def test_list_published_events_returns_only_published():
 
     assert len(events) == 2
     session.scalars.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_list_public_events_returns_only_published():
+    from apps.event.public_service import PublicEventService
+    
+    event_repo = AsyncMock()
+    event_repo.list_published_events.return_value = [
+        SimpleNamespace(id=uuid4(), title="Event 1", is_published=True),
+        SimpleNamespace(id=uuid4(), title="Event 2", is_published=True),
+    ]
+    ticketing_repo = AsyncMock()
+    service = PublicEventService(event_repo, ticketing_repo)
+
+    result = await service.list_public_events()
+
+    assert len(result) == 2
+    event_repo.list_published_events.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_get_public_event_returns_event_with_embedded_data():
+    from apps.event.public_service import PublicEventService
+    from datetime import date
+    
+    event_id = uuid4()
+    event_repo = AsyncMock()
+    event_repo.get_by_id.return_value = SimpleNamespace(
+        id=event_id,
+        title="Test Event",
+        slug="test-event",
+        is_published=True,
+        interested_counter=5,
+        organizer_page_id=uuid4(),
+        status="published",
+        event_access_type="ticketed",
+    )
+    event_repo.list_event_days.return_value = [SimpleNamespace(
+        id=uuid4(),
+        day_index=0,
+        date=date(2026, 4, 15),
+        start_time=None,
+        end_time=None,
+        scan_status="not_started",
+    )]
+    event_repo.list_media_assets.return_value = []
+    ticketing_repo = AsyncMock()
+    ticketing_repo.list_ticket_types_for_event.return_value = []
+    ticketing_repo.list_allocations_for_event.return_value = []
+    service = PublicEventService(event_repo, ticketing_repo)
+
+    result = await service.get_public_event(event_id)
+
+    assert result["id"] == event_id
+    assert result["interested_counter"] == 5
+    assert "days" in result
+    assert "ticket_types" in result
+    assert "media_assets" in result
+    assert "ticket_allocations" in result
