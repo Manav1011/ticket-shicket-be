@@ -11,6 +11,7 @@ def test_phase_one_routes_are_registered():
     assert "/api/events/drafts" in paths
     assert "/api/events/{event_id}" in paths
     assert "/api/events/{event_id}/basic-info" in paths
+    assert "/api/events/{event_id}/interest" in paths
     assert "/api/events/{event_id}/readiness" in paths
     assert "/api/events/{event_id}/days" in paths
     assert "/api/events/days/{event_day_id}" in paths

@@ -42,7 +42,13 @@ class EventResponse(CamelCaseModel):
     published_at: datetime | None = None
     is_published: bool
     show_tickets: bool = False
+    interested_counter: int = 0
     media_assets: list["MediaAssetResponse"] = []
+
+
+class EventInterestResponse(CamelCaseModel):
+    created: bool
+    interested_counter: int
 
 
 class EventDayResponse(CamelCaseModel):

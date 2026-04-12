@@ -1,13 +1,13 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import func, select, and_
+from sqlalchemy import func, select, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.organizer.models import OrganizerPageModel
 from apps.ticketing.models import DayTicketAllocationModel, TicketTypeModel
 
-from .models import EventDayModel, EventModel, ScanStatusHistoryModel, EventMediaAssetModel, EventResellerModel
+from .models import EventDayModel, EventModel, EventInterestModel, ScanStatusHistoryModel, EventMediaAssetModel, EventResellerModel
 
 
 class EventRepository:
@@ -36,6 +36,11 @@ class EventRepository:
     async def get_by_id(self, event_id: UUID) -> Optional[EventModel]:
         return await self._session.scalar(
             select(EventModel).where(EventModel.id == event_id)
+        )
+
+    async def get_by_id_for_update(self, event_id: UUID) -> Optional[EventModel]:
+        return await self._session.scalar(
+            select(EventModel).where(EventModel.id == event_id).with_for_update()
         )
 
     async def create_event_day(
@@ -172,6 +177,46 @@ class EventRepository:
         """Delete media asset from database."""
         await self._session.delete(asset)
         await self._session.flush()
+
+    async def get_interest_for_actor(
+        self,
+        event_id: UUID,
+        user_id: UUID | None = None,
+        guest_id: UUID | None = None,
+    ) -> EventInterestModel | None:
+        query = select(EventInterestModel).where(EventInterestModel.event_id == event_id)
+        if user_id is not None:
+            query = query.where(EventInterestModel.user_id == user_id)
+        if guest_id is not None:
+            query = query.where(EventInterestModel.guest_id == guest_id)
+        return await self._session.scalar(query)
+
+    async def create_event_interest(
+        self,
+        event_id: UUID,
+        user_id: UUID | None,
+        guest_id: UUID | None,
+        ip_address: str,
+        user_agent: str | None,
+    ) -> EventInterestModel:
+        interest = EventInterestModel(
+            event_id=event_id,
+            user_id=user_id,
+            guest_id=guest_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+        self._session.add(interest)
+        await self._session.flush()
+        await self._session.refresh(interest)
+        return interest
+
+    async def increment_event_interest_counter(self, event_id: UUID) -> None:
+        await self._session.execute(
+            update(EventModel)
+            .where(EventModel.id == event_id)
+            .values(interested_counter=EventModel.interested_counter + 1)
+        )
 
     async def create_event_reseller(
         self,

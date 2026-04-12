@@ -7,12 +7,14 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.dependencies import get_current_guest
+from auth.blocklist import TokenBlocklist
 from .models import GuestModel
 from .request import GuestConvertRequest, GuestLoginRequest
 from .response import GuestLoginResponse, GuestResponse, GuestDeviceResponse
 from .service import GuestService
 from .repository import GuestRepository
 from apps.user.repository import UserRepository
+from db.redis import redis
 from db.session import db_session
 from auth.schemas import RefreshRequest, TokenPair
 from utils.schema import BaseResponse
@@ -31,6 +33,7 @@ def get_guest_service(session: Annotated[AsyncSession, Depends(db_session)]) -> 
     return GuestService(
         GuestRepository(session),
         UserRepository(session),
+        TokenBlocklist(redis=redis),
     )
 
 
@@ -55,7 +58,11 @@ async def guest_login(
     Device ID is sent in X-Device-ID header (generated client-side).
     Server generates guest_id and returns tokens.
     """
-    device_id = UUID(device_id_header)
+    try:
+        device_id = UUID(device_id_header)
+    except ValueError:
+        from exceptions import BadRequestError
+        raise BadRequestError("X-Device-ID must be a valid UUID")
     result = await service.login_guest(device_id)
 
     data = {"status": SUCCESS, "code": status.HTTP_200_OK, "data": result}

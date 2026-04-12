@@ -551,3 +551,61 @@ async def test_ticketed_event_can_be_published_without_tickets_and_then_tickets_
     validation2 = await service.validate_for_publish(owner_id, event_id)
     assert validation2["can_publish"] is True
     assert validation2["sections"]["tickets"]["complete"] is True
+
+
+class _AsyncNullContext:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+
+@pytest.mark.asyncio
+async def test_interest_event_creates_row_and_increments_counter_for_user():
+    event_id = uuid4()
+    event = SimpleNamespace(id=event_id, interested_counter=3)
+    event_repo = AsyncMock()
+    event_repo.get_by_id_for_update.return_value = event
+    event_repo.get_interest_for_actor.return_value = None
+    event_repo.get_by_id.return_value = event
+    event_repo.create_event_interest.return_value = SimpleNamespace(id=uuid4())
+    event_repo.increment_event_interest_counter = AsyncMock()
+    event_repo.session = SimpleNamespace(begin_nested=lambda: _AsyncNullContext())
+    service = EventService(event_repo, AsyncMock())
+
+    result = await service.interest_event(
+        actor_kind="user",
+        actor_id=uuid4(),
+        event_id=event_id,
+        ip_address="203.0.113.10",
+        user_agent="Mozilla/5.0",
+    )
+
+    assert result["created"] is True
+    assert result["interested_counter"] == 3
+    event_repo.create_event_interest.assert_awaited_once()
+    event_repo.increment_event_interest_counter.assert_awaited_once_with(event_id)
+
+
+@pytest.mark.asyncio
+async def test_interest_event_is_idempotent_for_same_guest_event_pair():
+    event_id = uuid4()
+    event = SimpleNamespace(id=event_id, interested_counter=3)
+    event_repo = AsyncMock()
+    event_repo.get_by_id_for_update.return_value = event
+    event_repo.get_interest_for_actor.return_value = SimpleNamespace(id=uuid4())
+    event_repo.get_by_id.return_value = event
+    event_repo.session = SimpleNamespace(begin_nested=lambda: _AsyncNullContext())
+    service = EventService(event_repo, AsyncMock())
+
+    result = await service.interest_event(
+        actor_kind="guest",
+        actor_id=uuid4(),
+        event_id=event_id,
+        ip_address="203.0.113.10",
+        user_agent="Mozilla/5.0",
+    )
+
+    assert result["created"] is False
+    assert result["interested_counter"] == 3

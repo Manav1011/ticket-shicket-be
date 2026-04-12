@@ -59,6 +59,29 @@ class EventModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     show_tickets: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false"), nullable=False
     )
+    interested_counter: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+
+
+class EventInterestModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
+    __tablename__ = "event_interests"
+    __table_args__ = (
+        UniqueConstraint("event_id", "user_id", name="uq_event_interests_event_user"),
+        UniqueConstraint("event_id", "guest_id", name="uq_event_interests_event_guest"),
+    )
+
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id"), index=True, nullable=False
+    )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"), index=True, nullable=True
+    )
+    guest_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("guests.id"), index=True, nullable=True
+    )
+    ip_address: Mapped[str] = mapped_column(String(64), nullable=False)
+    user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class EventDayModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):

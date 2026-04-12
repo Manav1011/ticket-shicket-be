@@ -7,6 +7,7 @@ from apps.event.enums import EventAccessType, LocationMode
 from .exceptions import EventNotFound, InvalidScanTransition, OrganizerOwnershipError, InvalidAsset
 from .models import EventModel, EventMediaAssetModel
 from .response import FieldErrorResponse
+from sqlalchemy.exc import IntegrityError
 from src.utils.s3_client import get_s3_client
 from src.utils.file_validation import FileValidator, FileValidationError
 
@@ -255,6 +256,35 @@ class EventService:
         if not event:
             raise EventNotFound
         return event
+
+    async def interest_event(self, actor_kind, actor_id, event_id, ip_address, user_agent):
+        event = await self.repository.get_by_id_for_update(event_id)
+        if not event:
+            raise EventNotFound
+
+        existing = await self.repository.get_interest_for_actor(
+            event_id=event_id,
+            user_id=actor_id if actor_kind == "user" else None,
+            guest_id=actor_id if actor_kind == "guest" else None,
+        )
+        if existing:
+            return {"created": False, "interested_counter": event.interested_counter}
+
+        try:
+            async with self.repository.session.begin_nested():
+                await self.repository.create_event_interest(
+                    event_id=event_id,
+                    user_id=actor_id if actor_kind == "user" else None,
+                    guest_id=actor_id if actor_kind == "guest" else None,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                )
+                await self.repository.increment_event_interest_counter(event_id)
+        except IntegrityError:
+            current = await self.repository.get_by_id(event_id)
+            return {"created": False, "interested_counter": current.interested_counter}
+
+        return {"created": True, "interested_counter": event.interested_counter}
 
     async def update_basic_info(self, owner_user_id, event_id, **payload):
         event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)

@@ -108,12 +108,14 @@ def s3_client_with_mock():
 def test_app():
     """Create FastAPI app with mocked lifespan for HTTP testing."""
     from fastapi import FastAPI
+    from fastapi import APIRouter
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse
     from starlette.testclient import TestClient
 
     from apps.organizer.urls import router as organizer_router
     from apps.event.urls import router as event_router
+    from apps.event.public_urls import router as event_public_router
     from apps.ticketing.urls import router as ticketing_router
     from apps.user import user_router, protected_user_router
     from apps.guest import guest_router, protected_guest_router
@@ -146,13 +148,14 @@ def test_app():
     async def healthcheck():
         return JSONResponse(status_code=200, content={"message": "SUCCESS"})
 
-    base_router = FastAPI()
+    base_router = APIRouter()
     base_router.include_router(user_router)
     base_router.include_router(protected_user_router)
     base_router.include_router(guest_router)
     base_router.include_router(protected_guest_router)
     base_router.include_router(organizer_router)
     base_router.include_router(event_router)
+    base_router.include_router(event_public_router)
     base_router.include_router(ticketing_router)
     app.include_router(base_router, responses={422: {"model": BaseValidationResponse}})
 
@@ -160,11 +163,11 @@ def test_app():
 
 
 @pytest.fixture
-async def async_test_client(test_app):
-    """Async HTTP client for integration tests."""
-    from httpx import AsyncClient
+def async_test_client(test_app):
+    """HTTP client for integration tests."""
+    from starlette.testclient import TestClient
 
-    async with AsyncClient(app=test_app, base_url="http://test") as client:
+    with TestClient(test_app) as client:
         yield client
 
 

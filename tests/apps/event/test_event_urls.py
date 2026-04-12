@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock
 import pytest
 
 from apps.event.request import CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest, UpdateEventDayRequest
+from apps.event.response import EventInterestResponse
+from apps.event.public_urls import mark_event_interest
 from apps.event.urls import (
     create_draft_event,
     create_event_day,
@@ -446,3 +448,42 @@ async def test_pause_resume_end_scan_routes_return_latest_day_state():
     assert paused.data.scan_status == "paused"
     assert resumed.data.scan_status == "active"
     assert ended.data.scan_status == "ended"
+
+
+def test_event_interest_response_includes_created_and_counter():
+    response = EventInterestResponse.model_validate({"created": True, "interested_counter": 7})
+    assert response.created is True
+    assert response.interested_counter == 7
+
+
+def test_public_interest_router_uses_combined_actor_dependency():
+    from apps.event.public_urls import router
+
+    route = next(route for route in router.routes if getattr(route, "path", "") == "/api/events/{event_id}/interest")
+    dependency_names = [getattr(dep.call, "__name__", "") for dep in route.dependant.dependencies]
+    assert "get_current_user_or_guest" in dependency_names
+
+
+@pytest.mark.asyncio
+async def test_interest_event_endpoint_passes_actor_and_metadata_to_service():
+    event_id = uuid4()
+    actor = SimpleNamespace(kind="guest", id=uuid4())
+    request = SimpleNamespace(
+        state=SimpleNamespace(actor=actor),
+        client=SimpleNamespace(host="203.0.113.10"),
+        headers={"user-agent": "Mozilla/5.0"},
+    )
+    service = AsyncMock()
+    service.interest_event.return_value = {"created": True, "interested_counter": 1}
+
+    response = await mark_event_interest(event_id=event_id, request=request, service=service)
+
+    service.interest_event.assert_awaited_once_with(
+        actor_kind="guest",
+        actor_id=actor.id,
+        event_id=event_id,
+        ip_address="203.0.113.10",
+        user_agent="Mozilla/5.0",
+    )
+    assert response.data.created is True
+    assert response.data.interested_counter == 1

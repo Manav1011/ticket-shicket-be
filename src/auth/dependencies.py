@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from typing import Annotated, TYPE_CHECKING
 from uuid import UUID
 
@@ -17,6 +18,12 @@ if TYPE_CHECKING:
 
 
 security = HTTPBearer()
+
+
+@dataclass
+class ActorContext:
+    kind: str
+    id: UUID
 
 
 async def get_current_user(
@@ -114,3 +121,64 @@ async def get_current_guest(
 
     request.state.guest = guest
     return guest
+
+
+async def get_current_user_or_guest(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session: AsyncSession = Depends(db_session),
+) -> ActorContext:
+    """
+    Dependency that accepts either a user or guest bearer token and stores a normalized actor.
+    """
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    try:
+        payload = access.decode(credentials.credentials)
+        actor_type = payload.get("user_type")
+        actor_id = UUID(payload["sub"])
+    except (UnauthorizedError, InvalidJWTTokenException, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+
+    if actor_type == "user":
+        from apps.user.models import UserModel
+
+        actor = await session.scalar(select(UserModel).where(UserModel.id == actor_id))
+        if not actor:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+            )
+        request.state.actor = ActorContext(kind="user", id=actor.id)
+        request.state.user = actor
+        return request.state.actor
+
+    if actor_type == "guest":
+        from apps.guest.models import GuestModel
+
+        actor = await session.scalar(select(GuestModel).where(GuestModel.id == actor_id))
+        if not actor:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Guest not found",
+            )
+        if actor.is_converted:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Guest has been converted",
+            )
+        request.state.actor = ActorContext(kind="guest", id=actor.id)
+        request.state.guest = actor
+        return request.state.actor
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid token type",
+    )
