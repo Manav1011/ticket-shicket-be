@@ -2,13 +2,13 @@ from uuid import UUID
 
 from pydantic import Field
 
-from apps.ticketing.enums import TicketCategory
+from apps.ticketing.enums import TicketCategoryPublic
 from utils.schema import CamelCaseModel
 
 
 class CreateTicketTypeRequest(CamelCaseModel):
     name: str
-    category: TicketCategory
+    category: TicketCategoryPublic
     price: float = Field(gt=0)
     currency: str = "INR"
 

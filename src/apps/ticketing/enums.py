@@ -8,6 +8,12 @@ class TicketCategory(str, Enum):
     vip = "vip"
 
 
+class TicketCategoryPublic(str, Enum):
+    online = "online"
+    public = "public"
+    vip = "vip"
+
+
 class TicketStatus(str, Enum):
     active = "active"
     cancelled = "cancelled"

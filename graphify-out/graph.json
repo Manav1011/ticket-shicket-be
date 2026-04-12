@@ -9,7 +9,7 @@
       "source_file": "main.py",
       "source_location": "L1",
       "id": "main",
-      "community": 10
+      "community": 11
     },
     {
       "label": "__init__.py",
@@ -17,7 +17,7 @@
       "source_file": "tests/apps/guest/__init__.py",
       "source_location": "L1",
       "id": "init",
-      "community": 6
+      "community": 5
     },
     {
       "label": "exceptions.py",
@@ -41,7 +41,7 @@
       "source_file": "",
       "source_location": "",
       "id": "exception",
-      "community": 11
+      "community": 12
     },
     {
       "label": ".__init__()",
@@ -113,7 +113,7 @@
       "source_file": "src/exceptions.py",
       "source_location": "L88",
       "id": "exceptions_unexpectedresponse",
-      "community": 11
+      "community": 12
     },
     {
       "label": ".__init__()",
@@ -121,7 +121,7 @@
       "source_file": "src/exceptions.py",
       "source_location": "L96",
       "id": "exceptions_unexpectedresponse_init",
-      "community": 11
+      "community": 12
     },
     {
       "label": "Base custom exception class for raising necessary exceptions in the app.      At",
@@ -201,7 +201,7 @@
       "source_file": "src/exceptions.py",
       "source_location": "L89",
       "id": "exceptions_rationale_89",
-      "community": 11
+      "community": 12
     },
     {
       "label": "Initialize the exception with the unexpected HTTP response.          Args:",
@@ -209,7 +209,7 @@
       "source_file": "src/exceptions.py",
       "source_location": "L97",
       "id": "exceptions_rationale_97",
-      "community": 11
+      "community": 12
     },
     {
       "label": "server.py",
@@ -217,7 +217,7 @@
       "source_file": "src/server.py",
       "source_location": "L1",
       "id": "server",
-      "community": 7
+      "community": 6
     },
     {
       "label": "root_health_path()",
@@ -225,7 +225,7 @@
       "source_file": "src/server.py",
       "source_location": "L20",
       "id": "server_root_health_path",
-      "community": 7
+      "community": 6
     },
     {
       "label": "init_middlewares()",
@@ -233,7 +233,7 @@
       "source_file": "src/server.py",
       "source_location": "L30",
       "id": "server_init_middlewares",
-      "community": 7
+      "community": 6
     },
     {
       "label": "create_app()",
@@ -241,7 +241,7 @@
       "source_file": "src/server.py",
       "source_location": "L40",
       "id": "server_create_app",
-      "community": 7
+      "community": 6
     },
     {
       "label": "cli.py",
@@ -249,7 +249,7 @@
       "source_file": "src/cli.py",
       "source_location": "L1",
       "id": "cli",
-      "community": 10
+      "community": 11
     },
     {
       "label": "ColoredOutput",
@@ -257,7 +257,7 @@
       "source_file": "src/cli.py",
       "source_location": "L34",
       "id": "cli_coloredoutput",
-      "community": 10
+      "community": 11
     },
     {
       "label": "success()",
@@ -265,7 +265,7 @@
       "source_file": "src/cli.py",
       "source_location": "L36",
       "id": "cli_success",
-      "community": 10
+      "community": 11
     },
     {
       "label": "info()",
@@ -273,7 +273,7 @@
       "source_file": "src/cli.py",
       "source_location": "L40",
       "id": "cli_info",
-      "community": 10
+      "community": 11
     },
     {
       "label": "warning()",
@@ -281,7 +281,7 @@
       "source_file": "src/cli.py",
       "source_location": "L44",
       "id": "cli_warning",
-      "community": 10
+      "community": 11
     },
     {
       "label": "error()",
@@ -289,7 +289,7 @@
       "source_file": "src/cli.py",
       "source_location": "L48",
       "id": "cli_error",
-      "community": 10
+      "community": 11
     },
     {
       "label": "highlight()",
@@ -297,7 +297,7 @@
       "source_file": "src/cli.py",
       "source_location": "L52",
       "id": "cli_highlight",
-      "community": 10
+      "community": 11
     },
     {
       "label": "file_created()",
@@ -305,7 +305,7 @@
       "source_file": "src/cli.py",
       "source_location": "L56",
       "id": "cli_file_created",
-      "community": 10
+      "community": 11
     },
     {
       "label": "directory_created()",
@@ -313,7 +313,7 @@
       "source_file": "src/cli.py",
       "source_location": "L60",
       "id": "cli_directory_created",
-      "community": 10
+      "community": 11
     },
     {
       "label": "header()",
@@ -321,7 +321,7 @@
       "source_file": "src/cli.py",
       "source_location": "L64",
       "id": "cli_header",
-      "community": 10
+      "community": 11
     },
     {
       "label": "AppGenerator",
@@ -329,7 +329,7 @@
       "source_file": "src/cli.py",
       "source_location": "L69",
       "id": "cli_appgenerator",
-      "community": 10
+      "community": 11
     },
     {
       "label": ".__init__()",
@@ -337,7 +337,7 @@
       "source_file": "src/cli.py",
       "source_location": "L70",
       "id": "cli_appgenerator_init",
-      "community": 10
+      "community": 11
     },
     {
       "label": ".create_directory_structure()",
@@ -345,7 +345,7 @@
       "source_file": "src/cli.py",
       "source_location": "L74",
       "id": "cli_appgenerator_create_directory_structure",
-      "community": 10
+      "community": 11
     },
     {
       "label": ".get_file_contents()",
@@ -353,7 +353,7 @@
       "source_file": "src/cli.py",
       "source_location": "L79",
       "id": "cli_appgenerator_get_file_contents",
-      "community": 10
+      "community": 11
     },
     {
       "label": ".show_summary()",
@@ -361,7 +361,7 @@
       "source_file": "src/cli.py",
       "source_location": "L176",
       "id": "cli_appgenerator_show_summary",
-      "community": 10
+      "community": 11
     },
     {
       "label": "startapp()",
@@ -369,7 +369,7 @@
       "source_file": "src/cli.py",
       "source_location": "L208",
       "id": "cli_startapp",
-      "community": 10
+      "community": 11
     },
     {
       "label": "makemigrations()",
@@ -377,7 +377,7 @@
       "source_file": "src/cli.py",
       "source_location": "L240",
       "id": "cli_makemigrations",
-      "community": 10
+      "community": 11
     },
     {
       "label": "showmigrations()",
@@ -385,7 +385,7 @@
       "source_file": "src/cli.py",
       "source_location": "L251",
       "id": "cli_showmigrations",
-      "community": 10
+      "community": 11
     },
     {
       "label": "migrate()",
@@ -393,7 +393,7 @@
       "source_file": "src/cli.py",
       "source_location": "L283",
       "id": "cli_migrate",
-      "community": 10
+      "community": 11
     },
     {
       "label": "rollback()",
@@ -401,7 +401,7 @@
       "source_file": "src/cli.py",
       "source_location": "L289",
       "id": "cli_rollback",
-      "community": 10
+      "community": 11
     },
     {
       "label": "run()",
@@ -409,7 +409,7 @@
       "source_file": "src/cli.py",
       "source_location": "L295",
       "id": "cli_run",
-      "community": 10
+      "community": 11
     },
     {
       "label": "startapps()",
@@ -417,7 +417,7 @@
       "source_file": "src/cli.py",
       "source_location": "L326",
       "id": "cli_startapps",
-      "community": 10
+      "community": 11
     },
     {
       "label": "handlers.py",
@@ -425,7 +425,7 @@
       "source_file": "src/handlers.py",
       "source_location": "L1",
       "id": "handlers",
-      "community": 7
+      "community": 6
     },
     {
       "label": "start_exception_handlers()",
@@ -433,7 +433,7 @@
       "source_file": "src/handlers.py",
       "source_location": "L15",
       "id": "handlers_start_exception_handlers",
-      "community": 7
+      "community": 6
     },
     {
       "label": "Register exception handlers on the FastAPI app.      Args:         _app (FastAPI",
@@ -441,7 +441,7 @@
       "source_file": "src/handlers.py",
       "source_location": "L16",
       "id": "handlers_rationale_16",
-      "community": 7
+      "community": 6
     },
     {
       "label": "config.py",
@@ -449,7 +449,7 @@
       "source_file": "src/constants/config.py",
       "source_location": "L1",
       "id": "config",
-      "community": 7
+      "community": 6
     },
     {
       "label": "AppEnvironment",
@@ -457,7 +457,7 @@
       "source_file": "src/config.py",
       "source_location": "L11",
       "id": "config_appenvironment",
-      "community": 7
+      "community": 6
     },
     {
       "label": "str",
@@ -465,7 +465,7 @@
       "source_file": "",
       "source_location": "",
       "id": "str",
-      "community": 7
+      "community": 6
     },
     {
       "label": "Enum",
@@ -473,7 +473,7 @@
       "source_file": "",
       "source_location": "",
       "id": "enum",
-      "community": 7
+      "community": 6
     },
     {
       "label": "Settings",
@@ -481,7 +481,7 @@
       "source_file": "src/config.py",
       "source_location": "L25",
       "id": "config_settings",
-      "community": 7
+      "community": 6
     },
     {
       "label": "BaseSettings",
@@ -489,7 +489,7 @@
       "source_file": "",
       "source_location": "",
       "id": "basesettings",
-      "community": 7
+      "community": 6
     },
     {
       "label": "validate_required()",
@@ -497,7 +497,7 @@
       "source_file": "src/config.py",
       "source_location": "L72",
       "id": "config_validate_required",
-      "community": 7
+      "community": 6
     },
     {
       "label": "assemble_db_url()",
@@ -505,7 +505,7 @@
       "source_file": "src/config.py",
       "source_location": "L95",
       "id": "config_assemble_db_url",
-      "community": 7
+      "community": 6
     },
     {
       "label": "is_production()",
@@ -513,7 +513,7 @@
       "source_file": "src/config.py",
       "source_location": "L127",
       "id": "config_is_production",
-      "community": 7
+      "community": 6
     },
     {
       "label": "is_development()",
@@ -521,7 +521,7 @@
       "source_file": "src/config.py",
       "source_location": "L134",
       "id": "config_is_development",
-      "community": 7
+      "community": 6
     },
     {
       "label": "is_local()",
@@ -529,7 +529,7 @@
       "source_file": "src/config.py",
       "source_location": "L141",
       "id": "config_is_local",
-      "community": 7
+      "community": 6
     },
     {
       "label": "Enum representing different application environments.      - LOCAL: Indicates th",
@@ -537,7 +537,7 @@
       "source_file": "src/config.py",
       "source_location": "L12",
       "id": "config_rationale_12",
-      "community": 7
+      "community": 6
     },
     {
       "label": "A settings class for the project defining all the necessary parameters within th",
@@ -545,7 +545,7 @@
       "source_file": "src/config.py",
       "source_location": "L26",
       "id": "config_rationale_26",
-      "community": 7
+      "community": 6
     },
     {
       "label": "Validate the required fields for the application.",
@@ -593,7 +593,7 @@
       "source_file": "src/lifespan.py",
       "source_location": "L1",
       "id": "lifespan",
-      "community": 7
+      "community": 6
     },
     {
       "label": "lifespan()",
@@ -601,7 +601,7 @@
       "source_file": "src/lifespan.py",
       "source_location": "L12",
       "id": "lifespan_lifespan",
-      "community": 7
+      "community": 6
     },
     {
       "label": "Asynchronous context manager to manage the lifespan of the application.",
@@ -609,7 +609,7 @@
       "source_file": "src/lifespan.py",
       "source_location": "L13",
       "id": "lifespan_rationale_13",
-      "community": 7
+      "community": 6
     },
     {
       "label": "regex.py",
@@ -633,7 +633,7 @@
       "source_file": "src/auth/dependencies.py",
       "source_location": "L1",
       "id": "dependencies",
-      "community": 3
+      "community": 2
     },
     {
       "label": "ActorContext",
@@ -641,7 +641,7 @@
       "source_file": "src/auth/dependencies.py",
       "source_location": "L24",
       "id": "dependencies_actorcontext",
-      "community": 3
+      "community": 2
     },
     {
       "label": "get_current_user()",
@@ -649,7 +649,7 @@
       "source_file": "src/auth/dependencies.py",
       "source_location": "L29",
       "id": "dependencies_get_current_user",
-      "community": 3
+      "community": 2
     },
     {
       "label": "get_current_guest()",
@@ -657,7 +657,7 @@
       "source_file": "src/auth/dependencies.py",
       "source_location": "L74",
       "id": "dependencies_get_current_guest",
-      "community": 3
+      "community": 2
     },
     {
       "label": "get_current_user_or_guest()",
@@ -665,7 +665,7 @@
       "source_file": "src/auth/dependencies.py",
       "source_location": "L125",
       "id": "dependencies_get_current_user_or_guest",
-      "community": 3
+      "community": 2
     },
     {
       "label": "Dependency that validates Bearer token and returns the current user.     Raises",
@@ -673,7 +673,7 @@
       "source_file": "src/auth/dependencies.py",
       "source_location": "L34",
       "id": "dependencies_rationale_34",
-      "community": 3
+      "community": 2
     },
     {
       "label": "Dependency that validates Bearer token and returns the current guest.     Valida",
@@ -681,7 +681,7 @@
       "source_file": "src/auth/dependencies.py",
       "source_location": "L79",
       "id": "dependencies_rationale_79",
-      "community": 3
+      "community": 2
     },
     {
       "label": "Dependency that accepts either a user or guest bearer token and stores a normali",
@@ -689,7 +689,7 @@
       "source_file": "src/auth/dependencies.py",
       "source_location": "L130",
       "id": "dependencies_rationale_130",
-      "community": 3
+      "community": 2
     },
     {
       "label": "middleware.py",
@@ -1073,7 +1073,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L1",
       "id": "http_client",
-      "community": 11
+      "community": 12
     },
     {
       "label": "HTTPClient",
@@ -1081,7 +1081,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L8",
       "id": "http_client_httpclient",
-      "community": 11
+      "community": 12
     },
     {
       "label": ".__init__()",
@@ -1089,7 +1089,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L16",
       "id": "http_client_httpclient_init",
-      "community": 11
+      "community": 12
     },
     {
       "label": ".get()",
@@ -1097,7 +1097,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L22",
       "id": "http_client_httpclient_get",
-      "community": 11
+      "community": 12
     },
     {
       "label": ".post()",
@@ -1105,7 +1105,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L48",
       "id": "http_client_httpclient_post",
-      "community": 11
+      "community": 12
     },
     {
       "label": ".put()",
@@ -1113,7 +1113,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L85",
       "id": "http_client_httpclient_put",
-      "community": 11
+      "community": 12
     },
     {
       "label": ".patch()",
@@ -1121,7 +1121,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L113",
       "id": "http_client_httpclient_patch",
-      "community": 11
+      "community": 12
     },
     {
       "label": ".delete()",
@@ -1129,7 +1129,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L143",
       "id": "http_client_httpclient_delete",
-      "community": 11
+      "community": 12
     },
     {
       "label": "HTTP client for making HTTP requests to a specified base URL.      This class pr",
@@ -1137,7 +1137,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L9",
       "id": "http_client_rationale_9",
-      "community": 11
+      "community": 12
     },
     {
       "label": "Send a GET request.          :param url: The URL to send the request to. Default",
@@ -1145,7 +1145,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L29",
       "id": "http_client_rationale_29",
-      "community": 11
+      "community": 12
     },
     {
       "label": "Send a POST request.          :param url: The URL to send the request to. Defaul",
@@ -1153,7 +1153,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L58",
       "id": "http_client_rationale_58",
-      "community": 11
+      "community": 12
     },
     {
       "label": "Send a PUT request.          :param url: The URL to send the request to. Default",
@@ -1161,7 +1161,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L93",
       "id": "http_client_rationale_93",
-      "community": 11
+      "community": 12
     },
     {
       "label": "Send a PATCH request.          :param url: The URL to send the request to. Defau",
@@ -1169,7 +1169,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L121",
       "id": "http_client_rationale_121",
-      "community": 11
+      "community": 12
     },
     {
       "label": "Deletes a resource at the specified URL.          :param url: The URL of the res",
@@ -1177,7 +1177,7 @@
       "source_file": "src/utils/http_client.py",
       "source_location": "L150",
       "id": "http_client_rationale_150",
-      "community": 11
+      "community": 12
     },
     {
       "label": "encryption.py",
@@ -1225,7 +1225,7 @@
       "source_file": "src/utils/cookies.py",
       "source_location": "L1",
       "id": "cookies",
-      "community": 7
+      "community": 6
     },
     {
       "label": "set_auth_cookies()",
@@ -1233,7 +1233,7 @@
       "source_file": "src/utils/cookies.py",
       "source_location": "L6",
       "id": "cookies_set_auth_cookies",
-      "community": 7
+      "community": 6
     },
     {
       "label": "delete_cookies()",
@@ -1241,7 +1241,7 @@
       "source_file": "src/utils/cookies.py",
       "source_location": "L41",
       "id": "cookies_delete_cookies",
-      "community": 7
+      "community": 6
     },
     {
       "label": "Set authentication cookies in an HTTP response.      Args:         response: The",
@@ -1249,7 +1249,7 @@
       "source_file": "src/utils/cookies.py",
       "source_location": "L9",
       "id": "cookies_rationale_9",
-      "community": 7
+      "community": 6
     },
     {
       "label": "Delete authentication cookies from an HTTP response.      Args:         response",
@@ -1257,7 +1257,7 @@
       "source_file": "src/utils/cookies.py",
       "source_location": "L42",
       "id": "cookies_rationale_42",
-      "community": 7
+      "community": 6
     },
     {
       "label": "validation.py",
@@ -1305,7 +1305,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L1",
       "id": "s3_client",
-      "community": 9
+      "community": 10
     },
     {
       "label": "S3Client",
@@ -1313,7 +1313,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L9",
       "id": "s3_client_s3client",
-      "community": 9
+      "community": 10
     },
     {
       "label": ".__init__()",
@@ -1321,7 +1321,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L12",
       "id": "s3_client_s3client_init",
-      "community": 9
+      "community": 10
     },
     {
       "label": ".upload_file()",
@@ -1329,7 +1329,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L23",
       "id": "s3_client_s3client_upload_file",
-      "community": 9
+      "community": 10
     },
     {
       "label": ".delete_file()",
@@ -1337,7 +1337,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L67",
       "id": "s3_client_s3client_delete_file",
-      "community": 9
+      "community": 10
     },
     {
       "label": ".generate_public_url()",
@@ -1345,7 +1345,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L89",
       "id": "s3_client_s3client_generate_public_url",
-      "community": 9
+      "community": 10
     },
     {
       "label": "._get_content_type()",
@@ -1353,7 +1353,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L117",
       "id": "s3_client_s3client_get_content_type",
-      "community": 9
+      "community": 10
     },
     {
       "label": "get_s3_client()",
@@ -1361,7 +1361,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L136",
       "id": "s3_client_get_s3_client",
-      "community": 9
+      "community": 10
     },
     {
       "label": "Wrapper around boto3 S3 client for event media uploads.",
@@ -1369,7 +1369,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L10",
       "id": "s3_client_rationale_10",
-      "community": 9
+      "community": 10
     },
     {
       "label": "Upload file to S3 and return storage key.          Args:             resource_id",
@@ -1377,7 +1377,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L31",
       "id": "s3_client_rationale_31",
-      "community": 9
+      "community": 10
     },
     {
       "label": "Delete file from S3.          Args:             storage_key: S3 storage key (pat",
@@ -1385,7 +1385,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L68",
       "id": "s3_client_rationale_68",
-      "community": 9
+      "community": 10
     },
     {
       "label": "Generate public URL for file (works for LocalStack and real AWS).          Args:",
@@ -1393,7 +1393,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L90",
       "id": "s3_client_rationale_90",
-      "community": 9
+      "community": 10
     },
     {
       "label": "Determine MIME type based on file extension.",
@@ -1401,7 +1401,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L118",
       "id": "s3_client_rationale_118",
-      "community": 9
+      "community": 10
     },
     {
       "label": "Get S3 client singleton.",
@@ -1409,7 +1409,7 @@
       "source_file": "src/utils/s3_client.py",
       "source_location": "L137",
       "id": "s3_client_rationale_137",
-      "community": 9
+      "community": 10
     },
     {
       "label": "webhook.py",
@@ -1673,7 +1673,7 @@
       "source_file": "",
       "source_location": "",
       "id": "base",
-      "community": 3
+      "community": 0
     },
     {
       "label": "TimeStampMixin",
@@ -1681,7 +1681,7 @@
       "source_file": "src/db/base.py",
       "source_location": "L8",
       "id": "base_timestampmixin",
-      "community": 3
+      "community": 0
     },
     {
       "label": "UUIDPrimaryKeyMixin",
@@ -1689,7 +1689,7 @@
       "source_file": "src/db/base.py",
       "source_location": "L27",
       "id": "base_uuidprimarykeymixin",
-      "community": 3
+      "community": 0
     },
     {
       "label": "Base",
@@ -1697,7 +1697,7 @@
       "source_file": "src/db/base.py",
       "source_location": "L37",
       "id": "base_base",
-      "community": 3
+      "community": 0
     },
     {
       "label": "DeclarativeBase",
@@ -1705,7 +1705,7 @@
       "source_file": "",
       "source_location": "",
       "id": "declarativebase",
-      "community": 3
+      "community": 0
     },
     {
       "label": "A mixin class to add automatic timestamp fields.      Adds `created_at` and `upd",
@@ -1713,7 +1713,7 @@
       "source_file": "src/db/base.py",
       "source_location": "L9",
       "id": "base_rationale_9",
-      "community": 3
+      "community": 0
     },
     {
       "label": "A mixin class to add a primary key field in a model.",
@@ -1721,7 +1721,7 @@
       "source_file": "src/db/base.py",
       "source_location": "L28",
       "id": "base_rationale_28",
-      "community": 3
+      "community": 0
     },
     {
       "label": "Base class for defining database tables.",
@@ -1729,7 +1729,7 @@
       "source_file": "src/db/base.py",
       "source_location": "L38",
       "id": "base_rationale_38",
-      "community": 3
+      "community": 0
     },
     {
       "label": "model_registry.py",
@@ -1745,7 +1745,7 @@
       "source_file": "src/db/session.py",
       "source_location": "L1",
       "id": "session",
-      "community": 7
+      "community": 6
     },
     {
       "label": "db_session()",
@@ -1753,7 +1753,7 @@
       "source_file": "src/db/session.py",
       "source_location": "L18",
       "id": "session_db_session",
-      "community": 7
+      "community": 6
     },
     {
       "label": "Database Session Generator.     Commits on success, rolls back on exception.",
@@ -1761,7 +1761,7 @@
       "source_file": "src/db/session.py",
       "source_location": "L19",
       "id": "session_rationale_19",
-      "community": 7
+      "community": 6
     },
     {
       "label": "redis.py",
@@ -1769,7 +1769,7 @@
       "source_file": "src/db/redis.py",
       "source_location": "L1",
       "id": "redis",
-      "community": 7
+      "community": 6
     },
     {
       "label": "urls.py",
@@ -1777,7 +1777,7 @@
       "source_file": "src/apps/guest/urls.py",
       "source_location": "L1",
       "id": "urls",
-      "community": 6
+      "community": 5
     },
     {
       "label": "get_event_service()",
@@ -1785,7 +1785,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L26",
       "id": "urls_get_event_service",
-      "community": 6
+      "community": 5
     },
     {
       "label": "get_user_invite_service()",
@@ -1793,7 +1793,7 @@
       "source_file": "src/apps/user/urls.py",
       "source_location": "L40",
       "id": "urls_get_user_invite_service",
-      "community": 6
+      "community": 5
     },
     {
       "label": "create_draft_event()",
@@ -1801,7 +1801,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L42",
       "id": "urls_create_draft_event",
-      "community": 6
+      "community": 5
     },
     {
       "label": "get_event_detail()",
@@ -1809,7 +1809,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L57",
       "id": "urls_get_event_detail",
-      "community": 6
+      "community": 5
     },
     {
       "label": "update_basic_info()",
@@ -1817,7 +1817,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L67",
       "id": "urls_update_basic_info",
-      "community": 6
+      "community": 5
     },
     {
       "label": "update_show_tickets()",
@@ -1825,7 +1825,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L82",
       "id": "urls_update_show_tickets",
-      "community": 6
+      "community": 5
     },
     {
       "label": "get_event_readiness()",
@@ -1833,7 +1833,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L97",
       "id": "urls_get_event_readiness",
-      "community": 6
+      "community": 5
     },
     {
       "label": "get_publish_validations()",
@@ -1841,7 +1841,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L107",
       "id": "urls_get_publish_validations",
-      "community": 6
+      "community": 5
     },
     {
       "label": "publish_event()",
@@ -1849,7 +1849,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L118",
       "id": "urls_publish_event",
-      "community": 6
+      "community": 5
     },
     {
       "label": "create_event_day()",
@@ -1857,7 +1857,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L129",
       "id": "urls_create_event_day",
-      "community": 6
+      "community": 5
     },
     {
       "label": "list_event_days()",
@@ -1865,7 +1865,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L140",
       "id": "urls_list_event_days",
-      "community": 6
+      "community": 5
     },
     {
       "label": "update_event_day()",
@@ -1873,7 +1873,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L150",
       "id": "urls_update_event_day",
-      "community": 6
+      "community": 5
     },
     {
       "label": "delete_event_day()",
@@ -1881,7 +1881,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L165",
       "id": "urls_delete_event_day",
-      "community": 6
+      "community": 5
     },
     {
       "label": "start_scan()",
@@ -1889,7 +1889,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L175",
       "id": "urls_start_scan",
-      "community": 6
+      "community": 5
     },
     {
       "label": "pause_scan()",
@@ -1897,7 +1897,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L185",
       "id": "urls_pause_scan",
-      "community": 6
+      "community": 5
     },
     {
       "label": "resume_scan()",
@@ -1905,7 +1905,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L195",
       "id": "urls_resume_scan",
-      "community": 6
+      "community": 5
     },
     {
       "label": "end_scan()",
@@ -1913,7 +1913,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L205",
       "id": "urls_end_scan",
-      "community": 6
+      "community": 5
     },
     {
       "label": "get_scan_status_history()",
@@ -1921,7 +1921,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L215",
       "id": "urls_get_scan_status_history",
-      "community": 6
+      "community": 5
     },
     {
       "label": "upload_media_asset()",
@@ -1929,7 +1929,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L233",
       "id": "urls_upload_media_asset",
-      "community": 6
+      "community": 5
     },
     {
       "label": "list_media_assets()",
@@ -1937,7 +1937,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L266",
       "id": "urls_list_media_assets",
-      "community": 6
+      "community": 5
     },
     {
       "label": "delete_media_asset()",
@@ -1945,7 +1945,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L282",
       "id": "urls_delete_media_asset",
-      "community": 6
+      "community": 5
     },
     {
       "label": "update_media_asset_metadata()",
@@ -1953,7 +1953,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L298",
       "id": "urls_update_media_asset_metadata",
-      "community": 6
+      "community": 5
     },
     {
       "label": "create_reseller_invite()",
@@ -1961,7 +1961,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L320",
       "id": "urls_create_reseller_invite",
-      "community": 6
+      "community": 5
     },
     {
       "label": "list_event_resellers()",
@@ -1969,7 +1969,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L369",
       "id": "urls_list_event_resellers",
-      "community": 6
+      "community": 5
     },
     {
       "label": "accept_invite()",
@@ -1977,7 +1977,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L385",
       "id": "urls_accept_invite",
-      "community": 6
+      "community": 5
     },
     {
       "label": "decline_invite()",
@@ -1985,7 +1985,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L426",
       "id": "urls_decline_invite",
-      "community": 6
+      "community": 5
     },
     {
       "label": "cancel_reseller_invite()",
@@ -1993,7 +1993,7 @@
       "source_file": "src/apps/event/urls.py",
       "source_location": "L436",
       "id": "urls_cancel_reseller_invite",
-      "community": 6
+      "community": 5
     },
     {
       "label": "Check if event is ready to publish, return section-by-section validation errors.",
@@ -2049,7 +2049,7 @@
       "source_file": "src/apps/ticketing/__init__.py",
       "source_location": "L1",
       "id": "init_rationale_1",
-      "community": 6
+      "community": 5
     },
     {
       "label": "public_urls.py",
@@ -2105,7 +2105,7 @@
       "source_file": "src/apps/event/exceptions.py",
       "source_location": "L5",
       "id": "exceptions_organizerownershiperror",
-      "community": 0
+      "community": 1
     },
     {
       "label": "ForbiddenError",
@@ -2121,7 +2121,7 @@
       "source_file": "src/apps/event/exceptions.py",
       "source_location": "L9",
       "id": "exceptions_eventnotfound",
-      "community": 0
+      "community": 1
     },
     {
       "label": "NotFoundError",
@@ -2145,7 +2145,7 @@
       "source_file": "",
       "source_location": "",
       "id": "unprocessableentityerror",
-      "community": 0
+      "community": 2
     },
     {
       "label": "CannotPublishEvent",
@@ -2161,7 +2161,7 @@
       "source_file": "src/apps/event/exceptions.py",
       "source_location": "L21",
       "id": "exceptions_invalidasset",
-      "community": 0
+      "community": 1
     },
     {
       "label": "ValidationError",
@@ -2329,7 +2329,7 @@
       "source_file": "src/apps/guest/enums.py",
       "source_location": "L1",
       "id": "enums",
-      "community": 7
+      "community": 6
     },
     {
       "label": "AssetType",
@@ -2345,7 +2345,7 @@
       "source_file": "src/apps/event/enums.py",
       "source_location": "L11",
       "id": "enums_eventtype",
-      "community": 7
+      "community": 6
     },
     {
       "label": "EventStatus",
@@ -2353,7 +2353,7 @@
       "source_file": "src/apps/event/enums.py",
       "source_location": "L19",
       "id": "enums_eventstatus",
-      "community": 7
+      "community": 0
     },
     {
       "label": "EventAccessType",
@@ -2441,7 +2441,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L29",
       "id": "service_eventservice",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".__init__()",
@@ -2449,7 +2449,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L30",
       "id": "service_eventservice_init",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".create_draft_event()",
@@ -2457,7 +2457,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L34",
       "id": "service_eventservice_create_draft_event",
-      "community": 0
+      "community": 7
     },
     {
       "label": "._build_setup_status()",
@@ -2465,7 +2465,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L65",
       "id": "service_eventservice_build_setup_status",
-      "community": 0
+      "community": 7
     },
     {
       "label": "._refresh_setup_status()",
@@ -2473,7 +2473,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L90",
       "id": "service_eventservice_refresh_setup_status",
-      "community": 0
+      "community": 7
     },
     {
       "label": "._validate_basic_info()",
@@ -2481,7 +2481,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L100",
       "id": "service_eventservice_validate_basic_info",
-      "community": 0
+      "community": 7
     },
     {
       "label": "._validate_schedule()",
@@ -2489,7 +2489,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L142",
       "id": "service_eventservice_validate_schedule",
-      "community": 0
+      "community": 7
     },
     {
       "label": "._validate_tickets()",
@@ -2497,7 +2497,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L161",
       "id": "service_eventservice_validate_tickets",
-      "community": 0
+      "community": 7
     },
     {
       "label": "._validate_assets()",
@@ -2505,7 +2505,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L172",
       "id": "service_eventservice_validate_assets",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".validate_for_publish()",
@@ -2513,7 +2513,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L180",
       "id": "service_eventservice_validate_for_publish",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".publish_event()",
@@ -2521,7 +2521,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L236",
       "id": "service_eventservice_publish_event",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".get_event_detail()",
@@ -2529,7 +2529,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L254",
       "id": "service_eventservice_get_event_detail",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".interest_event()",
@@ -2537,7 +2537,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L260",
       "id": "service_eventservice_interest_event",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".update_basic_info()",
@@ -2545,7 +2545,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L289",
       "id": "service_eventservice_update_basic_info",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".update_show_tickets()",
@@ -2553,7 +2553,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L301",
       "id": "service_eventservice_update_show_tickets",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".get_readiness()",
@@ -2561,7 +2561,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L311",
       "id": "service_eventservice_get_readiness",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".create_event_day()",
@@ -2569,7 +2569,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L335",
       "id": "service_eventservice_create_event_day",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".list_event_days()",
@@ -2577,7 +2577,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L345",
       "id": "service_eventservice_list_event_days",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".update_event_day()",
@@ -2585,7 +2585,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L351",
       "id": "service_eventservice_update_event_day",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".delete_event_day()",
@@ -2593,7 +2593,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L360",
       "id": "service_eventservice_delete_event_day",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".start_scan()",
@@ -2601,7 +2601,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L369",
       "id": "service_eventservice_start_scan",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".pause_scan()",
@@ -2609,7 +2609,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L389",
       "id": "service_eventservice_pause_scan",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".resume_scan()",
@@ -2617,7 +2617,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L408",
       "id": "service_eventservice_resume_scan",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".end_scan()",
@@ -2625,7 +2625,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L426",
       "id": "service_eventservice_end_scan",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".upload_media_asset()",
@@ -2633,7 +2633,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L445",
       "id": "service_eventservice_upload_media_asset",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".list_media_assets()",
@@ -2641,7 +2641,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L498",
       "id": "service_eventservice_list_media_assets",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".delete_media_asset()",
@@ -2649,7 +2649,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L508",
       "id": "service_eventservice_delete_media_asset",
-      "community": 0
+      "community": 7
     },
     {
       "label": ".update_media_asset_metadata()",
@@ -2657,7 +2657,7 @@
       "source_file": "src/apps/event/service.py",
       "source_location": "L531",
       "id": "service_eventservice_update_media_asset_metadata",
-      "community": 0
+      "community": 7
     },
     {
       "label": "Recursively convert UUID objects and Pydantic models to JSON-serializable format",
@@ -2977,7 +2977,7 @@
       "source_file": "src/apps/event/repository.py",
       "source_location": "L155",
       "id": "repository_rationale_155",
-      "community": 3
+      "community": 0
     },
     {
       "label": "Get media asset by ID.",
@@ -2985,7 +2985,7 @@
       "source_file": "src/apps/event/repository.py",
       "source_location": "L171",
       "id": "repository_rationale_171",
-      "community": 3
+      "community": 0
     },
     {
       "label": "Delete media asset from database.",
@@ -2993,7 +2993,7 @@
       "source_file": "src/apps/event/repository.py",
       "source_location": "L177",
       "id": "repository_rationale_177",
-      "community": 3
+      "community": 0
     },
     {
       "label": "request.py",
@@ -3057,7 +3057,7 @@
       "source_file": "src/apps/guest/models.py",
       "source_location": "L1",
       "id": "models",
-      "community": 3
+      "community": 0
     },
     {
       "label": "EventModel",
@@ -3073,7 +3073,7 @@
       "source_file": "",
       "source_location": "",
       "id": "uuidprimarykeymixin",
-      "community": 3
+      "community": 0
     },
     {
       "label": "TimeStampMixin",
@@ -3081,7 +3081,7 @@
       "source_file": "",
       "source_location": "",
       "id": "timestampmixin",
-      "community": 3
+      "community": 0
     },
     {
       "label": "EventInterestModel",
@@ -3089,7 +3089,7 @@
       "source_file": "src/apps/event/models.py",
       "source_location": "L67",
       "id": "models_eventinterestmodel",
-      "community": 3
+      "community": 0
     },
     {
       "label": "EventDayModel",
@@ -3105,7 +3105,7 @@
       "source_file": "src/apps/event/models.py",
       "source_location": "L111",
       "id": "models_scanstatushistorymodel",
-      "community": 3
+      "community": 0
     },
     {
       "label": "EventMediaAssetModel",
@@ -3121,7 +3121,7 @@
       "source_file": "src/apps/event/models.py",
       "source_location": "L149",
       "id": "models_eventresellermodel",
-      "community": 3
+      "community": 0
     },
     {
       "label": "get_user_service()",
@@ -3129,7 +3129,7 @@
       "source_file": "src/apps/user/urls.py",
       "source_location": "L33",
       "id": "urls_get_user_service",
-      "community": 6
+      "community": 5
     },
     {
       "label": "list_pending_invites()",
@@ -3137,7 +3137,7 @@
       "source_file": "src/apps/user/urls.py",
       "source_location": "L51",
       "id": "urls_list_pending_invites",
-      "community": 6
+      "community": 5
     },
     {
       "label": "sign_in()",
@@ -3145,7 +3145,7 @@
       "source_file": "src/apps/user/urls.py",
       "source_location": "L62",
       "id": "urls_sign_in",
-      "community": 6
+      "community": 5
     },
     {
       "label": "refresh_token()",
@@ -3153,7 +3153,7 @@
       "source_file": "src/apps/user/urls.py",
       "source_location": "L88",
       "id": "urls_refresh_token",
-      "community": 6
+      "community": 5
     },
     {
       "label": "create_user()",
@@ -3161,7 +3161,7 @@
       "source_file": "src/apps/user/urls.py",
       "source_location": "L100",
       "id": "urls_create_user",
-      "community": 6
+      "community": 5
     },
     {
       "label": "logout()",
@@ -3169,7 +3169,7 @@
       "source_file": "src/apps/user/urls.py",
       "source_location": "L111",
       "id": "urls_logout",
-      "community": 6
+      "community": 5
     },
     {
       "label": "get_self()",
@@ -3177,7 +3177,7 @@
       "source_file": "src/apps/user/urls.py",
       "source_location": "L126",
       "id": "urls_get_self",
-      "community": 6
+      "community": 5
     },
     {
       "label": "get_user_by_id()",
@@ -3185,7 +3185,7 @@
       "source_file": "src/apps/user/urls.py",
       "source_location": "L135",
       "id": "urls_get_user_by_id",
-      "community": 6
+      "community": 5
     },
     {
       "label": "delete_user_by_id()",
@@ -3193,7 +3193,7 @@
       "source_file": "src/apps/user/urls.py",
       "source_location": "L149",
       "id": "urls_delete_user_by_id",
-      "community": 6
+      "community": 5
     },
     {
       "label": "Login endpoint. Validates credentials and issues tokens.     Refresh token is st",
@@ -3409,7 +3409,7 @@
       "source_file": "src/apps/user/enums.py",
       "source_location": "L4",
       "id": "enums_userstatus",
-      "community": 7
+      "community": 6
     },
     {
       "label": "UserService",
@@ -3417,7 +3417,7 @@
       "source_file": "src/apps/user/service.py",
       "source_location": "L20",
       "id": "service_userservice",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".__init__()",
@@ -3425,7 +3425,7 @@
       "source_file": "src/apps/user/service.py",
       "source_location": "L23",
       "id": "service_userservice_init",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".get_self()",
@@ -3433,7 +3433,7 @@
       "source_file": "src/apps/user/service.py",
       "source_location": "L27",
       "id": "service_userservice_get_self",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".login_user()",
@@ -3441,7 +3441,7 @@
       "source_file": "src/apps/user/service.py",
       "source_location": "L30",
       "id": "service_userservice_login_user",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".create_user()",
@@ -3449,7 +3449,7 @@
       "source_file": "src/apps/user/service.py",
       "source_location": "L41",
       "id": "service_userservice_create_user",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".get_user_by_id()",
@@ -3457,7 +3457,7 @@
       "source_file": "src/apps/user/service.py",
       "source_location": "L69",
       "id": "service_userservice_get_user_by_id",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".delete_user_by_id()",
@@ -3465,7 +3465,7 @@
       "source_file": "src/apps/user/service.py",
       "source_location": "L75",
       "id": "service_userservice_delete_user_by_id",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".logout_user()",
@@ -3529,7 +3529,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L14",
       "id": "repository_userrepository",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".__init__()",
@@ -3537,7 +3537,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L17",
       "id": "repository_userrepository_init",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".get_by_id()",
@@ -3545,7 +3545,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L24",
       "id": "repository_userrepository_get_by_id",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".get_by_email()",
@@ -3553,7 +3553,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L29",
       "id": "repository_userrepository_get_by_email",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".find_by_email()",
@@ -3561,7 +3561,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L35",
       "id": "repository_userrepository_find_by_email",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".find_by_phone()",
@@ -3569,7 +3569,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L40",
       "id": "repository_userrepository_find_by_phone",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".get_by_email_or_phone()",
@@ -3577,7 +3577,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L45",
       "id": "repository_userrepository_get_by_email_or_phone",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".delete()",
@@ -3585,7 +3585,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L56",
       "id": "repository_userrepository_delete",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".add()",
@@ -3593,7 +3593,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L63",
       "id": "repository_userrepository_add",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".create_refresh_token()",
@@ -3601,7 +3601,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L67",
       "id": "repository_userrepository_create_refresh_token",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".get_refresh_token()",
@@ -3609,7 +3609,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L80",
       "id": "repository_userrepository_get_refresh_token",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".revoke_refresh_token()",
@@ -3617,7 +3617,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L89",
       "id": "repository_userrepository_revoke_refresh_token",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".revoke_all_user_tokens()",
@@ -3625,7 +3625,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L98",
       "id": "repository_userrepository_revoke_all_user_tokens",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".delete_all_user_tokens()",
@@ -3633,7 +3633,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L107",
       "id": "repository_userrepository_delete_all_user_tokens",
-      "community": 3
+      "community": 9
     },
     {
       "label": ".clear_guest_conversion_links()",
@@ -3641,7 +3641,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L114",
       "id": "repository_userrepository_clear_guest_conversion_links",
-      "community": 3
+      "community": 9
     },
     {
       "label": "Data access layer for UserModel.",
@@ -3649,7 +3649,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L15",
       "id": "repository_rationale_15",
-      "community": 3
+      "community": 9
     },
     {
       "label": "Create a new refresh token record.",
@@ -3657,7 +3657,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L70",
       "id": "repository_rationale_70",
-      "community": 3
+      "community": 9
     },
     {
       "label": "Get refresh token by hash if it exists and is active.",
@@ -3665,7 +3665,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L81",
       "id": "repository_rationale_81",
-      "community": 3
+      "community": 9
     },
     {
       "label": "Mark a refresh token as revoked.",
@@ -3673,7 +3673,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L90",
       "id": "repository_rationale_90",
-      "community": 3
+      "community": 9
     },
     {
       "label": "Revoke all refresh tokens for a user (used on password change, etc).",
@@ -3681,7 +3681,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L99",
       "id": "repository_rationale_99",
-      "community": 3
+      "community": 9
     },
     {
       "label": "Delete all refresh tokens for a user before deleting the user row.",
@@ -3689,7 +3689,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L108",
       "id": "repository_rationale_108",
-      "community": 3
+      "community": 9
     },
     {
       "label": "Detach guest records that point at this user before deleting the user row.",
@@ -3697,7 +3697,7 @@
       "source_file": "src/apps/user/repository.py",
       "source_location": "L115",
       "id": "repository_rationale_115",
-      "community": 3
+      "community": 9
     },
     {
       "label": "SignInRequest",
@@ -3769,7 +3769,7 @@
       "source_file": "src/apps/user/models.py",
       "source_location": "L11",
       "id": "models_usermodel",
-      "community": 3
+      "community": 0
     },
     {
       "label": ".__str__()",
@@ -3777,7 +3777,7 @@
       "source_file": "src/apps/user/models.py",
       "source_location": "L23",
       "id": "models_usermodel_str",
-      "community": 3
+      "community": 0
     },
     {
       "label": "create()",
@@ -3785,7 +3785,7 @@
       "source_file": "src/apps/guest/models.py",
       "source_location": "L30",
       "id": "models_create",
-      "community": 3
+      "community": 0
     },
     {
       "label": "RefreshTokenModel",
@@ -3793,7 +3793,7 @@
       "source_file": "src/apps/user/models.py",
       "source_location": "L45",
       "id": "models_refreshtokenmodel",
-      "community": 3
+      "community": 0
     },
     {
       "label": "is_expired()",
@@ -3801,7 +3801,7 @@
       "source_file": "src/apps/guest/models.py",
       "source_location": "L49",
       "id": "models_is_expired",
-      "community": 3
+      "community": 0
     },
     {
       "label": "is_active()",
@@ -3809,7 +3809,7 @@
       "source_file": "src/apps/guest/models.py",
       "source_location": "L53",
       "id": "models_is_active",
-      "community": 3
+      "community": 0
     },
     {
       "label": "Guest user model for anonymous browsing.     Identified by device_id (UUID gener",
@@ -3817,7 +3817,7 @@
       "source_file": "src/apps/guest/models.py",
       "source_location": "L12",
       "id": "models_rationale_12",
-      "community": 3
+      "community": 0
     },
     {
       "label": "Model for refresh tokens stored in DB.     Token hash is stored (never plain tex",
@@ -3825,7 +3825,7 @@
       "source_file": "src/apps/user/models.py",
       "source_location": "L46",
       "id": "models_rationale_46",
-      "community": 3
+      "community": 0
     },
     {
       "label": "InviteNotFound",
@@ -3873,7 +3873,7 @@
       "source_file": "src/apps/user/invite/enums.py",
       "source_location": "L4",
       "id": "enums_invitestatus",
-      "community": 7
+      "community": 6
     },
     {
       "label": "InviteType",
@@ -4025,7 +4025,7 @@
       "source_file": "src/apps/user/invite/models.py",
       "source_location": "L12",
       "id": "models_invitemodel",
-      "community": 3
+      "community": 0
     },
     {
       "label": "get_organizer_service()",
@@ -4033,7 +4033,7 @@
       "source_file": "src/apps/organizer/urls.py",
       "source_location": "L22",
       "id": "urls_get_organizer_service",
-      "community": 6
+      "community": 5
     },
     {
       "label": "list_organizers()",
@@ -4041,7 +4041,7 @@
       "source_file": "src/apps/organizer/urls.py",
       "source_location": "L29",
       "id": "urls_list_organizers",
-      "community": 6
+      "community": 5
     },
     {
       "label": "create_organizer()",
@@ -4049,7 +4049,7 @@
       "source_file": "src/apps/organizer/urls.py",
       "source_location": "L38",
       "id": "urls_create_organizer",
-      "community": 6
+      "community": 5
     },
     {
       "label": "update_organizer()",
@@ -4057,7 +4057,7 @@
       "source_file": "src/apps/organizer/urls.py",
       "source_location": "L51",
       "id": "urls_update_organizer",
-      "community": 6
+      "community": 5
     },
     {
       "label": "list_organizer_events()",
@@ -4065,7 +4065,7 @@
       "source_file": "src/apps/organizer/urls.py",
       "source_location": "L66",
       "id": "urls_list_organizer_events",
-      "community": 6
+      "community": 5
     },
     {
       "label": "upload_organizer_logo()",
@@ -4073,7 +4073,7 @@
       "source_file": "src/apps/organizer/urls.py",
       "source_location": "L77",
       "id": "urls_upload_organizer_logo",
-      "community": 6
+      "community": 5
     },
     {
       "label": "upload_organizer_cover()",
@@ -4081,7 +4081,7 @@
       "source_file": "src/apps/organizer/urls.py",
       "source_location": "L101",
       "id": "urls_upload_organizer_cover",
-      "community": 6
+      "community": 5
     },
     {
       "label": "Refresh guest access token.     Validates refresh token, rotates pair, revokes o",
@@ -4169,7 +4169,7 @@
       "source_file": "src/apps/organizer/enums.py",
       "source_location": "L4",
       "id": "enums_organizervisibility",
-      "community": 7
+      "community": 6
     },
     {
       "label": "OrganizerStatus",
@@ -4177,7 +4177,7 @@
       "source_file": "src/apps/organizer/enums.py",
       "source_location": "L9",
       "id": "enums_organizerstatus",
-      "community": 7
+      "community": 6
     },
     {
       "label": "PublicOrganizerService",
@@ -4225,7 +4225,7 @@
       "source_file": "src/apps/organizer/service.py",
       "source_location": "L10",
       "id": "service_organizerservice",
-      "community": 5
+      "community": 3
     },
     {
       "label": ".__init__()",
@@ -4233,7 +4233,7 @@
       "source_file": "src/apps/organizer/service.py",
       "source_location": "L11",
       "id": "service_organizerservice_init",
-      "community": 5
+      "community": 3
     },
     {
       "label": ".list_organizers()",
@@ -4241,7 +4241,7 @@
       "source_file": "src/apps/organizer/service.py",
       "source_location": "L14",
       "id": "service_organizerservice_list_organizers",
-      "community": 5
+      "community": 3
     },
     {
       "label": ".list_organizer_events()",
@@ -4249,7 +4249,7 @@
       "source_file": "src/apps/organizer/service.py",
       "source_location": "L17",
       "id": "service_organizerservice_list_organizer_events",
-      "community": 5
+      "community": 3
     },
     {
       "label": ".create_organizer()",
@@ -4257,7 +4257,7 @@
       "source_file": "src/apps/organizer/service.py",
       "source_location": "L20",
       "id": "service_organizerservice_create_organizer",
-      "community": 5
+      "community": 3
     },
     {
       "label": ".update_organizer()",
@@ -4265,7 +4265,7 @@
       "source_file": "src/apps/organizer/service.py",
       "source_location": "L57",
       "id": "service_organizerservice_update_organizer",
-      "community": 5
+      "community": 3
     },
     {
       "label": ".upload_logo()",
@@ -4281,7 +4281,7 @@
       "source_file": "src/apps/organizer/service.py",
       "source_location": "L126",
       "id": "service_organizerservice_upload_cover_image",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Upload logo image for organizer page.          Args:             owner_user_id:",
@@ -4297,7 +4297,7 @@
       "source_file": "src/apps/organizer/service.py",
       "source_location": "L133",
       "id": "service_rationale_133",
-      "community": 5
+      "community": 0
     },
     {
       "label": "OrganizerRepository",
@@ -4417,7 +4417,7 @@
       "source_file": "src/apps/ticketing/urls.py",
       "source_location": "L26",
       "id": "urls_get_ticketing_service",
-      "community": 6
+      "community": 5
     },
     {
       "label": "list_ticket_types()",
@@ -4425,7 +4425,7 @@
       "source_file": "src/apps/ticketing/urls.py",
       "source_location": "L34",
       "id": "urls_list_ticket_types",
-      "community": 6
+      "community": 5
     },
     {
       "label": "create_ticket_type()",
@@ -4433,7 +4433,7 @@
       "source_file": "src/apps/ticketing/urls.py",
       "source_location": "L44",
       "id": "urls_create_ticket_type",
-      "community": 6
+      "community": 5
     },
     {
       "label": "list_ticket_allocations()",
@@ -4441,7 +4441,7 @@
       "source_file": "src/apps/ticketing/urls.py",
       "source_location": "L57",
       "id": "urls_list_ticket_allocations",
-      "community": 6
+      "community": 5
     },
     {
       "label": "create_ticket_allocation()",
@@ -4449,7 +4449,7 @@
       "source_file": "src/apps/ticketing/urls.py",
       "source_location": "L69",
       "id": "urls_create_ticket_allocation",
-      "community": 6
+      "community": 5
     },
     {
       "label": "update_ticket_allocation_quantity()",
@@ -4457,7 +4457,7 @@
       "source_file": "src/apps/ticketing/urls.py",
       "source_location": "L82",
       "id": "urls_update_ticket_allocation_quantity",
-      "community": 6
+      "community": 5
     },
     {
       "label": "OpenEventDoesNotSupportTickets",
@@ -4553,55 +4553,63 @@
       "source_file": "src/apps/ticketing/enums.py",
       "source_location": "L4",
       "id": "enums_ticketcategory",
-      "community": 7
+      "community": 6
+    },
+    {
+      "label": "TicketCategoryPublic",
+      "file_type": "code",
+      "source_file": "src/apps/ticketing/enums.py",
+      "source_location": "L11",
+      "id": "enums_ticketcategorypublic",
+      "community": 6
     },
     {
       "label": "TicketStatus",
       "file_type": "code",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L11",
+      "source_location": "L17",
       "id": "enums_ticketstatus",
-      "community": 7
+      "community": 6
     },
     {
       "label": "AllocationSourceType",
       "file_type": "code",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L17",
+      "source_location": "L23",
       "id": "enums_allocationsourcetype",
-      "community": 7
+      "community": 6
     },
     {
       "label": "AllocationStatus",
       "file_type": "code",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L22",
+      "source_location": "L28",
       "id": "enums_allocationstatus",
-      "community": 7
+      "community": 6
     },
     {
       "label": "OrderType",
       "file_type": "code",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L28",
+      "source_location": "L34",
       "id": "enums_ordertype",
-      "community": 7
+      "community": 6
     },
     {
       "label": "OrderStatus",
       "file_type": "code",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L33",
+      "source_location": "L39",
       "id": "enums_orderstatus",
-      "community": 7
+      "community": 6
     },
     {
       "label": "CouponType",
       "file_type": "code",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L40",
+      "source_location": "L46",
       "id": "enums_coupontype",
-      "community": 7
+      "community": 6
     },
     {
       "label": "TicketingService",
@@ -4761,7 +4769,7 @@
       "source_file": "src/apps/ticketing/models.py",
       "source_location": "L12",
       "id": "models_tickettypemodel",
-      "community": 3
+      "community": 0
     },
     {
       "label": "DayTicketAllocationModel",
@@ -4769,7 +4777,7 @@
       "source_file": "src/apps/ticketing/models.py",
       "source_location": "L26",
       "id": "models_dayticketallocationmodel",
-      "community": 3
+      "community": 0
     },
     {
       "label": "TicketModel",
@@ -4777,7 +4785,7 @@
       "source_file": "src/apps/ticketing/models.py",
       "source_location": "L42",
       "id": "models_ticketmodel",
-      "community": 3
+      "community": 0
     },
     {
       "label": "get_guest_service()",
@@ -4785,7 +4793,7 @@
       "source_file": "src/apps/guest/urls.py",
       "source_location": "L32",
       "id": "urls_get_guest_service",
-      "community": 6
+      "community": 5
     },
     {
       "label": "generate_device_id()",
@@ -4793,7 +4801,7 @@
       "source_file": "src/apps/guest/urls.py",
       "source_location": "L43",
       "id": "urls_generate_device_id",
-      "community": 6
+      "community": 5
     },
     {
       "label": "guest_login()",
@@ -4801,7 +4809,7 @@
       "source_file": "src/apps/guest/urls.py",
       "source_location": "L52",
       "id": "urls_guest_login",
-      "community": 6
+      "community": 5
     },
     {
       "label": "guest_refresh()",
@@ -4809,7 +4817,7 @@
       "source_file": "src/apps/guest/urls.py",
       "source_location": "L79",
       "id": "urls_guest_refresh",
-      "community": 6
+      "community": 5
     },
     {
       "label": "convert_guest()",
@@ -4817,7 +4825,7 @@
       "source_file": "src/apps/guest/urls.py",
       "source_location": "L95",
       "id": "urls_convert_guest",
-      "community": 6
+      "community": 5
     },
     {
       "label": "guest_logout()",
@@ -4825,7 +4833,7 @@
       "source_file": "src/apps/guest/urls.py",
       "source_location": "L126",
       "id": "urls_guest_logout",
-      "community": 6
+      "community": 5
     },
     {
       "label": "get_guest_self()",
@@ -4833,7 +4841,7 @@
       "source_file": "src/apps/guest/urls.py",
       "source_location": "L136",
       "id": "urls_get_guest_self",
-      "community": 6
+      "community": 5
     },
     {
       "label": "Generate a new device ID (UUID) for a guest.     Client stores this and sends it",
@@ -4921,7 +4929,7 @@
       "source_file": "src/apps/guest/enums.py",
       "source_location": "L4",
       "id": "enums_gueststatus",
-      "community": 7
+      "community": 6
     },
     {
       "label": "GuestService",
@@ -5145,7 +5153,7 @@
       "source_file": "src/apps/guest/models.py",
       "source_location": "L11",
       "id": "models_guestmodel",
-      "community": 3
+      "community": 1
     },
     {
       "label": "GuestRefreshTokenModel",
@@ -5153,7 +5161,7 @@
       "source_file": "src/apps/guest/models.py",
       "source_location": "L34",
       "id": "models_guestrefreshtokenmodel",
-      "community": 3
+      "community": 0
     },
     {
       "label": "Refresh tokens for guest users.     Token hash is stored (never plain text).",
@@ -5161,7 +5169,7 @@
       "source_file": "src/apps/guest/models.py",
       "source_location": "L35",
       "id": "models_rationale_35",
-      "community": 3
+      "community": 0
     },
     {
       "label": "env.py",
@@ -6113,7 +6121,7 @@
       "source_file": "tests/utils/test_s3_client.py",
       "source_location": "L1",
       "id": "test_s3_client",
-      "community": 9
+      "community": 10
     },
     {
       "label": "s3_client()",
@@ -6121,7 +6129,7 @@
       "source_file": "tests/utils/test_s3_client.py",
       "source_location": "L10",
       "id": "test_s3_client_s3_client",
-      "community": 9
+      "community": 10
     },
     {
       "label": "test_upload_file_returns_storage_key()",
@@ -6129,7 +6137,7 @@
       "source_file": "tests/utils/test_s3_client.py",
       "source_location": "L21",
       "id": "test_s3_client_test_upload_file_returns_storage_key",
-      "community": 9
+      "community": 10
     },
     {
       "label": "test_delete_file_calls_s3_delete()",
@@ -6137,7 +6145,7 @@
       "source_file": "tests/utils/test_s3_client.py",
       "source_location": "L40",
       "id": "test_s3_client_test_delete_file_calls_s3_delete",
-      "community": 9
+      "community": 10
     },
     {
       "label": "test_generate_public_url_with_localstack_endpoint()",
@@ -6145,7 +6153,7 @@
       "source_file": "tests/utils/test_s3_client.py",
       "source_location": "L53",
       "id": "test_s3_client_test_generate_public_url_with_localstack_endpoint",
-      "community": 9
+      "community": 10
     },
     {
       "label": "test_get_content_type_returns_correct_mime()",
@@ -6153,7 +6161,7 @@
       "source_file": "tests/utils/test_s3_client.py",
       "source_location": "L66",
       "id": "test_s3_client_test_get_content_type_returns_correct_mime",
-      "community": 9
+      "community": 10
     },
     {
       "label": "Fixture providing mocked S3Client.",
@@ -6161,7 +6169,7 @@
       "source_file": "tests/utils/test_s3_client.py",
       "source_location": "L11",
       "id": "test_s3_client_rationale_11",
-      "community": 9
+      "community": 10
     },
     {
       "label": "Test that upload_file returns correct storage key format.",
@@ -6169,7 +6177,7 @@
       "source_file": "tests/utils/test_s3_client.py",
       "source_location": "L22",
       "id": "test_s3_client_rationale_22",
-      "community": 9
+      "community": 10
     },
     {
       "label": "Test that delete_file calls S3 delete.",
@@ -6177,7 +6185,7 @@
       "source_file": "tests/utils/test_s3_client.py",
       "source_location": "L41",
       "id": "test_s3_client_rationale_41",
-      "community": 9
+      "community": 10
     },
     {
       "label": "Test URL generation with LocalStack endpoint.",
@@ -6185,7 +6193,7 @@
       "source_file": "tests/utils/test_s3_client.py",
       "source_location": "L54",
       "id": "test_s3_client_rationale_54",
-      "community": 9
+      "community": 10
     },
     {
       "label": "Test that content type detection works.",
@@ -6193,7 +6201,7 @@
       "source_file": "tests/utils/test_s3_client.py",
       "source_location": "L67",
       "id": "test_s3_client_rationale_67",
-      "community": 9
+      "community": 10
     },
     {
       "label": "test_event_reseller_model.py",
@@ -6217,7 +6225,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L1",
       "id": "test_event_urls",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_create_draft_event_returns_draft_summary()",
@@ -6225,7 +6233,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L28",
       "id": "test_event_urls_test_create_draft_event_returns_draft_summary",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_start_scan_returns_active_state()",
@@ -6233,7 +6241,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L74",
       "id": "test_event_urls_test_start_scan_returns_active_state",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_get_event_detail_returns_owner_scoped_event()",
@@ -6241,7 +6249,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L99",
       "id": "test_event_urls_test_get_event_detail_returns_owner_scoped_event",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_update_basic_info_returns_recomputed_setup_status()",
@@ -6249,7 +6257,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L139",
       "id": "test_event_urls_test_update_basic_info_returns_recomputed_setup_status",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_update_basic_info_forwards_only_set_fields()",
@@ -6257,7 +6265,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L189",
       "id": "test_event_urls_test_update_basic_info_forwards_only_set_fields",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_get_event_readiness_returns_missing_sections()",
@@ -6265,7 +6273,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L240",
       "id": "test_event_urls_test_get_event_readiness_returns_missing_sections",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_create_event_day_returns_day_payload()",
@@ -6273,7 +6281,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L261",
       "id": "test_event_urls_test_create_event_day_returns_day_payload",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_list_event_days_returns_event_day_list()",
@@ -6281,7 +6289,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L289",
       "id": "test_event_urls_test_list_event_days_returns_event_day_list",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_update_event_day_returns_latest_day_payload()",
@@ -6289,7 +6297,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L316",
       "id": "test_event_urls_test_update_event_day_returns_latest_day_payload",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_update_event_day_forwards_only_set_fields()",
@@ -6297,7 +6305,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L347",
       "id": "test_event_urls_test_update_event_day_forwards_only_set_fields",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_delete_event_day_returns_deleted_true()",
@@ -6305,7 +6313,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L383",
       "id": "test_event_urls_test_delete_event_day_returns_deleted_true",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_pause_resume_end_scan_routes_return_latest_day_state()",
@@ -6313,7 +6321,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L399",
       "id": "test_event_urls_test_pause_resume_end_scan_routes_return_latest_day_state",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_event_interest_response_includes_created_and_counter()",
@@ -6321,7 +6329,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L453",
       "id": "test_event_urls_test_event_interest_response_includes_created_and_counter",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_public_interest_router_uses_combined_actor_dependency()",
@@ -6329,7 +6337,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L459",
       "id": "test_event_urls_test_public_interest_router_uses_combined_actor_dependency",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_interest_event_endpoint_passes_actor_and_metadata_to_service()",
@@ -6337,7 +6345,7 @@
       "source_file": "tests/apps/event/test_event_urls.py",
       "source_location": "L468",
       "id": "test_event_urls_test_interest_event_endpoint_passes_actor_and_metadata_to_service",
-      "community": 12
+      "community": 13
     },
     {
       "label": "test_event_media_urls.py",
@@ -6345,7 +6353,7 @@
       "source_file": "tests/apps/event/test_event_media_urls.py",
       "source_location": "L1",
       "id": "test_event_media_urls",
-      "community": 15
+      "community": 7
     },
     {
       "label": "service_mock()",
@@ -6353,7 +6361,7 @@
       "source_file": "tests/apps/event/test_event_media_urls.py",
       "source_location": "L9",
       "id": "test_event_media_urls_service_mock",
-      "community": 15
+      "community": 7
     },
     {
       "label": "test_upload_media_asset_calls_service()",
@@ -6361,7 +6369,7 @@
       "source_file": "tests/apps/event/test_event_media_urls.py",
       "source_location": "L15",
       "id": "test_event_media_urls_test_upload_media_asset_calls_service",
-      "community": 15
+      "community": 7
     },
     {
       "label": "test_list_media_assets_returns_list()",
@@ -6369,7 +6377,7 @@
       "source_file": "tests/apps/event/test_event_media_urls.py",
       "source_location": "L44",
       "id": "test_event_media_urls_test_list_media_assets_returns_list",
-      "community": 15
+      "community": 7
     },
     {
       "label": "test_delete_media_asset_calls_service()",
@@ -6377,7 +6385,7 @@
       "source_file": "tests/apps/event/test_event_media_urls.py",
       "source_location": "L58",
       "id": "test_event_media_urls_test_delete_media_asset_calls_service",
-      "community": 15
+      "community": 7
     },
     {
       "label": "test_update_media_asset_metadata()",
@@ -6385,7 +6393,7 @@
       "source_file": "tests/apps/event/test_event_media_urls.py",
       "source_location": "L72",
       "id": "test_event_media_urls_test_update_media_asset_metadata",
-      "community": 15
+      "community": 7
     },
     {
       "label": "Test that upload endpoint calls service method.",
@@ -6393,7 +6401,7 @@
       "source_file": "tests/apps/event/test_event_media_urls.py",
       "source_location": "L16",
       "id": "test_event_media_urls_rationale_16",
-      "community": 15
+      "community": 7
     },
     {
       "label": "Test listing media assets returns list.",
@@ -6401,7 +6409,7 @@
       "source_file": "tests/apps/event/test_event_media_urls.py",
       "source_location": "L45",
       "id": "test_event_media_urls_rationale_45",
-      "community": 15
+      "community": 7
     },
     {
       "label": "Test delete endpoint calls service.",
@@ -6409,7 +6417,7 @@
       "source_file": "tests/apps/event/test_event_media_urls.py",
       "source_location": "L59",
       "id": "test_event_media_urls_rationale_59",
-      "community": 15
+      "community": 7
     },
     {
       "label": "Test update metadata endpoint.",
@@ -6417,7 +6425,7 @@
       "source_file": "tests/apps/event/test_event_media_urls.py",
       "source_location": "L73",
       "id": "test_event_media_urls_rationale_73",
-      "community": 15
+      "community": 7
     },
     {
       "label": "test_event_service.py",
@@ -6713,7 +6721,7 @@
       "source_file": "tests/apps/event/test_app_bootstrap.py",
       "source_location": "L1",
       "id": "test_app_bootstrap",
-      "community": 7
+      "community": 6
     },
     {
       "label": "test_phase_one_routes_are_registered()",
@@ -6721,7 +6729,7 @@
       "source_file": "tests/apps/event/test_app_bootstrap.py",
       "source_location": "L4",
       "id": "test_app_bootstrap_test_phase_one_routes_are_registered",
-      "community": 7
+      "community": 6
     },
     {
       "label": "test_event_media_integration.py",
@@ -7361,7 +7369,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service.py",
       "source_location": "L1",
       "id": "test_organizer_service",
-      "community": 14
+      "community": 15
     },
     {
       "label": "test_create_organizer_normalizes_slug_and_uses_owner_scope()",
@@ -7369,7 +7377,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service.py",
       "source_location": "L11",
       "id": "test_organizer_service_test_create_organizer_normalizes_slug_and_uses_owner_scope",
-      "community": 14
+      "community": 15
     },
     {
       "label": "test_list_organizers_only_returns_owner_rows()",
@@ -7377,7 +7385,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service.py",
       "source_location": "L37",
       "id": "test_organizer_service_test_list_organizers_only_returns_owner_rows",
-      "community": 14
+      "community": 15
     },
     {
       "label": "test_list_organizer_events_filters_by_owner_and_status()",
@@ -7385,7 +7393,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service.py",
       "source_location": "L50",
       "id": "test_organizer_service_test_list_organizer_events_filters_by_owner_and_status",
-      "community": 14
+      "community": 15
     },
     {
       "label": "test_update_organizer_only_changes_provided_fields()",
@@ -7393,7 +7401,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service.py",
       "source_location": "L66",
       "id": "test_organizer_service_test_update_organizer_only_changes_provided_fields",
-      "community": 14
+      "community": 15
     },
     {
       "label": "test_list_public_organizers_returns_only_active()",
@@ -7401,7 +7409,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service.py",
       "source_location": "L101",
       "id": "test_organizer_service_test_list_public_organizers_returns_only_active",
-      "community": 14
+      "community": 15
     },
     {
       "label": "test_get_organizer_by_id_returns_organizer()",
@@ -7409,7 +7417,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service.py",
       "source_location": "L122",
       "id": "test_organizer_service_test_get_organizer_by_id_returns_organizer",
-      "community": 14
+      "community": 15
     },
     {
       "label": "test_list_events_by_organizer_public_returns_published_events()",
@@ -7417,7 +7425,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service.py",
       "source_location": "L138",
       "id": "test_organizer_service_test_list_events_by_organizer_public_returns_published_events",
-      "community": 14
+      "community": 15
     },
     {
       "label": "test_list_public_organizers_service()",
@@ -7425,7 +7433,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service.py",
       "source_location": "L159",
       "id": "test_organizer_service_test_list_public_organizers_service",
-      "community": 14
+      "community": 15
     },
     {
       "label": "test_get_organizer_returns_organizer()",
@@ -7433,7 +7441,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service.py",
       "source_location": "L176",
       "id": "test_organizer_service_test_get_organizer_returns_organizer",
-      "community": 14
+      "community": 15
     },
     {
       "label": "test_get_organizer_raises_not_found()",
@@ -7441,7 +7449,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service.py",
       "source_location": "L191",
       "id": "test_organizer_service_test_get_organizer_raises_not_found",
-      "community": 14
+      "community": 15
     },
     {
       "label": "test_list_events_by_organizer_returns_only_published()",
@@ -7449,7 +7457,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service.py",
       "source_location": "L205",
       "id": "test_organizer_service_test_list_events_by_organizer_returns_only_published",
-      "community": 14
+      "community": 15
     },
     {
       "label": "test_organizer_media_integration.py",
@@ -7457,7 +7465,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L1",
       "id": "test_organizer_media_integration",
-      "community": 5
+      "community": 3
     },
     {
       "label": "mock_s3_client()",
@@ -7465,7 +7473,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L27",
       "id": "test_organizer_media_integration_mock_s3_client",
-      "community": 5
+      "community": 3
     },
     {
       "label": "organizer_repo()",
@@ -7473,7 +7481,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L37",
       "id": "test_organizer_media_integration_organizer_repo",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_persists_logo_url_to_organizer()",
@@ -7481,7 +7489,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L52",
       "id": "test_organizer_media_integration_test_upload_logo_persists_logo_url_to_organizer",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_replaces_existing_logo()",
@@ -7489,7 +7497,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L100",
       "id": "test_organizer_media_integration_test_upload_logo_replaces_existing_logo",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_with_valid_image_passes_validation()",
@@ -7497,7 +7505,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L143",
       "id": "test_organizer_media_integration_test_upload_logo_with_valid_image_passes_validation",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_cover_persists_cover_url_to_organizer()",
@@ -7505,7 +7513,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L187",
       "id": "test_organizer_media_integration_test_upload_cover_persists_cover_url_to_organizer",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_cover_replaces_existing_cover()",
@@ -7513,7 +7521,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L233",
       "id": "test_organizer_media_integration_test_upload_cover_replaces_existing_cover",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_both_logo_and_cover_can_coexist()",
@@ -7521,7 +7529,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L278",
       "id": "test_organizer_media_integration_test_both_logo_and_cover_can_coexist",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_logo_does_not_affect_cover_url()",
@@ -7529,7 +7537,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L336",
       "id": "test_organizer_media_integration_test_logo_does_not_affect_cover_url",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_with_invalid_file_type_raises_error()",
@@ -7537,7 +7545,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L385",
       "id": "test_organizer_media_integration_test_upload_logo_with_invalid_file_type_raises_error",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_with_oversized_file_raises_error()",
@@ -7545,7 +7553,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L412",
       "id": "test_organizer_media_integration_test_upload_logo_with_oversized_file_raises_error",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_with_undersized_image_raises_error()",
@@ -7553,7 +7561,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L442",
       "id": "test_organizer_media_integration_test_upload_logo_with_undersized_image_raises_error",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_unauthorized_raises_not_found()",
@@ -7561,7 +7569,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L478",
       "id": "test_organizer_media_integration_test_upload_logo_unauthorized_raises_not_found",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_cover_with_invalid_file_type_raises_error()",
@@ -7569,7 +7577,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L503",
       "id": "test_organizer_media_integration_test_upload_cover_with_invalid_file_type_raises_error",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_cover_with_oversized_file_raises_error()",
@@ -7577,7 +7585,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L530",
       "id": "test_organizer_media_integration_test_upload_cover_with_oversized_file_raises_error",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_cover_with_undersized_image_raises_error()",
@@ -7585,7 +7593,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L559",
       "id": "test_organizer_media_integration_test_upload_cover_with_undersized_image_raises_error",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_cover_unauthorized_raises_not_found()",
@@ -7593,7 +7601,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L594",
       "id": "test_organizer_media_integration_test_upload_cover_unauthorized_raises_not_found",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_with_valid_jpg_passes()",
@@ -7601,7 +7609,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L618",
       "id": "test_organizer_media_integration_test_upload_logo_with_valid_jpg_passes",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_with_valid_webp_passes()",
@@ -7609,7 +7617,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L657",
       "id": "test_organizer_media_integration_test_upload_logo_with_valid_webp_passes",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Integration tests for Organizer Media Asset workflow.  Tests the complete lifecy",
@@ -7617,7 +7625,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L1",
       "id": "test_organizer_media_integration_rationale_1",
-      "community": 0
+      "community": 3
     },
     {
       "label": "Mock S3 client that tracks upload/delete calls.",
@@ -7625,7 +7633,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L28",
       "id": "test_organizer_media_integration_rationale_28",
-      "community": 0
+      "community": 3
     },
     {
       "label": "Mock OrganizerRepository.",
@@ -7633,7 +7641,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L38",
       "id": "test_organizer_media_integration_rationale_38",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test that uploading a logo updates the organizer's logo_url.",
@@ -7641,7 +7649,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L53",
       "id": "test_organizer_media_integration_rationale_53",
-      "community": 0
+      "community": 3
     },
     {
       "label": "Test that uploading a new logo replaces the existing one.",
@@ -7649,7 +7657,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L101",
       "id": "test_organizer_media_integration_rationale_101",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test that a valid 200x200+ image passes validation.",
@@ -7657,7 +7665,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L144",
       "id": "test_organizer_media_integration_rationale_144",
-      "community": 0
+      "community": 3
     },
     {
       "label": "Test that uploading a cover image updates the organizer's cover_image_url.",
@@ -7665,7 +7673,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L188",
       "id": "test_organizer_media_integration_rationale_188",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test that uploading a new cover replaces the existing one.",
@@ -7673,7 +7681,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L234",
       "id": "test_organizer_media_integration_rationale_234",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test that uploading logo doesn't affect cover and vice versa.",
@@ -7681,7 +7689,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L279",
       "id": "test_organizer_media_integration_rationale_279",
-      "community": 0
+      "community": 3
     },
     {
       "label": "Test that uploading logo doesn't modify cover_image_url.",
@@ -7689,7 +7697,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L337",
       "id": "test_organizer_media_integration_rationale_337",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test that uploading a non-image file raises FileValidationError.",
@@ -7697,7 +7705,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L386",
       "id": "test_organizer_media_integration_rationale_386",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test that uploading a file >5MB raises FileValidationError.",
@@ -7705,7 +7713,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L413",
       "id": "test_organizer_media_integration_rationale_413",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test that uploading an image <200x200 raises FileValidationError.",
@@ -7713,7 +7721,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L443",
       "id": "test_organizer_media_integration_rationale_443",
-      "community": 0
+      "community": 3
     },
     {
       "label": "Test that uploading logo for non-owned organizer raises OrganizerNotFound.",
@@ -7721,7 +7729,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L479",
       "id": "test_organizer_media_integration_rationale_479",
-      "community": 0
+      "community": 3
     },
     {
       "label": "Test that uploading a non-image file raises FileValidationError.",
@@ -7729,7 +7737,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L504",
       "id": "test_organizer_media_integration_rationale_504",
-      "community": 0
+      "community": 3
     },
     {
       "label": "Test that uploading a file >5MB raises FileValidationError.",
@@ -7737,7 +7745,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L531",
       "id": "test_organizer_media_integration_rationale_531",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test that uploading an image <200x200 raises FileValidationError.",
@@ -7745,7 +7753,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L560",
       "id": "test_organizer_media_integration_rationale_560",
-      "community": 0
+      "community": 3
     },
     {
       "label": "Test that uploading cover for non-owned organizer raises OrganizerNotFound.",
@@ -7753,7 +7761,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L595",
       "id": "test_organizer_media_integration_rationale_595",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test that a valid JPG image passes validation.",
@@ -7761,7 +7769,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L619",
       "id": "test_organizer_media_integration_rationale_619",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test that a valid WebP image passes validation.",
@@ -7769,7 +7777,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_integration.py",
       "source_location": "L658",
       "id": "test_organizer_media_integration_rationale_658",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_organizer_service_media.py",
@@ -7777,7 +7785,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L1",
       "id": "test_organizer_service_media",
-      "community": 5
+      "community": 3
     },
     {
       "label": "valid_image_bytes()",
@@ -7785,7 +7793,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L13",
       "id": "test_organizer_service_media_valid_image_bytes",
-      "community": 5
+      "community": 3
     },
     {
       "label": "organizer_service_mock()",
@@ -7793,7 +7801,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L22",
       "id": "test_organizer_service_media_organizer_service_mock",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_success()",
@@ -7801,7 +7809,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L30",
       "id": "test_organizer_service_media_test_upload_logo_success",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_organizer_not_found()",
@@ -7809,7 +7817,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L60",
       "id": "test_organizer_service_media_test_upload_logo_organizer_not_found",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_invalid_file_type()",
@@ -7817,7 +7825,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L79",
       "id": "test_organizer_service_media_test_upload_logo_invalid_file_type",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_cover_image_success()",
@@ -7825,7 +7833,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L98",
       "id": "test_organizer_service_media_test_upload_cover_image_success",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_cover_image_organizer_not_found()",
@@ -7833,7 +7841,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L127",
       "id": "test_organizer_service_media_test_upload_cover_image_organizer_not_found",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Create valid test image bytes (200x200 PNG).",
@@ -7841,7 +7849,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L14",
       "id": "test_organizer_service_media_rationale_14",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Mock OrganizerService with mocked dependencies.",
@@ -7849,7 +7857,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L23",
       "id": "test_organizer_service_media_rationale_23",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test successful logo upload.",
@@ -7857,7 +7865,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L31",
       "id": "test_organizer_service_media_rationale_31",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test upload logo rejects if organizer doesn't exist.",
@@ -7865,7 +7873,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L61",
       "id": "test_organizer_service_media_rationale_61",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test upload logo rejects invalid file type.",
@@ -7873,7 +7881,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L80",
       "id": "test_organizer_service_media_rationale_80",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test successful cover image upload.",
@@ -7881,7 +7889,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L99",
       "id": "test_organizer_service_media_rationale_99",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test upload cover rejects if organizer doesn't exist.",
@@ -7889,7 +7897,7 @@
       "source_file": "tests/apps/organizer/test_organizer_service_media.py",
       "source_location": "L128",
       "id": "test_organizer_service_media_rationale_128",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_organizer_media_urls.py",
@@ -7897,7 +7905,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_urls.py",
       "source_location": "L1",
       "id": "test_organizer_media_urls",
-      "community": 5
+      "community": 3
     },
     {
       "label": "service_mock()",
@@ -7905,7 +7913,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_urls.py",
       "source_location": "L9",
       "id": "test_organizer_media_urls_service_mock",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_logo_endpoint_calls_service()",
@@ -7913,7 +7921,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_urls.py",
       "source_location": "L15",
       "id": "test_organizer_media_urls_test_upload_logo_endpoint_calls_service",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_upload_cover_endpoint_calls_service()",
@@ -7921,7 +7929,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_urls.py",
       "source_location": "L43",
       "id": "test_organizer_media_urls_test_upload_cover_endpoint_calls_service",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Mock OrganizerService.",
@@ -7929,7 +7937,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_urls.py",
       "source_location": "L10",
       "id": "test_organizer_media_urls_rationale_10",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test that upload logo endpoint calls service method.",
@@ -7937,7 +7945,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_urls.py",
       "source_location": "L16",
       "id": "test_organizer_media_urls_rationale_16",
-      "community": 5
+      "community": 3
     },
     {
       "label": "Test that upload cover endpoint calls service method.",
@@ -7945,7 +7953,7 @@
       "source_file": "tests/apps/organizer/test_organizer_media_urls.py",
       "source_location": "L44",
       "id": "test_organizer_media_urls_rationale_44",
-      "community": 5
+      "community": 3
     },
     {
       "label": "test_organizer_urls.py",
@@ -8353,7 +8361,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L1",
       "id": "test_blocklist",
-      "community": 13
+      "community": 14
     },
     {
       "label": "mock_redis()",
@@ -8361,7 +8369,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L7",
       "id": "test_blocklist_mock_redis",
-      "community": 13
+      "community": 14
     },
     {
       "label": "blocklist()",
@@ -8369,7 +8377,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L17",
       "id": "test_blocklist_blocklist",
-      "community": 13
+      "community": 14
     },
     {
       "label": "test_add_jti_to_blocklist()",
@@ -8377,7 +8385,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L22",
       "id": "test_blocklist_test_add_jti_to_blocklist",
-      "community": 13
+      "community": 14
     },
     {
       "label": "test_is_jti_blocklisted_true()",
@@ -8385,7 +8393,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L30",
       "id": "test_blocklist_test_is_jti_blocklisted_true",
-      "community": 13
+      "community": 14
     },
     {
       "label": "test_is_jti_blocklisted_false()",
@@ -8393,7 +8401,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L39",
       "id": "test_blocklist_test_is_jti_blocklisted_false",
-      "community": 13
+      "community": 14
     },
     {
       "label": "test_add_jti_with_ttl()",
@@ -8401,7 +8409,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L47",
       "id": "test_blocklist_test_add_jti_with_ttl",
-      "community": 13
+      "community": 14
     },
     {
       "label": "test_remove_jti_from_blocklist()",
@@ -8409,7 +8417,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L62",
       "id": "test_blocklist_test_remove_jti_from_blocklist",
-      "community": 13
+      "community": 14
     },
     {
       "label": "Adding a jti should add it to the Redis set.",
@@ -8417,7 +8425,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L23",
       "id": "test_blocklist_rationale_23",
-      "community": 13
+      "community": 14
     },
     {
       "label": "Blocked jti should return True.",
@@ -8425,7 +8433,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L31",
       "id": "test_blocklist_rationale_31",
-      "community": 13
+      "community": 14
     },
     {
       "label": "Non-blocklisted jti should return False.",
@@ -8433,7 +8441,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L40",
       "id": "test_blocklist_rationale_40",
-      "community": 13
+      "community": 14
     },
     {
       "label": "Adding a jti with TTL should also set expiry on the set.",
@@ -8441,7 +8449,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L48",
       "id": "test_blocklist_rationale_48",
-      "community": 13
+      "community": 14
     },
     {
       "label": "Removing a jti should remove it from the Redis set.",
@@ -8449,7 +8457,7 @@
       "source_file": "tests/unit/auth/test_blocklist.py",
       "source_location": "L63",
       "id": "test_blocklist_rationale_63",
-      "community": 13
+      "community": 14
     },
     {
       "label": "test_uuid_primary_key.py",
@@ -13171,6 +13179,18 @@
       "source_file": "src/apps/ticketing/enums.py",
       "source_location": "L11",
       "weight": 1.0,
+      "_src": "enums_ticketcategorypublic",
+      "_tgt": "str",
+      "source": "str",
+      "target": "enums_ticketcategorypublic",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "src/apps/ticketing/enums.py",
+      "source_location": "L17",
+      "weight": 1.0,
       "_src": "enums_ticketstatus",
       "_tgt": "str",
       "source": "str",
@@ -13181,7 +13201,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L17",
+      "source_location": "L23",
       "weight": 1.0,
       "_src": "enums_allocationsourcetype",
       "_tgt": "str",
@@ -13193,7 +13213,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L22",
+      "source_location": "L28",
       "weight": 1.0,
       "_src": "enums_allocationstatus",
       "_tgt": "str",
@@ -13205,7 +13225,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L28",
+      "source_location": "L34",
       "weight": 1.0,
       "_src": "enums_ordertype",
       "_tgt": "str",
@@ -13217,7 +13237,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L33",
+      "source_location": "L39",
       "weight": 1.0,
       "_src": "enums_orderstatus",
       "_tgt": "str",
@@ -13229,7 +13249,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L40",
+      "source_location": "L46",
       "weight": 1.0,
       "_src": "enums_coupontype",
       "_tgt": "str",
@@ -13411,6 +13431,18 @@
       "source_file": "src/apps/ticketing/enums.py",
       "source_location": "L11",
       "weight": 1.0,
+      "_src": "enums_ticketcategorypublic",
+      "_tgt": "enum",
+      "source": "enum",
+      "target": "enums_ticketcategorypublic",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "src/apps/ticketing/enums.py",
+      "source_location": "L17",
+      "weight": 1.0,
       "_src": "enums_ticketstatus",
       "_tgt": "enum",
       "source": "enum",
@@ -13421,7 +13453,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L17",
+      "source_location": "L23",
       "weight": 1.0,
       "_src": "enums_allocationsourcetype",
       "_tgt": "enum",
@@ -13433,7 +13465,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L22",
+      "source_location": "L28",
       "weight": 1.0,
       "_src": "enums_allocationstatus",
       "_tgt": "enum",
@@ -13445,7 +13477,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L28",
+      "source_location": "L34",
       "weight": 1.0,
       "_src": "enums_ordertype",
       "_tgt": "enum",
@@ -13457,7 +13489,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L33",
+      "source_location": "L39",
       "weight": 1.0,
       "_src": "enums_orderstatus",
       "_tgt": "enum",
@@ -13469,7 +13501,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L40",
+      "source_location": "L46",
       "weight": 1.0,
       "_src": "enums_coupontype",
       "_tgt": "enum",
@@ -24920,6 +24952,18 @@
       "source_location": "L11",
       "weight": 1.0,
       "_src": "enums",
+      "_tgt": "enums_ticketcategorypublic",
+      "source": "enums",
+      "target": "enums_ticketcategorypublic",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/apps/ticketing/enums.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_src": "enums",
       "_tgt": "enums_ticketstatus",
       "source": "enums",
       "target": "enums_ticketstatus",
@@ -24929,7 +24973,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L17",
+      "source_location": "L23",
       "weight": 1.0,
       "_src": "enums",
       "_tgt": "enums_allocationsourcetype",
@@ -24941,7 +24985,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L22",
+      "source_location": "L28",
       "weight": 1.0,
       "_src": "enums",
       "_tgt": "enums_allocationstatus",
@@ -24953,7 +24997,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L28",
+      "source_location": "L34",
       "weight": 1.0,
       "_src": "enums",
       "_tgt": "enums_ordertype",
@@ -24965,7 +25009,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L33",
+      "source_location": "L39",
       "weight": 1.0,
       "_src": "enums",
       "_tgt": "enums_orderstatus",
@@ -24977,7 +25021,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/apps/ticketing/enums.py",
-      "source_location": "L40",
+      "source_location": "L46",
       "weight": 1.0,
       "_src": "enums",
       "_tgt": "enums_coupontype",
@@ -36772,42 +36816,6 @@
     {
       "relation": "uses",
       "confidence": "INFERRED",
-      "source_file": "src/apps/ticketing/request.py",
-      "source_location": "L5",
-      "weight": 0.8,
-      "_src": "request_createtickettyperequest",
-      "_tgt": "enums_ticketcategory",
-      "source": "enums_ticketcategory",
-      "target": "request_createtickettyperequest",
-      "confidence_score": 0.5
-    },
-    {
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "src/apps/ticketing/request.py",
-      "source_location": "L5",
-      "weight": 0.8,
-      "_src": "request_allocatetickettyperequest",
-      "_tgt": "enums_ticketcategory",
-      "source": "enums_ticketcategory",
-      "target": "request_allocatetickettyperequest",
-      "confidence_score": 0.5
-    },
-    {
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "src/apps/ticketing/request.py",
-      "source_location": "L5",
-      "weight": 0.8,
-      "_src": "request_updateticketallocationquantityrequest",
-      "_tgt": "enums_ticketcategory",
-      "source": "enums_ticketcategory",
-      "target": "request_updateticketallocationquantityrequest",
-      "confidence_score": 0.5
-    },
-    {
-      "relation": "uses",
-      "confidence": "INFERRED",
       "source_file": "src/apps/ticketing/models.py",
       "source_location": "L8",
       "weight": 0.8,
@@ -36839,6 +36847,42 @@
       "_tgt": "enums_ticketcategory",
       "source": "enums_ticketcategory",
       "target": "models_ticketmodel",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "src/apps/ticketing/request.py",
+      "source_location": "L5",
+      "weight": 0.8,
+      "_src": "request_createtickettyperequest",
+      "_tgt": "enums_ticketcategorypublic",
+      "source": "enums_ticketcategorypublic",
+      "target": "request_createtickettyperequest",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "src/apps/ticketing/request.py",
+      "source_location": "L5",
+      "weight": 0.8,
+      "_src": "request_allocatetickettyperequest",
+      "_tgt": "enums_ticketcategorypublic",
+      "source": "enums_ticketcategorypublic",
+      "target": "request_allocatetickettyperequest",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "src/apps/ticketing/request.py",
+      "source_location": "L5",
+      "weight": 0.8,
+      "_src": "request_updateticketallocationquantityrequest",
+      "_tgt": "enums_ticketcategorypublic",
+      "source": "enums_ticketcategorypublic",
+      "target": "request_updateticketallocationquantityrequest",
       "confidence_score": 0.5
     },
     {

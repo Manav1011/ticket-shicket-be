@@ -1,11 +1,11 @@
 # Graph Report - .  (2026-04-12)
 
 ## Corpus Check
-- 141 files · ~119,145 words
+- 141 files · ~119,157 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1060 nodes · 2854 edges · 72 communities detected
+- 1061 nodes · 2857 edges · 72 communities detected
 - Extraction: 43% EXTRACTED · 57% INFERRED · 0% AMBIGUOUS · INFERRED: 1617 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
@@ -36,68 +36,68 @@
 ## Communities
 
 ### Community 0 - "Community 0"
-Cohesion: 0.04
-Nodes (147): async_test_client(), auth_headers(), db_session(), guest_device_id(), invalid_file_type_bytes(), mock_s3_client(), oversized_image_bytes(), Create FastAPI app with mocked lifespan for HTTP testing. (+139 more)
+Cohesion: 0.05
+Nodes (161): Base, Base, A mixin class to add a primary key field in a model., Base class for defining database tables., A mixin class to add automatic timestamp fields.      Adds `created_at` and `upd, TimeStampMixin, UUIDPrimaryKeyMixin, async_test_client() (+153 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.05
-Nodes (99): BaseModel, Redis-based token blocklist for invalidating access tokens.  Uses a Redis SET to, Manages a Redis SET of blocked token JTIs., Add a jti to the blocklist.         Optionally set a TTL (in seconds) to auto-ex, Check if a jti is in the blocklist., Remove a jti from the blocklist (not typically needed)., TokenBlocklist, CamelCaseModel (+91 more)
+Nodes (103): BaseModel, Redis-based token blocklist for invalidating access tokens.  Uses a Redis SET to, Manages a Redis SET of blocked token JTIs., Add a jti to the blocklist.         Optionally set a TTL (in seconds) to auto-ex, Check if a jti is in the blocklist., Remove a jti from the blocklist (not typically needed)., TokenBlocklist, CamelCaseModel (+95 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.05
-Nodes (94): AlreadyExistsError, BadRequestError, CustomException, create_password(), decrypt(), Create a random password.      :return: A randomly generated password., Decrypts the given encrypted data.      :param rsa_key: The RSA private key., AlreadyExistsError (+86 more)
+Nodes (102): AlreadyExistsError, BadRequestError, CustomException, ActorContext, get_current_guest(), get_current_user(), get_current_user_or_guest(), Dependency that accepts either a user or guest bearer token and stores a normali (+94 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.08
-Nodes (43): Base, Base, A mixin class to add a primary key field in a model., Base class for defining database tables., A mixin class to add automatic timestamp fields.      Adds `created_at` and `upd, TimeStampMixin, UUIDPrimaryKeyMixin, DeclarativeBase (+35 more)
+Cohesion: 0.04
+Nodes (60): OrganizerService, mock_s3_client(), organizer_repo(), Integration tests for Organizer Media Asset workflow.  Tests the complete lifecy, Test that uploading a new logo replaces the existing one., Test that a valid 200x200+ image passes validation., Test that uploading a cover image updates the organizer's cover_image_url., Test that uploading a new cover replaces the existing one. (+52 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.04
 Nodes (19): PublicEventService, EventRepository, _AsyncNullContext, Open event with venue and all basic info complete should be ready., Ticketed event without tickets can publish but section marked incomplete., Ticketed event without tickets should NOT fail validation., Ticketed event day without start_time should fail schedule validation., Publishing event should set status, is_published, and published_at. (+11 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.04
-Nodes (52): OrganizerService, Upload cover image for organizer page.          Args:             owner_user_id:, mock_s3_client(), organizer_repo(), Test that uploading a new logo replaces the existing one., Test that uploading a cover image updates the organizer's cover_image_url., Test that uploading a new cover replaces the existing one., Test that uploading logo doesn't modify cover_image_url. (+44 more)
-
-### Community 6 - "Community 6"
 Cohesion: 0.03
 Nodes (18): Ticketing app package.  Keep package imports side-effect free so model imports r, convert_guest(), delete_media_asset(), generate_device_id(), get_guest_self(), get_publish_validations(), guest_login(), guest_logout() (+10 more)
 
-### Community 7 - "Community 7"
+### Community 6 - "Community 6"
 Cohesion: 0.07
-Nodes (36): BaseSettings, AppEnvironment, assemble_db_url(), Enum representing different application environments.      - LOCAL: Indicates th, A settings class for the project defining all the necessary parameters within th, Settings, delete_cookies(), Delete authentication cookies from an HTTP response.      Args:         response (+28 more)
+Nodes (35): BaseSettings, AppEnvironment, assemble_db_url(), Enum representing different application environments.      - LOCAL: Indicates th, A settings class for the project defining all the necessary parameters within th, Settings, delete_cookies(), Delete authentication cookies from an HTTP response.      Args:         response (+27 more)
+
+### Community 7 - "Community 7"
+Cohesion: 0.08
+Nodes (10): EventService, _serialize_for_json(), Test that upload endpoint calls service method., Test listing media assets returns list., Test delete endpoint calls service., Test update metadata endpoint., test_delete_media_asset_calls_service(), test_list_media_assets_returns_list() (+2 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.05
 Nodes (3): PublicOrganizerService, GuestRepository, TicketingRepository
 
 ### Community 9 - "Community 9"
+Cohesion: 0.09
+Nodes (9): Delete all refresh tokens for a user before deleting the user row., Detach guest records that point at this user before deleting the user row., Data access layer for UserModel., Create a new refresh token record., Get refresh token by hash if it exists and is active., Mark a refresh token as revoked., Revoke all refresh tokens for a user (used on password change, etc)., UserRepository (+1 more)
+
+### Community 10 - "Community 10"
 Cohesion: 0.1
 Nodes (18): get_s3_client(), Wrapper around boto3 S3 client for event media uploads., Determine MIME type based on file extension., Get S3 client singleton., Upload file to S3 and return storage key.          Args:             resource_id, Delete file from S3.          Args:             storage_key: S3 storage key (pat, Generate public URL for file (works for LocalStack and real AWS).          Args:, S3Client (+10 more)
 
-### Community 10 - "Community 10"
+### Community 11 - "Community 11"
 Cohesion: 0.15
 Nodes (13): AppGenerator, ColoredOutput, directory_created(), error(), file_created(), header(), highlight(), info() (+5 more)
 
-### Community 11 - "Community 11"
+### Community 12 - "Community 12"
 Cohesion: 0.14
 Nodes (11): Exception, Exception raised for an unexpected HTTP response.      Attributes:         respo, Initialize the exception with the unexpected HTTP response.          Args:, UnexpectedResponse, HTTPClient, Send a PATCH request.          :param url: The URL to send the request to. Defau, Deletes a resource at the specified URL.          :param url: The URL of the res, Send a GET request.          :param url: The URL to send the request to. Default (+3 more)
 
-### Community 12 - "Community 12"
+### Community 13 - "Community 13"
 Cohesion: 0.12
 Nodes (0): 
 
-### Community 13 - "Community 13"
+### Community 14 - "Community 14"
 Cohesion: 0.15
 Nodes (10): Adding a jti should add it to the Redis set., Blocked jti should return True., Non-blocklisted jti should return False., Adding a jti with TTL should also set expiry on the set., Removing a jti should remove it from the Redis set., test_add_jti_to_blocklist(), test_add_jti_with_ttl(), test_is_jti_blocklisted_false() (+2 more)
 
-### Community 14 - "Community 14"
+### Community 15 - "Community 15"
 Cohesion: 0.17
 Nodes (0): 
-
-### Community 15 - "Community 15"
-Cohesion: 0.2
-Nodes (8): Test that upload endpoint calls service method., Test listing media assets returns list., Test delete endpoint calls service., Test update metadata endpoint., test_delete_media_asset_calls_service(), test_list_media_assets_returns_list(), test_update_media_asset_metadata(), test_upload_media_asset_calls_service()
 
 ### Community 16 - "Community 16"
 Cohesion: 0.22
@@ -384,11 +384,11 @@ Nodes (1): Step 5: Guest logout revokes the refresh token.          Expected:   
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `FileValidationError` connect `Community 0` to `Community 1`, `Community 2`, `Community 5`, `Community 11`, `Community 17`?**
+- **Why does `FileValidationError` connect `Community 0` to `Community 1`, `Community 2`, `Community 3`, `Community 7`, `Community 12`, `Community 17`?**
   _High betweenness centrality (0.099) - this node is a cross-community bridge._
-- **Why does `EventService` connect `Community 0` to `Community 1`, `Community 15`, `Community 4`, `Community 7`?**
+- **Why does `EventService` connect `Community 7` to `Community 0`, `Community 1`, `Community 4`?**
   _High betweenness centrality (0.090) - this node is a cross-community bridge._
-- **Why does `EventRepository` connect `Community 4` to `Community 8`, `Community 1`, `Community 3`, `Community 0`?**
+- **Why does `EventRepository` connect `Community 4` to `Community 8`, `Community 1`, `Community 0`?**
   _High betweenness centrality (0.053) - this node is a cross-community bridge._
 - **Are the 85 inferred relationships involving `FileValidationError` (e.g. with `Check if event is ready to publish, return section-by-section validation errors.` and `Publish event. Returns 400 with validation errors if not ready.`) actually correct?**
   _`FileValidationError` has 85 INFERRED edges - model-reasoned connections that need verification._
