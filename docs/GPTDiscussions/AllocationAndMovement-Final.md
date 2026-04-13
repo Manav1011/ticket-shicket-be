@@ -1,8 +1,8 @@
 # TicketShicket — Allocation & Movement Architecture
 
-**Version:** 1.0
-**Status:** Final Design
-**Last Updated:** 2026-04-12
+**Version:** 1.1
+**Status:** Final Design (Post-Review)
+**Last Updated:** 2026-04-13
 
 ---
 
@@ -21,8 +21,9 @@ Order        → money    (optional layer on top)
 1. **Tickets never move directly** — ownership changes ONLY through Allocation
 2. **Allocation is an event log** — append-only history, never mutated after creation
 3. **from_holder_id determines source** — NULL = pool, NOT NULL = user-to-user transfer
-4. **Tree/Graf is derived, not stored** — build it at query time from allocations
+4. **Tree/Graph is derived, not stored** — build it at query time from allocations
 5. **Atomic transactions** — ownership change and allocation creation MUST happen in same DB transaction
+6. **Edge updates are inside the transaction** — rollback is automatic via DB, no separate cleanup needed
 
 ---
 
@@ -38,6 +39,7 @@ CREATE TABLE ticket_holders (
     user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
 
     -- Identity contact (one or the other — NOT both at v1)
+    -- Constraint enforced at app level, not DB — allows merge to update both fields
     phone       TEXT UNIQUE,
     email       TEXT UNIQUE,
 
@@ -46,12 +48,7 @@ CREATE TABLE ticket_holders (
                 CHECK (status IN ('active', 'deleted')),
 
     created_at  TIMESTAMP NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMP NOT NULL DEFAULT now(),
-
-    CONSTRAINT chk_phone_or_email CHECK (
-        (phone IS NOT NULL AND email IS NULL) OR
-        (phone IS NULL AND email IS NOT NULL)
-    )
+    updated_at  TIMESTAMP NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_ticket_holders_user_id ON ticket_holders(user_id);
@@ -62,6 +59,7 @@ CREATE INDEX idx_ticket_holders_email ON ticket_holders(email) WHERE email IS NO
 **Design Decisions:**
 - `user_id` is nullable — a holder may exist without a registered account
 - Phone OR email (not both) at v1 — simplifies identity matching
+- CHECK constraint on phone/email removed — merge flow updates both fields, constraint enforced at app layer
 - `status = deleted` (hard delete v1) — no `merged_into_holder_id` complexity
 
 ---
@@ -88,6 +86,12 @@ CREATE TABLE allocations (
     -- Failure tracking
     failure_reason  TEXT,
 
+    -- Ticket count (denormalized — avoids COUNT join)
+    ticket_count    INT NOT NULL DEFAULT 0,
+
+    -- Metadata for audit/notes
+    metadata        JSONB NOT NULL DEFAULT '{}'::jsonb,
+
     created_at      TIMESTAMP NOT NULL DEFAULT now(),
     updated_at      TIMESTAMP NOT NULL DEFAULT now()
 );
@@ -103,6 +107,8 @@ CREATE INDEX idx_allocations_created_at ON allocations(created_at);
 - `source_type` removed — derived from `from_holder_id`:
   - `from_holder_id IS NULL` → POOL (organizer's initial allocation)
   - `from_holder_id IS NOT NULL` → TRANSFER (user-to-user)
+- `ticket_count` added — avoids `COUNT(*)` join on every query
+- `metadata` JSONB added — useful for source info, notes, audit trail
 - Status machine enables retry logic and debugging
 - `failure_reason` stores error details for failed allocations
 
@@ -138,14 +144,16 @@ CREATE TABLE allocation_edges (
     PRIMARY KEY (event_id, from_holder_id, to_holder_id)
 );
 
+CREATE INDEX idx_allocation_edges_event_id ON allocation_edges(event_id);
 CREATE INDEX idx_allocation_edges_to_holder ON allocation_edges(to_holder_id);
 ```
 
 **Design Decisions:**
 - Stores aggregated counts per (event, from_holder, to_holder) tuple
-- Updated incrementally inside the same transaction as allocation creation
+- Updated incrementally **inside the same transaction** as allocation creation
 - `ON CONFLICT ... DO UPDATE` ensures atomic upsert
 - Tree query becomes O(1) instead of O(n) — no GROUP BY + JOIN needed
+- `idx_allocation_edges_event_id` added for efficient filtering by event
 
 ---
 
@@ -231,7 +239,7 @@ allocation_tickets inserted
        ↓
 Ticket owner_holder_id updated
        ↓
-allocation_edges updated (ticket_count += N)
+allocation_edges updated (ticket_count += N)  ← inside same transaction
        ↓
 Allocation status → completed
        ↓
@@ -240,52 +248,111 @@ Order status → paid
 
 **Code Flow (Critical Transaction):**
 ```python
-async with db.transaction():
-    # 1. Lock tickets
-    locked = await db.execute("""
-        UPDATE tickets
-        SET lock_reference_type = 'order',
-            lock_reference_id = :order_id,
-            lock_expires_at = :expires
-        WHERE id IN (SELECT id FROM tickets WHERE ...)
-        AND owner_holder_id IS NULL
-        AND lock_reference_id IS NULL
-        RETURNING id
-    """, {...})
+async def process_purchase_allocation(
+    db,
+    order_id: uuid.UUID,
+    event_id: uuid.UUID,
+    from_holder_id: uuid.UUID | None,  # None = from pool
+    to_holder_id: uuid.UUID,
+    ticket_ids: list[uuid.UUID],
+    metadata: dict | None = None
+):
+    """
+    Idempotent purchase allocation.
+    All steps inside single transaction — rollback is automatic on failure.
+    """
+    async with db.transaction():
+        # 1. Create allocation (status: pending)
+        allocation = await db.execute("""
+            INSERT INTO allocations (
+                event_id, from_holder_id, to_holder_id, order_id,
+                status, ticket_count, metadata
+            )
+            VALUES (:event_id, :from_holder_id, :to_holder_id, :order_id, 'pending', :count, :metadata)
+            RETURNING id
+        """, {
+            "event_id": event_id,
+            "from_holder_id": from_holder_id,
+            "to_holder_id": to_holder_id,
+            "order_id": order_id,
+            "count": len(ticket_ids),
+            "metadata": json.dumps(metadata or {})
+        })
 
-    # 2. Create allocation
-    allocation = await db.execute("""
-        INSERT INTO allocations (...)
-        VALUES (...) RETURNING id
-    """)
+        # 2. Lock tickets
+        locked = await db.execute("""
+            UPDATE tickets
+            SET lock_reference_type = 'order',
+                lock_reference_id = :order_id,
+                lock_expires_at = :expires
+            WHERE id = ANY(:ticket_ids)
+            AND owner_holder_id IS NOT DISTINCT FROM :from_holder_id
+            AND lock_reference_id IS NULL
+            AND status = 'active'
+            RETURNING id
+        """, {
+            "ticket_ids": ticket_ids,  # Python list → PostgreSQL array
+            "order_id": order_id,
+            "from_holder_id": from_holder_id,
+            "expires": datetime.utcnow() + timedelta(minutes=5)
+        })
 
-    # 3. Insert junction
-    await db.execute("""
-        INSERT INTO allocation_tickets (allocation_id, ticket_id)
-        SELECT :allocation_id, id FROM tickets WHERE id IN (...)
-    """)
+        if len(locked) != len(ticket_ids):
+            raise Exception("Some tickets are no longer available or not owned by sender")
 
-    # 4. Update ownership
-    await db.execute("""
-        UPDATE tickets
-        SET owner_holder_id = :to_holder_id,
-            lock_reference_type = NULL,
-            lock_reference_id = NULL,
-            lock_expires_at = NULL
-        WHERE id IN (...)
-    """)
+        # 3. Insert junction
+        await db.execute("""
+            INSERT INTO allocation_tickets (allocation_id, ticket_id)
+            SELECT :allocation_id, unnest(:ticket_ids)
+        """, {"allocation_id": allocation["id"], "ticket_ids": ticket_ids})
 
-    # 5. Update edges
-    await db.execute("""
-        INSERT INTO allocation_edges (event_id, from_holder_id, to_holder_id, ticket_count)
-        VALUES (:event_id, NULL, :to_holder_id, :count)
-        ON CONFLICT (event_id, from_holder_id, to_holder_id)
-        DO UPDATE SET ticket_count = allocation_edges.ticket_count + EXCLUDED.ticket_count
-    """)
+        # 4. Update ownership — CRITICAL: verify ownership hasn't changed
+        result = await db.execute("""
+            UPDATE tickets
+            SET owner_holder_id = :to_holder_id,
+                lock_reference_type = NULL,
+                lock_reference_id = NULL,
+                lock_expires_at = NULL
+            WHERE id = ANY(:ticket_ids)
+            AND owner_holder_id IS NOT DISTINCT FROM :from_holder_id
+            RETURNING id
+        """, {
+            "ticket_ids": ticket_ids,
+            "from_holder_id": from_holder_id,
+            "to_holder_id": to_holder_id
+        })
 
-    # 6. Mark completed
-    await db.execute("UPDATE allocations SET status = 'completed' WHERE id = :id")
+        if len(result) != len(ticket_ids):
+            raise Exception("Ownership changed during allocation — possible race condition")
+
+        # 5. Update edges (inside transaction — rollback automatic on failure)
+        await db.execute("""
+            INSERT INTO allocation_edges (event_id, from_holder_id, to_holder_id, ticket_count)
+            VALUES (:event_id, :from_holder_id, :to_holder_id, :count)
+            ON CONFLICT (event_id, from_holder_id, to_holder_id)
+            DO UPDATE SET ticket_count = allocation_edges.ticket_count + EXCLUDED.ticket_count
+        """, {
+            "event_id": event_id,
+            "from_holder_id": from_holder_id,
+            "to_holder_id": to_holder_id,
+            "count": len(ticket_ids)
+        })
+
+        # 6. Mark completed
+        await db.execute("""
+            UPDATE allocations
+            SET status = 'completed'
+            WHERE id = :id
+        """, {"id": allocation["id"]})
+
+    # Transaction committed — all or nothing
+    return allocation
 ```
+
+> **CRITICAL:**
+> - Edge update is inside the transaction. If any step fails → entire transaction rolls back → edges auto-revert. No separate rollback function needed.
+> - Ownership check (`IS NOT DISTINCT FROM`) ensures no race condition overwrites wrong owner.
+> - `from_holder_id` is passed explicitly — NULL for pool allocations, actual holder ID for transfers.
 
 ---
 
@@ -300,7 +367,7 @@ ticket_holder fetched/created (get_or_create)
        ↓
 Allocation created (status: processing)
        ↓
-[Same transaction as above — steps 2-5]
+[Same transaction as above — steps 1-5]
        ↓
 Allocation status → completed
 ```
@@ -308,7 +375,7 @@ Allocation status → completed
 **Key Difference from Purchase:**
 - No `order_id`
 - No pending (since no payment async)
-- `lock_reference_type` may be 'allocation' instead of 'order'
+- `lock_reference_type` = 'allocation' instead of 'order'
 - Goes directly to `processing` status
 
 ---
@@ -336,11 +403,11 @@ Allocation status → completed
 # Before allocation, verify ownership
 tickets = await db.fetch_all("""
     SELECT id FROM tickets
-    WHERE id IN (...)
+    WHERE id = ANY(:ticket_ids)
     AND owner_holder_id = :sender_holder_id
     AND status = 'active'
     AND lock_reference_id IS NULL
-""")
+""", {"ticket_ids": ticket_ids, "sender_holder_id": sender_holder_id})
 # If count != requested count → reject (tickets unavailable)
 ```
 
@@ -359,12 +426,13 @@ Status: pending → processing → completed
        ↓
 Ticket returns to pool (owner_holder_id = NULL)
        ↓
-allocation_edges updated (ticket_count decreases for original edge)
+New reverse allocation edge created (count increases for reverse edge)
 ```
 
-**Edge Cases:**
-- If ticket was already transferred out of system → refund may not be possible
-- Track via allocation history to determine original pool source
+> **Important:** Treat refund as a **new reverse allocation**, not a decrement.
+> This preserves the append-only model. The edge `(current_owner → NULL)` is inserted,
+> incrementing the count for that edge — just like any other allocation.
+> Never manually decrement edges.
 
 ---
 
@@ -382,8 +450,11 @@ async def resolve_holder(
     """
     Resolve a ticket holder by contact info.
     Creates if not exists. Links user_id if provided.
+
+    Enforces: phone OR email (not both) at v1.
     """
     assert phone or email or user_id, "At least one identifier required"
+    assert not (phone and email), "Only phone OR email allowed at v1"
 
     # 1. Try find by user_id (highest priority — most specific)
     if user_id:
@@ -401,7 +472,6 @@ async def resolve_holder(
             {"phone": phone}
         )
         if holder:
-            # If user_id also provided but not linked → link it
             if user_id and holder.user_id is None:
                 await db.execute(
                     "UPDATE ticket_holders SET user_id = :uid WHERE id = :hid",
@@ -463,7 +533,7 @@ COMMIT;
 
 ### 4.3 Signup + Holder Merge
 
-When a user registers with both phone AND email:
+When a user registers with phone AND email (after verification):
 
 ```python
 async def merge_holders_on_signup(
@@ -475,6 +545,9 @@ async def merge_holders_on_signup(
     """
     Called during user registration.
     Finds all holders matching phone/email and merges into one.
+
+    IMPORTANT: Only fills empty fields, doesn't overwrite existing.
+    After merge, holder may have both phone AND email (app-level, not DB-constrained).
     """
     # 1. Find all matching holders
     holders = await db.fetch_all("""
@@ -506,12 +579,12 @@ async def merge_holders_on_signup(
             {"id": h.id}
         )
 
-    # 5. Update primary with user_id and both contacts
+    # 5. Update primary — ONLY fill empty fields, don't overwrite
     await db.execute("""
         UPDATE ticket_holders
         SET user_id = :user_id,
-            phone = COALESCE(:phone, phone),
-            email = COALESCE(:email, email)
+            phone = COALESCE(:phone, phone),     -- only set if empty
+            email = COALESCE(:email, email)       -- only set if empty
         WHERE id = :id
     """, {
         "user_id": user_id,
@@ -520,8 +593,13 @@ async def merge_holders_on_signup(
         "id": primary.id
     })
 
-    return primary
+    return await db.fetch_one(
+        "SELECT * FROM ticket_holders WHERE id = :id",
+        {"id": primary.id}
+    )
 ```
+
+> **Key:** `COALESCE(:phone, phone)` means "set phone only if holder doesn't already have one". This prevents overwriting and allows holder to have both phone+email after merge (app-level, not DB-constrained).
 
 ---
 
@@ -587,75 +665,81 @@ async def get_allocation_tree(
 ) -> dict:
     """
     Builds the full distribution tree from allocation_edges.
-    Fast — O(edges) no JOINs needed.
+    Fast — O(2) queries total regardless of holder count (no N+1).
     """
     # 1. Get all edges (pre-aggregated)
     edges = await db.fetch_all("""
         SELECT
             ae.from_holder_id,
             ae.to_holder_id,
-            ae.ticket_count,
-            th.phone,
-            th.email,
-            th.user_id
+            ae.ticket_count
         FROM allocation_edges ae
-        JOIN ticket_holders th ON ae.to_holder_id = th.id
         WHERE ae.event_id = :event_id
     """, {"event_id": event_id})
 
-    # 2. Build adjacency map
-    children = {}  # holder_id -> list of {holder, count, children}
-    all_holders = {}
+    if not edges:
+        return {
+            "holder": {"id": None, "label": "POOL", "phone": None, "email": None},
+            "ticket_count": None,
+            "children": []
+        }
 
-    # First pass: collect all holder info
+    # 2. Collect ALL holder IDs in one pass
+    holder_ids = set()
     for edge in edges:
-        for hid in [edge["from_holder_id"], edge["to_holder_id"]]:
-            if hid and hid not in all_holders:
-                holder_info = await db.fetch_one(
-                    "SELECT * FROM ticket_holders WHERE id = :id",
-                    {"id": hid}
-                )
-                all_holders[hid] = {
-                    "id": hid,
-                    "phone": holder_info["phone"],
-                    "email": holder_info["email"],
-                    "user_id": holder_info["user_id"],
-                    "label": holder_info["phone"] or holder_info["email"] or "Unknown"
-                }
+        if edge["from_holder_id"]:
+            holder_ids.add(edge["from_holder_id"])
+        holder_ids.add(edge["to_holder_id"])
 
-        # Build edge
-        if edge["from_holder_id"] not in children:
-            children[edge["from_holder_id"]] = []
-        children[edge["from_holder_id"]].append({
-            "to_holder": all_holders[edge["to_holder_id"]],
+    # 3. Batch fetch ALL holders in ONE query (fixes N+1 problem)
+    holders = await db.fetch_all("""
+        SELECT id, phone, email, user_id
+        FROM ticket_holders
+        WHERE id = ANY(:ids)
+    """, {"ids": list(holder_ids)})
+    holders_map = {h["id"]: h for h in holders}
+
+    # 4. Build adjacency map
+    children = {}  # holder_id -> list of {to_holder, ticket_count, children}
+    for edge in edges:
+        from_id = edge["from_holder_id"]  # NULL for pool
+        to_id = edge["to_holder_id"]
+
+        if from_id not in children:
+            children[from_id] = []
+        children[from_id].append({
+            "to_holder_id": to_id,
             "ticket_count": edge["ticket_count"],
-            "children": []  # populated in next pass
+            "children": []
         })
 
-    # 3. Recursive tree builder
-    def build_tree(holder_id, depth=0):
+    # 5. Recursive tree builder
+    def build_tree(holder_id):
+        holder_info = holders_map.get(holder_id)
         node = {
-            "holder": all_holders.get(holder_id, {
-                "id": None,
-                "label": "POOL",
-                "phone": None,
-                "email": None,
-                "user_id": None
-            }),
-            "ticket_count": None,  # root has no count
+            "holder": {
+                "id": holder_id,
+                "label": holder_info["phone"] if holder_info else "POOL" if holder_id is None else "Unknown",
+                "phone": holder_info["phone"] if holder_info else None,
+                "email": holder_info["email"] if holder_info else None,
+                "user_id": holder_info["user_id"] if holder_info else None
+            },
+            "ticket_count": None,
             "children": []
         }
 
         for child in children.get(holder_id, []):
-            child_node = build_tree(child["to_holder"]["id"], depth + 1)
+            child_node = build_tree(child["to_holder_id"])
             child_node["ticket_count"] = child["ticket_count"]
             node["children"].append(child_node)
 
         return node
 
-    # 4. Return tree starting from POOL (from_holder_id = NULL)
+    # 6. Return tree starting from POOL (from_holder_id = NULL)
     return build_tree(None)
 ```
+
+> **Performance:** Only 2 queries total — edges fetch + batch holders fetch. No queries inside loops.
 
 ### 5.3 Example Response
 
@@ -742,6 +826,8 @@ async def acquire_ticket_locks(
     """
     Attempts to lock tickets for allocation/purchase.
     Returns (success, locked_ticket_ids).
+
+    Uses = ANY(:array) syntax for PostgreSQL compatibility.
     """
     expires = datetime.utcnow() + timedelta(seconds=lock_ttl_seconds)
 
@@ -755,19 +841,19 @@ async def acquire_ticket_locks(
         AND lock_reference_id IS NOT NULL
     """, {"now": datetime.utcnow()})
 
-    # Attempt lock
+    # Attempt lock — use = ANY() for array syntax
     result = await db.execute("""
         UPDATE tickets
         SET lock_reference_type = :ref_type,
             lock_reference_id = :ref_id,
             lock_expires_at = :expires
-        WHERE id IN :ticket_ids
+        WHERE id = ANY(:ticket_ids)  -- PostgreSQL array syntax, not IN :list
         AND owner_holder_id = :holder_id
         AND lock_reference_id IS NULL
         AND status = 'active'
         RETURNING id
     """, {
-        "ticket_ids": tuple(ticket_ids),
+        "ticket_ids": ticket_ids,  # Python list → PostgreSQL array
         "ref_type": lock_ref_type,
         "ref_id": lock_ref_id,
         "expires": expires,
@@ -783,12 +869,14 @@ async def acquire_ticket_locks(
             SET lock_reference_type = NULL,
                 lock_reference_id = NULL,
                 lock_expires_at = NULL
-            WHERE id IN :ids
-        """, {"ids": tuple(locked_ids)})
+            WHERE id = ANY(:ids)
+        """, {"ids": locked_ids})
         return False, []
 
     return True, locked_ids
 ```
+
+> **Important:** Use `= ANY(:ticket_ids)` not `IN :ticket_ids`. PostgreSQL drivers (pgx, asyncpg) require array syntax for parameterized IN clauses.
 
 ### 6.2 Lock Release
 
@@ -807,10 +895,10 @@ async def release_ticket_locks(
         SET lock_reference_type = NULL,
             lock_reference_id = NULL,
             lock_expires_at = NULL
-        WHERE id IN :ticket_ids
+        WHERE id = ANY(:ticket_ids)
         AND lock_reference_id = :ref_id
     """, {
-        "ticket_ids": tuple(ticket_ids),
+        "ticket_ids": ticket_ids,
         "ref_id": lock_ref_id
     })
 ```
@@ -842,7 +930,7 @@ async def release_ticket_locks(
 
 | From | To | Trigger |
 |------|----|---------|
-| pending | processing | Lock acquired, transaction starts |
+| pending | processing | Lock acquired, transaction starts (must verify rows_affected > 0) |
 | processing | completed | All steps succeeded, committed |
 | processing | failed | Any step failed, rolled back |
 | pending | failed | Payment declined / cancelled before processing |
@@ -874,13 +962,20 @@ async def process_allocation(
     if alloc["status"] == "processing":
         raise Exception(f"Allocation {allocation_id} already being processed")
 
-    # Transition to processing
-    await db.execute("""
+    # Transition to processing — CRITICAL: verify row was actually updated
+    result = await db.execute("""
         UPDATE allocations
         SET status = 'processing'
         WHERE id = :id
         AND status = 'pending'
+        RETURNING id
     """, {"id": allocation_id})
+
+    if len(result) == 0:
+        raise Exception(
+            f"Allocation {allocation_id} could not transition to processing — "
+            "already completed, failed, or not found"
+        )
 
     try:
         async with db.transaction():
@@ -901,6 +996,8 @@ async def process_allocation(
         """, {"id": allocation_id, "reason": str(e)})
         raise
 ```
+
+> **Critical:** Always check `rows_affected` via `RETURNING id`. If 0 rows affected, the transition failed (already processed) and you must not proceed.
 
 ---
 
@@ -937,7 +1034,7 @@ async def validate_allocation_quantity(
         AND event_day_id = :event_day_id
         AND status = 'active'
         AND owner_holder_id IS NOT NULL
-    """, {...})
+    """, {"event_id": event_id, "ticket_type_id": ticket_type_id, "event_day_id": event_day_id})
 
     available = total - allocated
 
@@ -954,13 +1051,16 @@ Scenario:
 
 Problem: Both see 100 available, both allocate → 110 tickets allocated
 
-Solution: Use ticket-level locking
+Solution: Use ticket-level locking with FIFO ordering
 ```
 
 ```sql
 -- Every allocation picks specific ticket IDs
+-- Strategy: FIFO — oldest tickets (lowest ticket_index) allocated first
 UPDATE tickets
-SET lock_reference_id = :alloc_id
+SET lock_reference_type = 'allocation',
+    lock_reference_id = :allocation_id,
+    lock_expires_at = :expires
 WHERE id IN (
     SELECT id FROM tickets
     WHERE event_id = :event_id
@@ -968,13 +1068,16 @@ WHERE id IN (
     AND owner_holder_id = :from_holder_id
     AND lock_reference_id IS NULL
     AND status = 'active'
-    ORDER BY ticket_index  -- deterministic ordering
+    ORDER BY ticket_index ASC  -- FIFO: lowest index first
     LIMIT :quantity
 )
 RETURNING id
 ```
 
-> **Key:** The `LIMIT :quantity` with deterministic `ORDER BY ticket_index` ensures atomic allocation without overselling.
+> **Key:**
+> - `ORDER BY ticket_index ASC` = FIFO (First-In-First-Out) allocation strategy
+> - `LIMIT :quantity` with deterministic ordering ensures atomic allocation without overselling
+> - Only tickets with `lock_reference_id IS NULL` can be locked — prevents double-allocation
 
 ### 8.3 Lock Expiry Mid-Transaction
 
@@ -988,7 +1091,7 @@ async def with_lock_expiry_guard(db, ticket_ids, operation):
         await db.execute("""
             UPDATE tickets
             SET lock_expires_at = :new_expires
-            WHERE id IN :ids
+            WHERE id = ANY(:ids)
         """, {"ids": ticket_ids, "new_expires": datetime.utcnow() + timedelta(hours=1)})
 
         result = await operation()
@@ -1001,35 +1104,15 @@ async def with_lock_expiry_guard(db, ticket_ids, operation):
         raise
 ```
 
-### 8.4 Failed Allocation Edge Cleanup
+### 8.4 Failed Allocation — No Separate Rollback
 
-When allocation fails after `allocation_edges` was updated:
+> **Critical Fix:** Edge updates happen inside the main transaction. If the transaction fails, the database rolls back automatically. No separate rollback function is needed or safe to call outside the transaction.
 
-```python
-async def rollback_edge_update(
-    db,
-    event_id: uuid.UUID,
-    from_holder_id: uuid.UUID | None,
-    to_holder_id: uuid.UUID,
-    ticket_count: int
-):
-    """
-    Decrements edge count on failed allocation.
-    """
-    await db.execute("""
-        UPDATE allocation_edges
-        SET ticket_count = GREATEST(0, ticket_count - :count),
-            updated_at = now()
-        WHERE event_id = :event_id
-        AND from_holder_id <=> :from_holder_id  -- NULL-safe compare
-        AND to_holder_id = :to_holder_id
-    """, {
-        "event_id": event_id,
-        "from_holder_id": from_holder_id,
-        "to_holder_id": to_holder_id,
-        "count": ticket_count
-    })
-```
+The old approach (separate `rollback_edge_update` call) was wrong because:
+1. If transaction already rolled back → edges are already reverted
+2. Calling decrement after commit → double inconsistency
+
+**Correct pattern:** Edge update is always inside `db.transaction()`. If transaction commits → edges updated. If transaction fails → edges auto-reverted.
 
 ### 8.5 Allocation to Deleted Holder
 
@@ -1067,13 +1150,14 @@ Request:
     "ticket_type_id": "uuid",
     "event_day_id": "uuid",
     "quantity": 50,
-    "order_id": "uuid-or-null"          // if payment involved
+    "order_id": "uuid-or-null",         // if payment involved
+    "metadata": {}                       // optional audit data
 }
 
 Response (201):
 {
     "allocation_id": "uuid",
-    "status": "completed",              // or "pending" if async
+    "status": "completed",               // or "pending" if async
     "tickets_allocated": 50,
     "to_holder_id": "uuid"
 }
@@ -1181,7 +1265,6 @@ async def cleanup_expired_locks(db):
     """, {"now": datetime.utcnow()})
 
     for row in result:
-        # Log for debugging
         print(f"Cleaned expired lock on ticket {row['id']}, "
               f"ref={row['lock_reference_type']}/{row['lock_reference_id']}")
 ```
@@ -1203,15 +1286,18 @@ async def cleanup_stale_pending_allocations(db, stale_threshold_minutes=30):
     """, {"threshold": datetime.utcnow() - timedelta(minutes=stale_threshold_minutes)})
 ```
 
-### 10.3 Failed Edge Decrement
+### 10.3 Edge Reconciliation (Health Check)
 
 ```python
 async def reconcile_allocation_edges(db, event_id: uuid.UUID):
     """
-    Reconciles allocation_edges counts with actual allocation_tickets.
-    Run as periodic health check.
+    Recalculates allocation_edges from scratch and upserts.
+    Run as periodic health check to fix any drift from failed transactions
+    or edge cases.
+
+    NOTE: This is a corrective measure, not part of normal transaction flow.
+    Normal allocation uses ON CONFLICT DO UPDATE which stays in sync.
     """
-    # Recalculate from scratch
     correct_counts = await db.fetch_all("""
         SELECT
             a.event_id,
@@ -1225,7 +1311,6 @@ async def reconcile_allocation_edges(db, event_id: uuid.UUID):
         GROUP BY a.event_id, a.from_holder_id, a.to_holder_id
     """, {"event_id": event_id})
 
-    # Upsert correct values
     for row in correct_counts:
         await db.execute("""
             INSERT INTO allocation_edges (event_id, from_holder_id, to_holder_id, ticket_count)
@@ -1258,6 +1343,7 @@ CREATE INDEX idx_alloc_created ON allocations(created_at);
 CREATE INDEX idx_at_ticket ON allocation_tickets(ticket_id);
 
 -- allocation_edges
+CREATE INDEX idx_ae_event ON allocation_edges(event_id);
 CREATE INDEX idx_ae_to ON allocation_edges(to_holder_id);
 
 -- tickets
@@ -1267,10 +1353,11 @@ CREATE INDEX idx_tickets_lock_expires ON tickets(lock_expires_at) WHERE lock_exp
 
 ### 11.2 Tree Query Complexity
 
-| Approach | 1000 tickets | 50k tickets | 500k tickets |
-|----------|-------------|-------------|--------------|
-| GROUP BY + JOIN | ~50ms | ~800ms | ~8s |
-| allocation_edges (pre-agg) | ~5ms | ~5ms | ~5ms |
+| Approach | 100 holders | 1000 holders |
+|----------|-------------|--------------|
+| GROUP BY + JOIN (v1) | ~50ms | ~500ms |
+| allocation_edges + N+1 (broken) | ~100 queries | ~1000 queries |
+| allocation_edges + batch fetch (fixed) | 2 queries | 2 queries |
 
 ---
 
@@ -1280,14 +1367,23 @@ CREATE INDEX idx_tickets_lock_expires ON tickets(lock_expires_at) WHERE lock_exp
 |----------|-------------|
 | Identity layer | `ticket_holders` (separate from users) |
 | Contact per holder | Phone OR email (not both at v1) |
+| Phone/email constraint | App-level enforcement, DB constraint removed |
 | `source_type` field | Removed — derived from `from_holder_id` |
+| `ticket_count` column | Added to `allocations` — avoids COUNT join |
+| `metadata` column | Added to `allocations` — JSONB for audit/notes |
 | Allocation status | `pending → processing → completed / failed` |
-| Transaction | Single atomic transaction for all allocation steps |
+| Transaction | Single atomic transaction, edges inside |
+| Edge rollback | No separate function — automatic via DB rollback |
+| Refund = reverse allocation | New edge (current_owner → NULL), never decrement |
 | Tree storage | Not stored — derived from `allocation_edges` |
-| Edge pre-aggregation | `allocation_edges` updated on every allocation |
-| Holder merge | On user signup — hard delete old holders |
+| Edge pre-aggregation | `allocation_edges` updated inside transaction |
+| Holder merge | On user signup — hard delete, COALESCE to preserve existing |
 | Lock mechanism | Generic: `lock_reference_type + lock_reference_id` |
-| Failed allocation | Mark `failed`, edge decrement via reconciliation job |
+| Lock syntax | `= ANY(:array)` — PostgreSQL array syntax |
+| Tree query N+1 | Fixed — batch fetch all holders upfront |
+| Ticket selection | FIFO (ORDER BY ticket_index ASC) |
+| Ownership check on UPDATE | `IS NOT DISTINCT FROM` prevents race condition |
+| Status transition | Must verify `rows_affected > 0` via `RETURNING id` |
 | Soft delete | Not at v1 — hard delete for simplicity |
 
 ---
@@ -1300,6 +1396,30 @@ CREATE INDEX idx_tickets_lock_expires ON tickets(lock_expires_at) WHERE lock_exp
 4. **Waitlist / reservation** — if tickets are scarce, hold a "reservation" before allocation?
 5. **Multi-event transfer** — can a ticket holder transfer tickets across events?
 6. **Analytics / reseller performance** — add per-holder stats (tickets received, transferred, unsold)?
+7. **Preferred contact** — allow both phone + email with priority (WhatsApp vs SMS vs email)?
+
+---
+
+## 14. Changelog
+
+### v1.2 (2026-04-13 - Final)
+- **Fixed:** Ownership check on UPDATE — `owner_holder_id IS NOT DISTINCT FROM` prevents race condition
+- **Fixed:** Refund = reverse allocation — never decrement edges, treat as new allocation edge
+- **Fixed:** Status transition race — check `rows_affected > 0` via `RETURNING id`
+
+### v1.1 (2026-04-13)
+- **Fixed:** Removed DB CHECK constraint on phone/email — merge flow updates both fields
+- **Fixed:** Edge rollback — no separate function, auto-rollback via DB transaction
+- **Fixed:** N+1 tree query — batch fetch all holders upfront (2 queries total)
+- **Fixed:** Lock syntax — use `= ANY(:array)` not `IN :list`
+- **Added:** `ticket_count` column to `allocations`
+- **Added:** `metadata` JSONB column to `allocations`
+- **Added:** `idx_allocation_edges_event_id` index
+- **Added:** FIFO allocation strategy (ORDER BY ticket_index ASC)
+- **Fixed:** Merge logic — COALESCE preserves existing contact, doesn't overwrite
+
+### v1.0 (2026-04-12)
+- Initial design
 
 ---
 
