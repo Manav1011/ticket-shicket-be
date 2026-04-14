@@ -5,6 +5,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.event.models import EventModel
+from apps.superadmin.models import B2BRequestModel
+from apps.superadmin.repository import SuperAdminRepository
 
 from .models import OrganizerPageModel
 
@@ -12,6 +14,7 @@ from .models import OrganizerPageModel
 class OrganizerRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self._super_admin_repo = SuperAdminRepository(session)
 
     @property
     def session(self) -> AsyncSession:
@@ -84,3 +87,46 @@ class OrganizerRepository:
             .order_by(EventModel.created_at.desc())
         )
         return list(result.all())
+
+    # --- B2B Request Methods ---
+
+    async def create_b2b_request(
+        self,
+        requesting_organizer_id: UUID,
+        requesting_user_id: UUID,
+        event_id: UUID,
+        event_day_id: UUID,
+        ticket_type_id: UUID,
+        quantity: int,
+        recipient_phone: str | None = None,
+        recipient_email: str | None = None,
+    ) -> B2BRequestModel:
+        return await self._super_admin_repo.create_b2b_request(
+            requesting_organizer_id=requesting_organizer_id,
+            requesting_user_id=requesting_user_id,
+            event_id=event_id,
+            event_day_id=event_day_id,
+            ticket_type_id=ticket_type_id,
+            quantity=quantity,
+            recipient_phone=recipient_phone,
+            recipient_email=recipient_email,
+        )
+
+    async def get_b2b_request_by_id(
+        self, request_id: UUID
+    ) -> Optional[B2BRequestModel]:
+        return await self._super_admin_repo.get_b2b_request_by_id(request_id)
+
+    async def list_b2b_requests_by_organizer(
+        self,
+        organizer_id: UUID,
+        status: Optional = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[B2BRequestModel]:
+        return await self._super_admin_repo.list_b2b_requests_by_organizer(
+            organizer_id=organizer_id,
+            status=status,
+            limit=limit,
+            offset=offset,
+        )

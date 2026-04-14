@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, File, UploadFile, Request
+from fastapi import APIRouter, Body, Depends, File, UploadFile, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.event.response import EventSummaryResponse
@@ -10,9 +10,10 @@ from db.session import db_session
 from utils.schema import BaseResponse
 
 from .repository import OrganizerRepository
-from .request import CreateOrganizerPageRequest, UpdateOrganizerPageRequest
+from .request import CreateOrganizerPageRequest, UpdateOrganizerPageRequest, CreateB2BRequestBody, ConfirmB2BPaymentBody
 from .response import OrganizerPageResponse
 from .service import OrganizerService
+from apps.superadmin.response import B2BRequestResponse
 
 router = APIRouter(
     prefix="/api/organizers", tags=["Organizer"], dependencies=[Depends(get_current_user)]
@@ -119,3 +120,61 @@ async def upload_organizer_cover(
         return BaseResponse(data=OrganizerPageResponse.model_validate(organizer))
     except FileValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# --- B2B Request Endpoints ---
+
+@router.post("/{organizer_id}/b2b-requests")
+async def create_b2b_request(
+    organizer_id: UUID,
+    request: Request,
+    body: Annotated[CreateB2BRequestBody, Body()],
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+) -> BaseResponse[B2BRequestResponse]:
+    """
+    [Organizer] Submit a B2B ticket request.
+    """
+    b2b_req = await service.create_b2b_request(
+        organizer_id=organizer_id,
+        user_id=request.state.user.id,
+        event_id=UUID(body.event_id),
+        event_day_id=UUID(body.event_day_id),
+        ticket_type_id=UUID(body.ticket_type_id),
+        quantity=body.quantity,
+        recipient_phone=body.recipient_phone,
+        recipient_email=body.recipient_email,
+    )
+    return BaseResponse(data=B2BRequestResponse.model_validate(b2b_req))
+
+
+@router.get("/{organizer_id}/b2b-requests")
+async def list_my_b2b_requests(
+    organizer_id: UUID,
+    request: Request,
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+) -> BaseResponse[list[B2BRequestResponse]]:
+    """
+    [Organizer] List B2B requests submitted by this organizer.
+    """
+    b2b_reqs = await service.get_my_b2b_requests(
+        organizer_id=organizer_id,
+    )
+    return BaseResponse(data=[B2BRequestResponse.model_validate(r) for r in b2b_reqs])
+
+
+@router.post("/{organizer_id}/b2b-requests/{b2b_request_id}/confirm-payment")
+async def confirm_b2b_payment(
+    organizer_id: UUID,
+    b2b_request_id: UUID,
+    request: Request,
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+    body: Annotated[ConfirmB2BPaymentBody, Body()],
+) -> BaseResponse[B2BRequestResponse]:
+    """
+    [Organizer] Confirm payment for an approved paid B2B request.
+    Mock payment success — triggers allocation creation.
+    """
+    b2b_req = await service.confirm_b2b_payment(
+        request_id=b2b_request_id,
+    )
+    return BaseResponse(data=B2BRequestResponse.model_validate(b2b_req))

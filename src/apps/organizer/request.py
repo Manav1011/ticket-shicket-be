@@ -1,6 +1,6 @@
 import re
 
-from pydantic import field_validator
+from pydantic import field_validator, Field
 
 from utils.schema import CamelCaseModel
 
@@ -48,3 +48,16 @@ class UpdateOrganizerPageRequest(CamelCaseModel):
         if v is not None and not re.match(URL_REGEX, v):
             raise ValueError('Invalid URL format. Must start with http:// or https://')
         return v
+
+
+class CreateB2BRequestBody(CamelCaseModel):
+    event_id: str
+    event_day_id: str
+    ticket_type_id: str
+    quantity: int = Field(gt=0)
+    recipient_phone: str | None = None
+    recipient_email: str | None = None
+
+
+class ConfirmB2BPaymentBody(CamelCaseModel):
+    pass  # No body needed; b2b_request_id comes from path parameter

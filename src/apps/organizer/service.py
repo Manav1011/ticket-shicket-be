@@ -1,15 +1,19 @@
 import re
+import uuid
 from uuid import UUID
 
 from .exceptions import OrganizerNotFound, OrganizerSlugAlreadyExists
 from .models import OrganizerPageModel
 from src.utils.s3_client import get_s3_client
 from src.utils.file_validation import FileValidator, FileValidationError
+from apps.superadmin.service import SuperAdminService
+from apps.superadmin.enums import B2BRequestStatus
 
 
 class OrganizerService:
     def __init__(self, repository) -> None:
         self.repository = repository
+        self._super_admin_service = SuperAdminService(repository.session)
 
     async def list_organizers(self, owner_user_id):
         return await self.repository.list_by_owner(owner_user_id)
@@ -172,3 +176,48 @@ class OrganizerService:
         await self.repository.session.flush()
         await self.repository.session.refresh(organizer)
         return organizer
+
+    # --- B2B Request Methods ---
+
+    async def create_b2b_request(
+        self,
+        organizer_id: uuid.UUID,
+        user_id: uuid.UUID,
+        event_id: uuid.UUID,
+        event_day_id: uuid.UUID,
+        ticket_type_id: uuid.UUID,
+        quantity: int,
+        recipient_phone: str | None = None,
+        recipient_email: str | None = None,
+    ):
+        """[Organizer] Submit a B2B ticket request."""
+        return await self.repository.create_b2b_request(
+            requesting_organizer_id=organizer_id,
+            requesting_user_id=user_id,
+            event_id=event_id,
+            event_day_id=event_day_id,
+            ticket_type_id=ticket_type_id,
+            quantity=quantity,
+            recipient_phone=recipient_phone,
+            recipient_email=recipient_email,
+        )
+
+    async def get_my_b2b_requests(
+        self,
+        organizer_id: uuid.UUID,
+    ) -> list:
+        """[Organizer] List B2B requests submitted by this organizer."""
+        return await self.repository.list_b2b_requests_by_organizer(organizer_id)
+
+    async def confirm_b2b_payment(
+        self,
+        request_id: uuid.UUID,
+    ):
+        """
+        [Organizer] Confirm payment for an approved paid B2B request.
+        Triggers full allocation after mock payment success.
+        admin_id is read from b2b_request.reviewed_by_admin_id (the approving super admin).
+        """
+        return await self._super_admin_service.process_paid_b2b_allocation(
+            request_id=request_id,
+        )
