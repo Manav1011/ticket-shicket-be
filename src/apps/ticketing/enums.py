@@ -27,6 +27,7 @@ class AllocationSourceType(str, Enum):
 
 class AllocationStatus(str, Enum):
     pending = "pending"
+    processing = "processing"
     completed = "completed"
     failed = "failed"
 

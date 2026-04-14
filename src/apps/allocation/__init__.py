@@ -1,0 +1,1 @@
+"""Allocation app package."""
