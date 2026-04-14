@@ -181,3 +181,46 @@ async def get_current_user_or_guest(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid token type",
     )
+
+
+async def get_current_super_admin(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session: AsyncSession = Depends(db_session),
+) -> SuperAdminModel:
+    """
+    Dependency that validates Bearer token and returns the current super admin.
+    Raises 401 if no valid token, 403 if token is valid but user is not a super admin.
+    """
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    try:
+        payload = access.decode(credentials.credentials)
+        if payload.get("user_type") != "user":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type",
+            )
+        user_id = UUID(payload["sub"])
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+
+    from apps.superadmin.models import SuperAdminModel
+
+    admin = await session.scalar(
+        select(SuperAdminModel).where(SuperAdminModel.user_id == user_id)
+    )
+
+    if not admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a super admin",
+        )
+
+    return admin
