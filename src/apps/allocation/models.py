@@ -52,9 +52,7 @@ class AllocationModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     to_holder_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("ticket_holders.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    order_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("orders.id", ondelete="SET NULL"), nullable=True
-    )
+    order_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     status: Mapped[str] = mapped_column(
         Enum(AllocationStatus),
         default=AllocationStatus.pending,
@@ -66,8 +64,8 @@ class AllocationModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     ticket_count: Mapped[int] = mapped_column(
         Integer, default=0, server_default=text("0"), nullable=False
     )
-    metadata: Mapped[dict] = mapped_column(
-        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    metadata_: Mapped[dict] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=True
     )
 
 
@@ -82,7 +80,7 @@ class AllocationTicketModel(Base, TimeStampMixin):
     )
 
 
-class AllocationEdgeModel(Base, TimeStampMixin):
+class AllocationEdgeModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     __tablename__ = "allocation_edges"
     __table_args__ = (
         UniqueConstraint(
