@@ -49,20 +49,37 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_allocation_edges_event_id'), 'allocation_edges', ['event_id'], unique=False)
     op.create_index(op.f('ix_allocation_edges_to_holder_id'), 'allocation_edges', ['to_holder_id'], unique=False)
+    op.create_table('orders',
+    sa.Column('event_id', sa.Uuid(), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('type', sa.Enum('PURCHASE', 'TRANSFER', name='ordertype'), nullable=False),
+    sa.Column('subtotal_amount', sa.Numeric(), nullable=False),
+    sa.Column('discount_amount', sa.Numeric(), server_default=sa.text('0'), nullable=False),
+    sa.Column('final_amount', sa.Numeric(), nullable=False),
+    sa.Column('status', sa.Enum('pending', 'paid', 'failed', 'expired', name='orderstatus'), server_default=sa.text("'pending'"), nullable=False),
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.ForeignKeyConstraint(['event_id'], ['events.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_orders_event_id'), 'orders', ['event_id'], unique=False)
     op.create_table('allocations',
     sa.Column('event_id', sa.Uuid(), nullable=False),
     sa.Column('from_holder_id', sa.Uuid(), nullable=True),
     sa.Column('to_holder_id', sa.Uuid(), nullable=False),
-    sa.Column('order_id', sa.Uuid(), nullable=True),
+    sa.Column('order_id', sa.Uuid(), nullable=False),
     sa.Column('status', sa.Enum('pending', 'processing', 'completed', 'failed', name='allocationstatus'), server_default=sa.text("'pending'"), nullable=False),
     sa.Column('failure_reason', sa.Text(), nullable=True),
     sa.Column('ticket_count', sa.Integer(), server_default=sa.text('0'), nullable=False),
-    sa.Column('metadata_', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=True),
+    sa.Column('metadata_', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=False),
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['event_id'], ['events.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['from_holder_id'], ['ticket_holders.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['to_holder_id'], ['ticket_holders.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -138,6 +155,8 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_allocations_from_holder_id'), table_name='allocations')
     op.drop_index(op.f('ix_allocations_event_id'), table_name='allocations')
     op.drop_table('allocations')
+    op.drop_index(op.f('ix_orders_event_id'), table_name='orders')
+    op.drop_table('orders')
     op.drop_index(op.f('ix_allocation_edges_to_holder_id'), table_name='allocation_edges')
     op.drop_index(op.f('ix_allocation_edges_event_id'), table_name='allocation_edges')
     op.drop_table('allocation_edges')

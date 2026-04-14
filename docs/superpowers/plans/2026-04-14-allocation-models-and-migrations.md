@@ -65,15 +65,12 @@ class AllocationStatus(str, Enum):
     failed = "failed"
 
 
-class LockReferenceType(str, Enum):
-    order = "order"
-    allocation = "allocation"
-
-
 class TicketHolderStatus(str, Enum):
     active = "active"
     deleted = "deleted"
 ```
+
+> **Note:** `LockReferenceType` is removed — all locks use `lock_reference_type='order'` and `lock_reference_id=order_id`. Every allocation is created via an order (free transfers create a $0 order), so there's no separate `allocation` lock type needed.
 
 - [ ] **Step 3: Update `src/apps/ticketing/enums.py`** — Add `processing` to `AllocationStatus`
 
@@ -103,7 +100,7 @@ git commit -m "feat(allocation): scaffold allocation app and add enums"
 
 ---
 
-## Task 2: Write Allocation Models
+## Task 2: Write Allocation & Order Models
 
 **Files:**
 - Overwrite: `src/apps/allocation/models.py`
@@ -121,6 +118,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -130,6 +128,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
+from apps.ticketing.enums import OrderStatus, OrderType
 from .enums import AllocationStatus, TicketHolderStatus
 
 
@@ -168,9 +167,9 @@ class AllocationModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     to_holder_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("ticket_holders.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    order_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("orders.id", ondelete="SET NULL"), nullable=True
-    )
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("orders.id", ondelete="RESTRICT"), nullable=False
+    )  # Every allocation is created via an order (free transfers create $0 order)
     status: Mapped[str] = mapped_column(
         Enum(AllocationStatus),
         default=AllocationStatus.pending,
@@ -219,6 +218,39 @@ class AllocationEdgeModel(Base, TimeStampMixin):
     ticket_count: Mapped[int] = mapped_column(
         Integer, default=0, server_default=text("0"), nullable=False
     )
+
+
+class OrderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
+    """
+    Order model — created for every allocation (PURCHASE or TRANSFER).
+    Free transfers (B2B, U2U) create a $0 TRANSFER order.
+    """
+    __tablename__ = "orders"
+
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    type: Mapped[str] = mapped_column(
+        Enum(OrderType), nullable=False
+    )  # PURCHASE / TRANSFER
+    subtotal_amount: Mapped[float] = mapped_column(
+        Numeric, nullable=False
+    )
+    discount_amount: Mapped[float] = mapped_column(
+        Numeric, default=0, server_default=text("0"), nullable=False
+    )
+    final_amount: Mapped[float] = mapped_column(
+        Numeric, nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        Enum(OrderStatus),
+        default=OrderStatus.pending,
+        server_default=text("'pending'"),
+        nullable=False,
+    )
 ```
 
 - [ ] **Step 3: Update `src/db/model_registry.py`**
@@ -226,7 +258,7 @@ class AllocationEdgeModel(Base, TimeStampMixin):
 Add the new models to the import and `__all__` list:
 
 ```python
-from apps.allocation.models import AllocationEdgeModel, AllocationModel, AllocationTicketModel, TicketHolderModel
+from apps.allocation.models import AllocationEdgeModel, AllocationModel, AllocationTicketModel, OrderModel, TicketHolderModel
 ```
 
 Add to `__all__`:
@@ -235,13 +267,14 @@ Add to `__all__`:
     "AllocationModel",
     "AllocationTicketModel",
     "AllocationEdgeModel",
+    "OrderModel",
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add src/apps/allocation/models.py src/db/model_registry.py
-git commit -m "feat(allocation): add TicketHolderModel, AllocationModel, AllocationTicketModel, AllocationEdgeModel"
+git commit -m "feat(allocation): add TicketHolderModel, AllocationModel, AllocationTicketModel, AllocationEdgeModel, OrderModel"
 ```
 
 ---
@@ -280,7 +313,8 @@ New (replace from `owner_user_id` through `lock_expires_at`):
     status: Mapped[str] = mapped_column(
         Enum(TicketStatus), default=TicketStatus.active, server_default=text("'active'"), nullable=False
     )
-    # Generic lock — lock_reference_type values: 'order' or 'allocation'
+    # All locks use lock_reference_type='order' and lock_reference_id=order_id
+    # (every allocation is created via an order, even free transfers create a $0 order)
     lock_reference_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
     lock_reference_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     lock_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -502,7 +536,7 @@ class AllocationRepository:
         event_id: UUID,
         from_holder_id: UUID | None,
         to_holder_id: UUID,
-        order_id: UUID | None = None,
+        order_id: UUID,
         ticket_count: int = 0,
         metadata: dict | None = None,
     ) -> AllocationModel:
@@ -683,10 +717,12 @@ git commit -m "feat(allocation): add repository, service, and exceptions for all
 ## Self-Review Checklist
 
 - [ ] `uv run main.py startapp allocation` succeeded and created files
-- [ ] All 4 new tables have correct FK references
-- [ ] `allocations`: `from_holder_id` nullable (pool), `to_holder_id` NOT nullable
+- [ ] All 5 new tables have correct FK references
+- [ ] `allocations`: `from_holder_id` nullable (pool), `to_holder_id` NOT nullable, `order_id` NOT nullable
 - [ ] `allocation_edges` PK: `(event_id, from_holder_id, to_holder_id)` — `from_holder_id` nullable for pool edges
 - [ ] `tickets`: `owner_user_id` removed, `owner_holder_id` added, `locked_by_order_id` replaced with `lock_reference_type` + `lock_reference_id`
+- [ ] `allocations.order_id` is non-nullable — every allocation created via an order
+- [ ] `OrderModel` created with correct fields and enums
 - [ ] Migration chain is linear: `e1a2b3c4d5e6` → allocation_tables → tickets
 - [ ] `AllocationStatus` enum has `processing` state
 - [ ] `TicketModel.owner_holder_id` in code matches migration

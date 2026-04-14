@@ -63,7 +63,7 @@ class AllocationRepository:
         event_id: UUID,
         from_holder_id: UUID | None,
         to_holder_id: UUID,
-        order_id: UUID | None = None,
+        order_id: UUID,
         ticket_count: int = 0,
         metadata_: dict | None = None,
     ) -> AllocationModel:

@@ -8,11 +8,6 @@ class AllocationStatus(str, Enum):
     failed = "failed"
 
 
-class LockReferenceType(str, Enum):
-    order = "order"
-    allocation = "allocation"
-
-
 class TicketHolderStatus(str, Enum):
     active = "active"
     deleted = "deleted"

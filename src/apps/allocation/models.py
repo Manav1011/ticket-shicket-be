@@ -5,6 +5,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -14,6 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
+from apps.ticketing.enums import OrderStatus, OrderType
 from .enums import AllocationStatus, TicketHolderStatus
 
 
@@ -52,7 +54,9 @@ class AllocationModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     to_holder_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("ticket_holders.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    order_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("orders.id", ondelete="RESTRICT"), nullable=False
+    )  # Every allocation is created via an order (free transfers create $0 order)
     status: Mapped[str] = mapped_column(
         Enum(AllocationStatus),
         default=AllocationStatus.pending,
@@ -65,7 +69,7 @@ class AllocationModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
         Integer, default=0, server_default=text("0"), nullable=False
     )
     metadata_: Mapped[dict] = mapped_column(
-        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=True
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
     )
 
 
@@ -100,4 +104,37 @@ class AllocationEdgeModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     )
     ticket_count: Mapped[int] = mapped_column(
         Integer, default=0, server_default=text("0"), nullable=False
+    )
+
+
+class OrderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
+    """
+    Order model — created for every allocation (PURCHASE or TRANSFER).
+    Free transfers (B2B, U2U) create a $0 TRANSFER order.
+    """
+    __tablename__ = "orders"
+
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    type: Mapped[str] = mapped_column(
+        Enum(OrderType), nullable=False
+    )  # PURCHASE / TRANSFER
+    subtotal_amount: Mapped[float] = mapped_column(
+        Numeric, nullable=False
+    )
+    discount_amount: Mapped[float] = mapped_column(
+        Numeric, default=0, server_default=text("0"), nullable=False
+    )
+    final_amount: Mapped[float] = mapped_column(
+        Numeric, nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        Enum(OrderStatus),
+        default=OrderStatus.pending,
+        server_default=text("'pending'"),
+        nullable=False,
     )
