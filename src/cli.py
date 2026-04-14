@@ -291,6 +291,27 @@ def rollback() -> None:
     command.downgrade(alembic_cfg, "-1")
 
 
+@cli.command(help="Create a super admin linked to a user ID (by user UUID)")
+def create_super_admin(user_id: str, name: str) -> None:
+    """Create a super admin linked to a user ID (by user UUID)."""
+    import asyncio
+    from uuid import UUID
+    from db.session import async_session
+    from apps.superadmin.repository import SuperAdminRepository
+
+    async def _create():
+        async with async_session() as session:
+            repo = SuperAdminRepository(session)
+            admin = await repo.create_super_admin(
+                user_id=UUID(user_id),
+                name=name,
+            )
+            await session.commit()
+            console.print(ColoredOutput.success(f"Super admin created: {admin.id} ({admin.name})"))
+
+    asyncio.run(_create())
+
+
 @cli.command(help="Run the server")
 def run(
     host: Optional[str] = None,
