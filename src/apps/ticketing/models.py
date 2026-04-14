@@ -65,7 +65,8 @@ class TicketModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     status: Mapped[str] = mapped_column(
         Enum(TicketStatus), default=TicketStatus.active, server_default=text("'active'"), nullable=False
     )
-    # Generic lock — lock_reference_type values: 'order' or 'allocation'
+    # All locks use lock_reference_type='order' and lock_reference_id=order_id
+    # (every allocation is created via an order, even free transfers create a $0 order)
     lock_reference_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
     lock_reference_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     lock_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
