@@ -4,6 +4,7 @@ from apps.organizer.models import OrganizerPageModel
 from apps.ticketing.models import DayTicketAllocationModel, TicketModel, TicketTypeModel
 from apps.user.models import RefreshTokenModel, UserModel
 from apps.allocation.models import AllocationEdgeModel, AllocationModel, AllocationTicketModel, OrderModel, TicketHolderModel
+from apps.superadmin.models import B2BRequestModel, SuperAdminModel
 
 __all__ = [
     "UserModel",
@@ -21,4 +22,6 @@ __all__ = [
     "AllocationTicketModel",
     "AllocationEdgeModel",
     "OrderModel",
+    "SuperAdminModel",
+    "B2BRequestModel",
 ]
