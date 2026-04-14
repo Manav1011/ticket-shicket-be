@@ -74,7 +74,6 @@ class TicketingRepository:
         ticket_type_id: UUID,
         start_index: int,
         quantity: int,
-        organizer_user_id: UUID,
     ) -> list[TicketModel]:
         tickets = [
             TicketModel(
@@ -82,7 +81,7 @@ class TicketingRepository:
                 event_day_id=event_day_id,
                 ticket_type_id=ticket_type_id,
                 ticket_index=start_index + offset,
-                owner_user_id=organizer_user_id,
+                owner_holder_id=None,  # Tickets start unallocated in pool
                 status="active",
             )
             for offset in range(quantity)

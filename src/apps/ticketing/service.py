@@ -94,7 +94,6 @@ class TicketingService:
             ticket_type_id,
             start_index=day.next_ticket_index,
             quantity=quantity,
-            organizer_user_id=owner_user_id,
         )
         day.next_ticket_index += quantity
         await self.repository.session.flush()
@@ -140,7 +139,6 @@ class TicketingService:
             allocation.ticket_type_id,
             start_index=day.next_ticket_index,
             quantity=quantity_increase,
-            organizer_user_id=owner_user_id,
         )
 
         # C4: Update allocation and day state

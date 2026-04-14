@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Integer, Numeric, String, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from apps.ticketing.enums import TicketCategory, TicketStatus
@@ -59,11 +59,13 @@ class TicketModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     seat_label: Mapped[str | None] = mapped_column(nullable=True)
     seat_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
-    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("users.id"), nullable=True
+    owner_holder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ticket_holders.id", ondelete="SET NULL"), nullable=True, index=True
     )
     status: Mapped[str] = mapped_column(
         Enum(TicketStatus), default=TicketStatus.active, server_default=text("'active'"), nullable=False
     )
-    locked_by_order_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    # Generic lock — lock_reference_type values: 'order' or 'allocation'
+    lock_reference_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    lock_reference_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     lock_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
