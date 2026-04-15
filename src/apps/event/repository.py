@@ -73,6 +73,12 @@ class EventRepository:
             )
         )
 
+    async def get_event_day_by_id(self, event_day_id: UUID) -> Optional[EventDayModel]:
+        """Get an event day by ID without ownership check."""
+        return await self._session.scalar(
+            select(EventDayModel).where(EventDayModel.id == event_day_id)
+        )
+
     async def list_event_days(self, event_id: UUID) -> list[EventDayModel]:
         result = await self._session.scalars(
             select(EventDayModel)
