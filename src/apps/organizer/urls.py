@@ -174,6 +174,14 @@ async def confirm_b2b_payment(
     [Organizer] Confirm payment for an approved paid B2B request.
     Mock payment success — triggers allocation creation.
     """
+    # Verify the B2B request belongs to this organizer
+    b2b_req = await service.get_b2b_request(b2b_request_id)
+    if b2b_req.requesting_organizer_id != organizer_id:
+        raise HTTPException(
+            status_code=403,
+            detail="B2B request does not belong to this organizer",
+        )
+
     b2b_req = await service.confirm_b2b_payment(
         request_id=b2b_request_id,
     )

@@ -144,7 +144,7 @@ class SuperAdminService:
             )
 
             # Update B2B request
-            await self._repo.update_b2b_request_status(
+            updated = await self._repo.update_b2b_request_status(
                 request_id=b2b_request.id,
                 new_status=B2BRequestStatus.approved_free,
                 admin_id=admin_id,
@@ -152,6 +152,8 @@ class SuperAdminService:
                 allocation_id=allocation.id,
                 order_id=order.id,
             )
+            if not updated:
+                raise SuperAdminError(f"Failed to update B2B request {b2b_request.id} status")
 
         await self._session.refresh(b2b_request)
         return b2b_request
@@ -189,13 +191,15 @@ class SuperAdminService:
             await self._session.flush()
 
             # Update B2B request — no allocation_id yet (allocation comes after payment)
-            await self._repo.update_b2b_request_status(
+            updated = await self._repo.update_b2b_request_status(
                 request_id=b2b_request.id,
                 new_status=B2BRequestStatus.approved_paid,
                 admin_id=admin_id,
                 admin_notes=admin_notes,
                 order_id=order.id,
             )
+            if not updated:
+                raise SuperAdminError(f"Failed to update B2B request {b2b_request.id} status")
 
             await self._session.refresh(b2b_request)
 
@@ -214,12 +218,15 @@ class SuperAdminService:
                 f"B2B request is {b2b_request.status}, expected pending"
             )
 
-        await self._repo.update_b2b_request_status(
+        updated = await self._repo.update_b2b_request_status(
             request_id=b2b_request.id,
             new_status=B2BRequestStatus.rejected,
             admin_id=admin_id,
             admin_notes=reason,
         )
+        if not updated:
+            raise SuperAdminError(f"Failed to update B2B request {b2b_request.id} status")
+
         await self._session.refresh(b2b_request)
         return b2b_request
 
@@ -310,12 +317,14 @@ class SuperAdminService:
         )
 
         # Update B2B request with allocation_id
-        await self._repo.update_b2b_request_status(
+        updated = await self._repo.update_b2b_request_status(
             request_id=b2b_request.id,
             new_status=B2BRequestStatus.approved_paid,
             admin_id=admin_id,
             allocation_id=allocation.id,
         )
+        if not updated:
+            raise SuperAdminError(f"Failed to update B2B request {b2b_request.id} status")
 
         await self._session.refresh(b2b_request)
         return b2b_request

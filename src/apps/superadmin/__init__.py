@@ -1,0 +1,1 @@
+"""Superadmin app package."""
