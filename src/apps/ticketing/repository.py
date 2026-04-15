@@ -89,3 +89,48 @@ class TicketingRepository:
         self._session.add_all(tickets)
         await self._session.flush()
         return tickets
+
+    async def get_or_create_b2b_ticket_type(
+        self,
+        event_day_id: UUID,
+        name: str = "B2B",
+        price: float = 0.0,
+        currency: str = "INR",
+    ) -> TicketTypeModel:
+        """
+        Get or create a B2B ticket type for a given event day.
+        If a B2B ticket type already exists for this event (via any day), returns it.
+        Otherwise creates a new B2B ticket type linked to the event that owns this day.
+        """
+        from apps.ticketing.enums import TicketCategory
+        from apps.event.models import EventDayModel
+
+        # Get the event_day to find the event_id
+        event_day = await self._session.scalar(
+            select(EventDayModel).where(EventDayModel.id == event_day_id)
+        )
+        if not event_day:
+            raise ValueError(f"EventDay {event_day_id} not found")
+
+        # Look for an existing B2B ticket type for this event
+        existing = await self._session.scalar(
+            select(TicketTypeModel).where(
+                TicketTypeModel.event_id == event_day.event_id,
+                TicketTypeModel.category == TicketCategory.b2b,
+            )
+        )
+        if existing:
+            return existing
+
+        # Create new B2B ticket type
+        ticket_type = TicketTypeModel(
+            event_id=event_day.event_id,
+            name=name,
+            category=TicketCategory.b2b,
+            price=price,
+            currency=currency,
+        )
+        self._session.add(ticket_type)
+        await self._session.flush()
+        await self._session.refresh(ticket_type)
+        return ticket_type

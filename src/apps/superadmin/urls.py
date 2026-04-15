@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.dependencies import get_current_super_admin
@@ -16,7 +16,6 @@ from apps.superadmin.service import SuperAdminService
 from db.session import db_session
 from utils.schema import BaseResponse
 
-# Router-level auth: all routes require super admin
 router = APIRouter(
     prefix="/api/superadmin",
     tags=["SuperAdmin"],
@@ -32,7 +31,7 @@ def get_super_admin_service(
 
 @router.get("/b2b-requests")
 async def list_b2b_requests(
-    admin: Annotated[SuperAdminModel, Depends(get_current_super_admin)],
+    request: Request,
     service: Annotated[SuperAdminService, Depends(get_super_admin_service)],
     status_filter: str | None = Query(None, alias="status"),
     limit: int = Query(50, ge=1, le=100),
@@ -43,6 +42,7 @@ async def list_b2b_requests(
     """
     from apps.superadmin.enums import B2BRequestStatus
 
+    admin = request.state.super_admin
     status_enum = B2BRequestStatus(status_filter) if status_filter else None
     requests = await service.list_all_b2b_requests(
         status=status_enum, limit=limit, offset=offset
@@ -52,7 +52,7 @@ async def list_b2b_requests(
 
 @router.get("/b2b-requests/pending")
 async def list_pending_b2b_requests(
-    admin: Annotated[SuperAdminModel, Depends(get_current_super_admin)],
+    request: Request,
     service: Annotated[SuperAdminService, Depends(get_super_admin_service)],
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -67,7 +67,7 @@ async def list_pending_b2b_requests(
 @router.get("/b2b-requests/{request_id}")
 async def get_b2b_request(
     request_id: UUID,
-    admin: Annotated[SuperAdminModel, Depends(get_current_super_admin)],
+    request: Request,
     service: Annotated[SuperAdminService, Depends(get_super_admin_service)],
 ) -> BaseResponse[B2BRequestResponse]:
     """
@@ -80,7 +80,7 @@ async def get_b2b_request(
 @router.post("/b2b-requests/{request_id}/approve-free")
 async def approve_b2b_request_free(
     request_id: UUID,
-    admin: Annotated[SuperAdminModel, Depends(get_current_super_admin)],
+    request: Request,
     service: Annotated[SuperAdminService, Depends(get_super_admin_service)],
     body: Annotated[ApproveB2BRequestFreeBody, Body()],
 ) -> BaseResponse[B2BRequestResponse]:
@@ -88,6 +88,7 @@ async def approve_b2b_request_free(
     [Super Admin] Approve B2B request as free transfer.
     Creates allocation immediately with $0 TRANSFER order.
     """
+    admin = request.state.super_admin
     b2b_request = await service.approve_b2b_request_free(
         admin_id=admin.id,
         request_id=request_id,
@@ -99,7 +100,7 @@ async def approve_b2b_request_free(
 @router.post("/b2b-requests/{request_id}/approve-paid")
 async def approve_b2b_request_paid(
     request_id: UUID,
-    admin: Annotated[SuperAdminModel, Depends(get_current_super_admin)],
+    request: Request,
     service: Annotated[SuperAdminService, Depends(get_super_admin_service)],
     body: Annotated[ApproveB2BRequestPaidBody, Body()],
 ) -> BaseResponse[B2BRequestResponse]:
@@ -108,6 +109,7 @@ async def approve_b2b_request_paid(
     Sets the amount and creates a pending PURCHASE order.
     Organizer then pays via the organizer app's confirm-payment endpoint.
     """
+    admin = request.state.super_admin
     b2b_request = await service.approve_b2b_request_paid(
         admin_id=admin.id,
         request_id=request_id,
@@ -120,13 +122,14 @@ async def approve_b2b_request_paid(
 @router.post("/b2b-requests/{request_id}/reject")
 async def reject_b2b_request(
     request_id: UUID,
-    admin: Annotated[SuperAdminModel, Depends(get_current_super_admin)],
+    request: Request,
     service: Annotated[SuperAdminService, Depends(get_super_admin_service)],
     body: Annotated[RejectB2BRequestBody, Body()],
 ) -> BaseResponse[B2BRequestResponse]:
     """
     [Super Admin] Reject a B2B request.
     """
+    admin = request.state.super_admin
     b2b_request = await service.reject_b2b_request(
         admin_id=admin.id,
         request_id=request_id,

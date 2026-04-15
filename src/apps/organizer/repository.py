@@ -98,8 +98,6 @@ class OrganizerRepository:
         event_day_id: UUID,
         ticket_type_id: UUID,
         quantity: int,
-        recipient_phone: str | None = None,
-        recipient_email: str | None = None,
     ) -> B2BRequestModel:
         return await self._super_admin_repo.create_b2b_request(
             requesting_organizer_id=requesting_organizer_id,
@@ -108,8 +106,6 @@ class OrganizerRepository:
             event_day_id=event_day_id,
             ticket_type_id=ticket_type_id,
             quantity=quantity,
-            recipient_phone=recipient_phone,
-            recipient_email=recipient_email,
         )
 
     async def get_b2b_request_by_id(

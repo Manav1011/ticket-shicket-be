@@ -75,8 +75,7 @@ class SuperAdminService:
         # Resolve recipient holder
         allocation_service = AllocationService(self._session)
         to_holder = await allocation_service.resolve_holder(
-            phone=b2b_request.recipient_phone,
-            email=b2b_request.recipient_email,
+            user_id=b2b_request.requesting_user_id,
             create_if_missing=True,
         )
 
@@ -262,8 +261,7 @@ class SuperAdminService:
         # Resolve recipient holder
         allocation_service = AllocationService(self._session)
         to_holder = await allocation_service.resolve_holder(
-            phone=b2b_request.recipient_phone,
-            email=b2b_request.recipient_email,
+            user_id=b2b_request.requesting_user_id,
             create_if_missing=True,
         )
 

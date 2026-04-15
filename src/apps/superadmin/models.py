@@ -49,10 +49,6 @@ class B2BRequestModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     # How many tickets
     quantity: Mapped[int] = mapped_column(nullable=False)
 
-    # Contact of the recipient (organizer receives these tickets)
-    recipient_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    recipient_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-
     # Request status
     status: Mapped[str] = mapped_column(
         Enum(B2BRequestStatus),

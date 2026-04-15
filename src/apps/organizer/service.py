@@ -10,10 +10,14 @@ from apps.superadmin.service import SuperAdminService
 from apps.superadmin.enums import B2BRequestStatus
 
 
+from apps.ticketing.repository import TicketingRepository
+
+
 class OrganizerService:
     def __init__(self, repository) -> None:
         self.repository = repository
         self._super_admin_service = SuperAdminService(repository.session)
+        self._ticketing_repo = TicketingRepository(repository.session)
 
     async def list_organizers(self, owner_user_id):
         return await self.repository.list_by_owner(owner_user_id)
@@ -185,21 +189,20 @@ class OrganizerService:
         user_id: uuid.UUID,
         event_id: uuid.UUID,
         event_day_id: uuid.UUID,
-        ticket_type_id: uuid.UUID,
         quantity: int,
-        recipient_phone: str | None = None,
-        recipient_email: str | None = None,
     ):
-        """[Organizer] Submit a B2B ticket request."""
+        """[Organizer] Submit a B2B ticket request. System auto-derives B2B ticket type."""
+        # Auto-derive B2B ticket type for this event day
+        b2b_ticket_type = await self._ticketing_repo.get_or_create_b2b_ticket_type(
+            event_day_id=event_day_id,
+        )
         return await self.repository.create_b2b_request(
             requesting_organizer_id=organizer_id,
             requesting_user_id=user_id,
             event_id=event_id,
             event_day_id=event_day_id,
-            ticket_type_id=ticket_type_id,
+            ticket_type_id=b2b_ticket_type.id,
             quantity=quantity,
-            recipient_phone=recipient_phone,
-            recipient_email=recipient_email,
         )
 
     async def get_my_b2b_requests(
@@ -212,12 +215,25 @@ class OrganizerService:
     async def confirm_b2b_payment(
         self,
         request_id: uuid.UUID,
+        organizer_id: uuid.UUID,
+        user_id: uuid.UUID,
     ):
         """
         [Organizer] Confirm payment for an approved paid B2B request.
-        Triggers full allocation after mock payment success.
-        admin_id is read from b2b_request.reviewed_by_admin_id (the approving super admin).
+        Verifies user owns the organizer page, then triggers allocation.
         """
+        # Verify user owns this organizer page
+        organizer = await self.repository.get_by_id_for_owner(organizer_id, user_id)
+        if not organizer:
+            from exceptions import ForbiddenError
+            raise ForbiddenError("You do not own this organizer page")
+
+        # Verify the B2B request belongs to this organizer
+        b2b_req = await self.repository.get_b2b_request_by_id(request_id)
+        if not b2b_req or b2b_req.requesting_organizer_id != organizer_id:
+            from exceptions import ForbiddenError
+            raise ForbiddenError("B2B request does not belong to this organizer")
+
         return await self._super_admin_service.process_paid_b2b_allocation(
             request_id=request_id,
         )

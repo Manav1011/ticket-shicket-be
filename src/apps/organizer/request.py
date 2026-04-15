@@ -53,11 +53,8 @@ class UpdateOrganizerPageRequest(CamelCaseModel):
 class CreateB2BRequestBody(CamelCaseModel):
     event_id: str
     event_day_id: str
-    ticket_type_id: str
     quantity: int = Field(gt=0)
-    recipient_phone: str | None = None
-    recipient_email: str | None = None
 
 
 class ConfirmB2BPaymentBody(CamelCaseModel):
-    pass  # No body needed; b2b_request_id comes from path parameter
+    pass

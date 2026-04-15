@@ -9,8 +9,6 @@ class B2BRequestResponse(BaseModel):
     event_day_id: str
     ticket_type_id: str
     quantity: int
-    recipient_phone: str | None
-    recipient_email: str | None
     status: str
     reviewed_by_admin_id: str | None
     admin_notes: str | None

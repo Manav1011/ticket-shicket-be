@@ -133,16 +133,27 @@ async def create_b2b_request(
 ) -> BaseResponse[B2BRequestResponse]:
     """
     [Organizer] Submit a B2B ticket request.
+    Organizer provides event and day only — system auto-derives B2B ticket type.
     """
+    from apps.event.repository import EventRepository
+
+    # Validate organizer ownership
+    event_repo = EventRepository(service.repository.session)
+    organizer = await service.repository.get_by_id_for_owner(organizer_id, request.state.user.id)
+    if not organizer:
+        raise HTTPException(status_code=403, detail="You do not own this organizer page")
+
+    # Validate event_day belongs to event
+    event_day = await event_repo.get_event_day_by_id(UUID(body.event_day_id))
+    if not event_day or event_day.event_id != UUID(body.event_id):
+        raise HTTPException(status_code=400, detail="event_day_id does not belong to event_id")
+
     b2b_req = await service.create_b2b_request(
         organizer_id=organizer_id,
         user_id=request.state.user.id,
         event_id=UUID(body.event_id),
         event_day_id=UUID(body.event_day_id),
-        ticket_type_id=UUID(body.ticket_type_id),
         quantity=body.quantity,
-        recipient_phone=body.recipient_phone,
-        recipient_email=body.recipient_email,
     )
     return BaseResponse(data=B2BRequestResponse.model_validate(b2b_req))
 
@@ -155,11 +166,14 @@ async def list_my_b2b_requests(
 ) -> BaseResponse[list[B2BRequestResponse]]:
     """
     [Organizer] List B2B requests submitted by this organizer.
+    User must own the organizer page.
     """
-    b2b_reqs = await service.get_my_b2b_requests(
-        organizer_id=organizer_id,
-    )
-    return BaseResponse(data=[B2BRequestResponse.model_validate(r) for r in b2b_reqs])
+    organizer = await service.repository.get_by_id_for_owner(organizer_id, request.state.user.id)
+    if not organizer:
+        raise HTTPException(status_code=403, detail="You do not own this organizer page")
+
+    requests = await service.get_my_b2b_requests(organizer_id)
+    return BaseResponse(data=[B2BRequestResponse.model_validate(r) for r in requests])
 
 
 @router.post("/{organizer_id}/b2b-requests/{b2b_request_id}/confirm-payment")
@@ -173,16 +187,11 @@ async def confirm_b2b_payment(
     """
     [Organizer] Confirm payment for an approved paid B2B request.
     Mock payment success — triggers allocation creation.
+    User must own the organizer page.
     """
-    # Verify the B2B request belongs to this organizer
-    b2b_req = await service.get_b2b_request(b2b_request_id)
-    if b2b_req.requesting_organizer_id != organizer_id:
-        raise HTTPException(
-            status_code=403,
-            detail="B2B request does not belong to this organizer",
-        )
-
     b2b_req = await service.confirm_b2b_payment(
         request_id=b2b_request_id,
+        organizer_id=organizer_id,
+        user_id=request.state.user.id,
     )
     return BaseResponse(data=B2BRequestResponse.model_validate(b2b_req))

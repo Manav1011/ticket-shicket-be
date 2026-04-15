@@ -76,8 +76,6 @@ class SuperAdminRepository:
         event_day_id: UUID,
         ticket_type_id: UUID,
         quantity: int,
-        recipient_phone: str | None = None,
-        recipient_email: str | None = None,
         metadata: dict | None = None,
     ) -> B2BRequestModel:
         request = B2BRequestModel(
@@ -87,8 +85,6 @@ class SuperAdminRepository:
             event_day_id=event_day_id,
             ticket_type_id=ticket_type_id,
             quantity=quantity,
-            recipient_phone=recipient_phone,
-            recipient_email=recipient_email,
             metadata_=metadata or {},
         )
         self._session.add(request)

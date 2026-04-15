@@ -11,6 +11,7 @@ from sqlalchemy import select
 from auth.jwt import access
 from db.session import db_session
 from exceptions import UnauthorizedError, InvalidJWTTokenException
+from apps.superadmin.models import SuperAdminModel
 
 if TYPE_CHECKING:
     from apps.user.models import UserModel
@@ -184,12 +185,14 @@ async def get_current_user_or_guest(
 
 
 async def get_current_super_admin(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     session: AsyncSession = Depends(db_session),
 ) -> SuperAdminModel:
     """
     Dependency that validates Bearer token and returns the current super admin.
     Raises 401 if no valid token, 403 if token is valid but user is not a super admin.
+    Sets request.state.super_admin for direct access in routes.
     """
     if not credentials:
         raise HTTPException(
@@ -223,4 +226,5 @@ async def get_current_super_admin(
             detail="Not a super admin",
         )
 
+    request.state.super_admin = admin
     return admin
