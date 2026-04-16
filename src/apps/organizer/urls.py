@@ -124,9 +124,9 @@ async def upload_organizer_cover(
 
 # --- B2B Request Endpoints ---
 
-@router.post("/{organizer_id}/b2b-requests")
+@router.post("/events/{event_id}/b2b-requests")
 async def create_b2b_request(
-    organizer_id: UUID,
+    event_id: UUID,
     request: Request,
     body: Annotated[CreateB2BRequestBody, Body()],
     service: Annotated[OrganizerService, Depends(get_organizer_service)],
@@ -137,19 +137,22 @@ async def create_b2b_request(
     """
     from apps.event.repository import EventRepository
 
-    # Validate organizer ownership
     event_repo = EventRepository(service.repository.session)
-    organizer = await service.repository.get_by_id_for_owner(organizer_id, request.state.user.id)
-    if not organizer:
-        raise HTTPException(status_code=403, detail="You do not own this organizer page")
 
     # Validate event_day belongs to event
     event_day = await event_repo.get_event_day_by_id(UUID(body.event_day_id))
     if not event_day or event_day.event_id != UUID(body.event_id):
         raise HTTPException(status_code=400, detail="event_day_id does not belong to event_id")
 
+    # Verify user owns the organizer page that owns this event
+    event = await event_repo.get_by_id(UUID(body.event_id))
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    organizer = await service.repository.get_by_id_for_owner(event.organizer_page_id, request.state.user.id)
+    if not organizer:
+        raise HTTPException(status_code=403, detail="You do not own this event's organizer page")
+
     b2b_req = await service.create_b2b_request(
-        organizer_id=organizer_id,
         user_id=request.state.user.id,
         event_id=UUID(body.event_id),
         event_day_id=UUID(body.event_day_id),
@@ -158,27 +161,35 @@ async def create_b2b_request(
     return BaseResponse(data=B2BRequestResponse.model_validate(b2b_req))
 
 
-@router.get("/{organizer_id}/b2b-requests")
-async def list_my_b2b_requests(
-    organizer_id: UUID,
+@router.get("/events/{event_id}/b2b-requests")
+async def list_b2b_requests_for_event(
+    event_id: UUID,
     request: Request,
     service: Annotated[OrganizerService, Depends(get_organizer_service)],
 ) -> BaseResponse[list[B2BRequestResponse]]:
     """
-    [Organizer] List B2B requests submitted by this organizer.
-    User must own the organizer page.
+    [Organizer] List B2B requests for a specific event.
+    User must own the organizer page that owns the event.
     """
-    organizer = await service.repository.get_by_id_for_owner(organizer_id, request.state.user.id)
-    if not organizer:
-        raise HTTPException(status_code=403, detail="You do not own this organizer page")
+    from apps.event.repository import EventRepository
 
-    requests = await service.get_my_b2b_requests(organizer_id)
+    event_repo = EventRepository(service.repository.session)
+
+    # Verify user owns the organizer page that owns this event
+    event = await event_repo.get_by_id(event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    organizer = await service.repository.get_by_id_for_owner(event.organizer_page_id, request.state.user.id)
+    if not organizer:
+        raise HTTPException(status_code=403, detail="You do not own this event's organizer page")
+
+    requests = await service.get_b2b_requests_for_event(event_id)
     return BaseResponse(data=[B2BRequestResponse.model_validate(r) for r in requests])
 
 
-@router.post("/{organizer_id}/b2b-requests/{b2b_request_id}/confirm-payment")
+@router.post("/events/{event_id}/b2b-requests/{b2b_request_id}/confirm-payment")
 async def confirm_b2b_payment(
-    organizer_id: UUID,
+    event_id: UUID,
     b2b_request_id: UUID,
     request: Request,
     service: Annotated[OrganizerService, Depends(get_organizer_service)],
@@ -187,11 +198,11 @@ async def confirm_b2b_payment(
     """
     [Organizer] Confirm payment for an approved paid B2B request.
     Mock payment success — triggers allocation creation.
-    User must own the organizer page.
+    User must own the organizer page that owns the event.
     """
     b2b_req = await service.confirm_b2b_payment(
         request_id=b2b_request_id,
-        organizer_id=organizer_id,
+        event_id=event_id,
         user_id=request.state.user.id,
     )
     return BaseResponse(data=B2BRequestResponse.model_validate(b2b_req))

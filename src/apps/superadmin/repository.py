@@ -50,16 +50,16 @@ class SuperAdminRepository:
         result = await self._session.scalars(query)
         return list(result.all())
 
-    async def list_b2b_requests_by_organizer(
+    async def list_b2b_requests_by_event(
         self,
-        organizer_id: UUID,
+        event_id: UUID,
         status: B2BRequestStatus | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[B2BRequestModel]:
         query = (
             select(B2BRequestModel)
-            .where(B2BRequestModel.requesting_organizer_id == organizer_id)
+            .where(B2BRequestModel.event_id == event_id)
             .order_by(B2BRequestModel.created_at.desc())
         )
         if status:
@@ -70,7 +70,6 @@ class SuperAdminRepository:
 
     async def create_b2b_request(
         self,
-        requesting_organizer_id: UUID,
         requesting_user_id: UUID,
         event_id: UUID,
         event_day_id: UUID,
@@ -79,7 +78,6 @@ class SuperAdminRepository:
         metadata: dict | None = None,
     ) -> B2BRequestModel:
         request = B2BRequestModel(
-            requesting_organizer_id=requesting_organizer_id,
             requesting_user_id=requesting_user_id,
             event_id=event_id,
             event_day_id=event_day_id,

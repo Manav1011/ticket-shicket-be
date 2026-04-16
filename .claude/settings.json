@@ -1,6 +1,10 @@
 {
-  "enabledPlugins": {
-    "claude-md-management@claude-plugins-official": true
+  "permissions": {
+    "allow": [
+      "Bash(docker exec *)",
+      "Bash(curl -s -X POST http://localhost:8080/api/user/create -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(python3 -m json.tool)"
+    ]
   },
   "hooks": {
     "PreToolUse": [
@@ -14,5 +18,8 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "claude-md-management@claude-plugins-official": true
   }
 }

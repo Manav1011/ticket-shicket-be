@@ -92,7 +92,6 @@ class OrganizerRepository:
 
     async def create_b2b_request(
         self,
-        requesting_organizer_id: UUID,
         requesting_user_id: UUID,
         event_id: UUID,
         event_day_id: UUID,
@@ -100,7 +99,6 @@ class OrganizerRepository:
         quantity: int,
     ) -> B2BRequestModel:
         return await self._super_admin_repo.create_b2b_request(
-            requesting_organizer_id=requesting_organizer_id,
             requesting_user_id=requesting_user_id,
             event_id=event_id,
             event_day_id=event_day_id,
@@ -113,15 +111,15 @@ class OrganizerRepository:
     ) -> Optional[B2BRequestModel]:
         return await self._super_admin_repo.get_b2b_request_by_id(request_id)
 
-    async def list_b2b_requests_by_organizer(
+    async def list_b2b_requests_by_event(
         self,
-        organizer_id: UUID,
+        event_id: UUID,
         status: Optional = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[B2BRequestModel]:
-        return await self._super_admin_repo.list_b2b_requests_by_organizer(
-            organizer_id=organizer_id,
+        return await self._super_admin_repo.list_b2b_requests_by_event(
+            event_id=event_id,
             status=status,
             limit=limit,
             offset=offset,

@@ -185,7 +185,6 @@ class OrganizerService:
 
     async def create_b2b_request(
         self,
-        organizer_id: uuid.UUID,
         user_id: uuid.UUID,
         event_id: uuid.UUID,
         event_day_id: uuid.UUID,
@@ -197,7 +196,6 @@ class OrganizerService:
             event_day_id=event_day_id,
         )
         return await self.repository.create_b2b_request(
-            requesting_organizer_id=organizer_id,
             requesting_user_id=user_id,
             event_id=event_id,
             event_day_id=event_day_id,
@@ -205,34 +203,29 @@ class OrganizerService:
             quantity=quantity,
         )
 
-    async def get_my_b2b_requests(
+    async def get_b2b_requests_for_event(
         self,
-        organizer_id: uuid.UUID,
+        event_id: uuid.UUID,
     ) -> list:
-        """[Organizer] List B2B requests submitted by this organizer."""
-        return await self.repository.list_b2b_requests_by_organizer(organizer_id)
+        """[Organizer] List B2B requests for a specific event."""
+        return await self.repository.list_b2b_requests_by_event(event_id)
 
     async def confirm_b2b_payment(
         self,
         request_id: uuid.UUID,
-        organizer_id: uuid.UUID,
+        event_id: uuid.UUID,
         user_id: uuid.UUID,
     ):
         """
         [Organizer] Confirm payment for an approved paid B2B request.
-        Verifies user owns the organizer page, then triggers allocation.
+        Verifies user owns the organizer page that owns this event, then triggers allocation.
         """
-        # Verify user owns this organizer page
-        organizer = await self.repository.get_by_id_for_owner(organizer_id, user_id)
-        if not organizer:
-            from exceptions import ForbiddenError
-            raise ForbiddenError("You do not own this organizer page")
+        from exceptions import ForbiddenError
 
-        # Verify the B2B request belongs to this organizer
+        # Verify the B2B request belongs to this event
         b2b_req = await self.repository.get_b2b_request_by_id(request_id)
-        if not b2b_req or b2b_req.requesting_organizer_id != organizer_id:
-            from exceptions import ForbiddenError
-            raise ForbiddenError("B2B request does not belong to this organizer")
+        if not b2b_req or b2b_req.event_id != event_id:
+            raise ForbiddenError("B2B request does not belong to this event")
 
         return await self._super_admin_service.process_paid_b2b_allocation(
             request_id=request_id,

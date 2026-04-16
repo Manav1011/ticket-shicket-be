@@ -11,8 +11,10 @@ from apps.allocation.enums import AllocationStatus
 from apps.allocation.models import AllocationModel, OrderModel
 from apps.allocation.repository import AllocationRepository
 from apps.allocation.service import AllocationService
+from apps.event.repository import EventRepository
 from apps.ticketing.enums import OrderStatus, OrderType
 from apps.ticketing.models import TicketModel
+from apps.ticketing.repository import TicketingRepository
 
 from .enums import B2BRequestStatus
 from .exceptions import (
@@ -30,6 +32,8 @@ class SuperAdminService:
         self._session = session
         self._repo = SuperAdminRepository(session)
         self._allocation_repo = AllocationRepository(session)
+        self._ticketing_repo = TicketingRepository(session)
+        self._event_repo = EventRepository(session)
 
     @property
     def repo(self) -> SuperAdminRepository:
@@ -79,80 +83,90 @@ class SuperAdminService:
             create_if_missing=True,
         )
 
-        async with self._session.begin():
-            # Create $0 TRANSFER order (free = immediately paid)
-            order = OrderModel(
-                event_id=b2b_request.event_id,
-                user_id=b2b_request.requesting_user_id,
-                type=OrderType.transfer,
-                subtotal_amount=0.0,
-                discount_amount=0.0,
-                final_amount=0.0,
-                status=OrderStatus.paid,
-            )
-            self._session.add(order)
-            await self._session.flush()
+        # Create $0 TRANSFER order (free = immediately paid)
+        order = OrderModel(
+            event_id=b2b_request.event_id,
+            user_id=b2b_request.requesting_user_id,
+            type=OrderType.transfer,
+            subtotal_amount=0.0,
+            discount_amount=0.0,
+            final_amount=0.0,
+            status=OrderStatus.paid,
+        )
+        self._session.add(order)
+        await self._session.flush()
 
-            # Select + lock + allocate tickets (FIFO from pool)
-            ticket_ids = await self._select_and_lock_tickets_fifo(
-                event_day_id=b2b_request.event_day_id,
-                ticket_type_id=b2b_request.ticket_type_id,
-                quantity=b2b_request.quantity,
-                order_id=order.id,
-            )
+        # Get or create B2B ticket type for this event day
+        b2b_ticket_type = await self._ticketing_repo.get_or_create_b2b_ticket_type(
+            event_day_id=b2b_request.event_day_id,
+        )
 
-            if len(ticket_ids) < b2b_request.quantity:
-                raise InsufficientTicketsError(
-                    requested=b2b_request.quantity,
-                    available=len(ticket_ids),
-                )
+        # Get event day to find next_ticket_index
+        day = await self._event_repo.get_event_day_by_id(b2b_request.event_day_id)
+        if not day:
+            raise SuperAdminError(f"Event day {b2b_request.event_day_id} not found")
 
-            # Create allocation (from_holder_id=NULL means pool)
-            allocation = await self._allocation_repo.create_allocation(
-                event_id=b2b_request.event_id,
-                from_holder_id=None,
-                to_holder_id=to_holder.id,
-                order_id=order.id,
-                ticket_count=len(ticket_ids),
-                metadata_={
-                    "b2b_request_id": str(b2b_request.id),
-                    "approved_by_admin_id": str(admin_id),
-                    "source": "b2b_free",
-                },
-            )
+        start_index = day.next_ticket_index
 
-            # Add tickets to allocation
-            await self._allocation_repo.add_tickets_to_allocation(allocation.id, ticket_ids)
+        # Create tickets on-the-fly (B2B tickets don't exist in pool)
+        tickets = await self._ticketing_repo.bulk_create_tickets(
+            event_id=b2b_request.event_id,
+            event_day_id=b2b_request.event_day_id,
+            ticket_type_id=b2b_ticket_type.id,
+            start_index=start_index,
+            quantity=b2b_request.quantity,
+        )
+        ticket_ids = [t.id for t in tickets]
 
-            # Update ticket ownership
-            await self._update_ticket_ownership(ticket_ids, to_holder.id)
+        # Update day next_ticket_index
+        day.next_ticket_index += b2b_request.quantity
 
-            # Upsert edge (pool → holder)
-            await self._allocation_repo.upsert_edge(
-                event_id=b2b_request.event_id,
-                from_holder_id=None,
-                to_holder_id=to_holder.id,
-                ticket_count=len(ticket_ids),
-            )
+        # Create allocation (from_holder_id=NULL means pool)
+        allocation = await self._allocation_repo.create_allocation(
+            event_id=b2b_request.event_id,
+            from_holder_id=None,
+            to_holder_id=to_holder.id,
+            order_id=order.id,
+            ticket_count=len(ticket_ids),
+            metadata_={
+                "b2b_request_id": str(b2b_request.id),
+                "approved_by_admin_id": str(admin_id),
+                "source": "b2b_free",
+            },
+        )
 
-            # Mark allocation completed
-            await self._allocation_repo.transition_allocation_status(
-                allocation.id,
-                AllocationStatus.pending,
-                AllocationStatus.completed,
-            )
+        # Add tickets to allocation
+        await self._allocation_repo.add_tickets_to_allocation(allocation.id, ticket_ids)
 
-            # Update B2B request
-            updated = await self._repo.update_b2b_request_status(
-                request_id=b2b_request.id,
-                new_status=B2BRequestStatus.approved_free,
-                admin_id=admin_id,
-                admin_notes=admin_notes,
-                allocation_id=allocation.id,
-                order_id=order.id,
-            )
-            if not updated:
-                raise SuperAdminError(f"Failed to update B2B request {b2b_request.id} status")
+        # Update ticket ownership
+        await self._update_ticket_ownership(ticket_ids, to_holder.id)
+
+        # Upsert edge (pool → holder)
+        await self._allocation_repo.upsert_edge(
+            event_id=b2b_request.event_id,
+            from_holder_id=None,
+            to_holder_id=to_holder.id,
+            ticket_count=len(ticket_ids),
+        )
+
+        # Mark allocation completed
+        await self._allocation_repo.transition_allocation_status(
+            allocation.id,
+            AllocationStatus.pending,
+            AllocationStatus.completed,
+        )
+
+        # Update B2B request
+        updated = await self._repo.update_b2b_request_status(
+            request_id=b2b_request.id,
+            new_status=B2BRequestStatus.approved_free,
+            admin_id=admin_id,
+            admin_notes=admin_notes,
+            allocation_id=allocation.id,
+            order_id=order.id,
+        )
+        if not updated:
+            raise SuperAdminError(f"Failed to update B2B request {b2b_request.id} status")
 
         await self._session.refresh(b2b_request)
         return b2b_request
@@ -175,33 +189,31 @@ class SuperAdminService:
                 f"B2B request is {b2b_request.status}, expected pending"
             )
 
-        async with self._session.begin():
-            # Create PURCHASE order with pending status
-            order = OrderModel(
-                event_id=b2b_request.event_id,
-                user_id=b2b_request.requesting_user_id,
-                type=OrderType.purchase,
-                subtotal_amount=amount,
-                discount_amount=0.0,
-                final_amount=amount,
-                status=OrderStatus.pending,
-            )
-            self._session.add(order)
-            await self._session.flush()
+        # Create PURCHASE order with pending status
+        order = OrderModel(
+            event_id=b2b_request.event_id,
+            user_id=b2b_request.requesting_user_id,
+            type=OrderType.purchase,
+            subtotal_amount=amount,
+            discount_amount=0.0,
+            final_amount=amount,
+            status=OrderStatus.pending,
+        )
+        self._session.add(order)
+        await self._session.flush()
 
-            # Update B2B request — no allocation_id yet (allocation comes after payment)
-            updated = await self._repo.update_b2b_request_status(
-                request_id=b2b_request.id,
-                new_status=B2BRequestStatus.approved_paid,
-                admin_id=admin_id,
-                admin_notes=admin_notes,
-                order_id=order.id,
-            )
-            if not updated:
-                raise SuperAdminError(f"Failed to update B2B request {b2b_request.id} status")
+        # Update B2B request — no allocation_id yet (allocation comes after payment)
+        updated = await self._repo.update_b2b_request_status(
+            request_id=b2b_request.id,
+            new_status=B2BRequestStatus.approved_paid,
+            admin_id=admin_id,
+            admin_notes=admin_notes,
+            order_id=order.id,
+        )
+        if not updated:
+            raise SuperAdminError(f"Failed to update B2B request {b2b_request.id} status")
 
-            await self._session.refresh(b2b_request)
-
+        await self._session.refresh(b2b_request)
         return b2b_request
 
     async def reject_b2b_request(
@@ -265,19 +277,30 @@ class SuperAdminService:
             create_if_missing=True,
         )
 
-        # Select + lock + allocate tickets
-        ticket_ids = await self._select_and_lock_tickets_fifo(
+        # Get or create B2B ticket type for this event day
+        b2b_ticket_type = await self._ticketing_repo.get_or_create_b2b_ticket_type(
             event_day_id=b2b_request.event_day_id,
-            ticket_type_id=b2b_request.ticket_type_id,
-            quantity=b2b_request.quantity,
-            order_id=order.id,
         )
 
-        if len(ticket_ids) < b2b_request.quantity:
-            raise InsufficientTicketsError(
-                requested=b2b_request.quantity,
-                available=len(ticket_ids),
-            )
+        # Get event day to find next_ticket_index
+        day = await self._event_repo.get_event_day_by_id(b2b_request.event_day_id)
+        if not day:
+            raise SuperAdminError(f"Event day {b2b_request.event_day_id} not found")
+
+        start_index = day.next_ticket_index
+
+        # Create tickets on-the-fly (B2B tickets don't exist in pool)
+        tickets = await self._ticketing_repo.bulk_create_tickets(
+            event_id=b2b_request.event_id,
+            event_day_id=b2b_request.event_day_id,
+            ticket_type_id=b2b_ticket_type.id,
+            start_index=start_index,
+            quantity=b2b_request.quantity,
+        )
+        ticket_ids = [t.id for t in tickets]
+
+        # Update day next_ticket_index
+        day.next_ticket_index += b2b_request.quantity
 
         # Create allocation (from_holder_id=NULL means pool)
         allocation = await self._allocation_repo.create_allocation(

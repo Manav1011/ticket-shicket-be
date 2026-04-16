@@ -34,9 +34,19 @@ class AllocationService:
         """
         Resolve a ticket holder by contact info.
         Creates if not exists and create_if_missing=True.
+        If user_id is provided but no phone/email, looks up user's contact info.
         """
         assert phone or email or user_id, "At least one identifier required"
         assert not (phone and email), "Only phone OR email allowed at v1"
+
+        # If user_id provided, look up user to get phone/email
+        if user_id and not phone and not email:
+            from apps.user.repository import UserRepository
+            user_repo = UserRepository(self._session)
+            user = await user_repo.get_by_id(user_id)
+            if user:
+                phone = user.phone
+                email = user.email
 
         if user_id:
             holder = await self._repo.get_holder_by_user_id(user_id)

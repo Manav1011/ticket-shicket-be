@@ -64,6 +64,16 @@ class UserService:
         self.repository.add(user)
         await self.repository.session.flush()
         await self.repository.session.refresh(user)
+
+        # Auto-create ticket holder for the new user
+        from apps.allocation.repository import AllocationRepository
+        allocation_repo = AllocationRepository(self.repository.session)
+        await allocation_repo.create_holder(
+            user_id=user.id,
+            phone=phone,
+            email=normalized_email,
+        )
+
         return user
 
     async def get_user_by_id(self, user_id: UUID) -> UserModel:

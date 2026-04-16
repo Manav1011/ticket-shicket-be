@@ -24,13 +24,13 @@ class B2BRequestModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     """
     B2B ticket request from an organizer.
     Serves as both request queue and fulfillment record.
+
+    Organizer is derived from event.organizer_page_id — not stored redundantly.
+    User is from auth token — requesting_user_id kept for audit traceability only.
     """
     __tablename__ = "b2b_requests"
 
-    # Who submitted this request
-    requesting_organizer_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("organizer_pages.id", ondelete="CASCADE"), index=True, nullable=False
-    )
+    # Who submitted this request (user_id from auth token, stored for audit)
     requesting_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
