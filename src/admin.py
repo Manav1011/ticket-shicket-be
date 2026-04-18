@@ -90,56 +90,51 @@ def mount_admin(app) -> None:
     """
     models = _collect_models()
 
+    # Prefer the SQLAlchemy-backed Admin if available; it accepts an engine
     try:
-        # Try the most common import path first
-        from starlette_admin.site import Admin as StarletteAdmin  # type: ignore
-    except Exception:
-        try:
-            # Fallback: some versions expose a top-level Admin
-            from starlette_admin import Admin as StarletteAdmin  # type: ignore
-        except Exception as exc:  # pragma: no cover - informative only
-            LOG.info("starlette-admin not available or import path changed: %s", exc)
-            return
+        from starlette_admin.contrib.sqla.admin import Admin as SQLAAdmin  # type: ignore
+        from starlette_admin.contrib.sqla.view import ModelView  # type: ignore
+        # Import the project's SQLAlchemy engine
+        from db.session import engine as db_engine
 
-    try:
-        # Initialize admin. We try to be permissive in case Admin's
-        # constructor requires different args; many versions accept no
-        # args and return a mountable ASGI app / router.
-        admin_instance = None
         try:
-            admin_instance = StarletteAdmin()
-        except TypeError:
-            # Try to instantiate with a title argument as a fallback
+            admin = SQLAAdmin(db_engine)
+        except Exception as exc:  # pragma: no cover - informative only
+            LOG.info("Unable to instantiate SQLA Admin: %s", exc)
+            admin = None
+
+        # Register model views
+        if admin is not None:
+            for model in models:
+                try:
+                    view = ModelView(model)
+                    admin.add_view(view)
+                except Exception as exc:  # pragma: no cover - informative only
+                    LOG.info("Failed to add view for model %s: %s", getattr(model, "__name__", str(model)), exc)
+
             try:
-                admin_instance = StarletteAdmin(title="Admin")
+                # mount_to attaches admin into the Starlette app (creates routes)
+                admin.mount_to(app)
+                LOG.info("Mounted starlette-admin SQLA Admin at /admin")
             except Exception as exc:  # pragma: no cover - informative only
-                LOG.info("Unable to instantiate Starlette-Admin: %s", exc)
+                LOG.info("SQLA Admin created but could not be mounted: %s", exc)
                 return
 
-        # Register models if the instance exposes a registration API.
-        for model in models:
-            try:
-                if hasattr(admin_instance, "register_model"):
-                    admin_instance.register_model(model)
-                elif hasattr(admin_instance, "register"):
-                    admin_instance.register(model)
-                else:
-                    # Some admin objects are already ASGI apps and expect
-                    # model registration via separate helpers; skip in that
-                    # case and rely on the user to customize further.
-                    LOG.debug("Admin instance exposes no register method; skipping model registration")
-                    break
-            except Exception as exc:  # pragma: no cover - informative only
-                LOG.info("Failed to register model %s: %s", getattr(model, "__name__", str(model)), exc)
+        return
+    except Exception as exc:  # pragma: no cover - try other options
+        LOG.debug("SQLA Admin unavailable: %s", exc)
 
-        # Mount the admin instance at /admin if it's a Starlette/FastAPI
-        # mountable object.
+    # Fallbacks for other API surfaces
+    try:
+        from starlette_admin.base import BaseAdmin  # type: ignore
+
         try:
-            app.mount("/admin", admin_instance)
-            LOG.info("Mounted Starlette-Admin at /admin")
+            admin = BaseAdmin()
+            admin.mount_to(app)
+            LOG.info("Mounted starlette-admin BaseAdmin at /admin")
         except Exception as exc:  # pragma: no cover - informative only
-            LOG.info("Starlette-Admin was created but could not be mounted automatically: %s", exc)
-            LOG.info("You may need to mount the admin instance manually or adapt this helper for your starlette-admin version.")
-
-    except Exception as exc:  # pragma: no cover - defensive
-        LOG.info("Unexpected error while initializing admin: %s", exc)
+            LOG.info("BaseAdmin created but could not be mounted: %s", exc)
+            return
+    except Exception as exc:
+        LOG.info("No compatible starlette-admin API found: %s", exc)
+        return
