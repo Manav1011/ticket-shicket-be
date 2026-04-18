@@ -334,12 +334,12 @@ class EventService:
             "blocking_issues": blocking_issues,
         }
 
-    async def create_event_day(self, owner_user_id, event_id, day_index, date, start_time=None, end_time=None):
+    async def create_event_day(self, owner_user_id, event_id, date, start_time=None, end_time=None):
         event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)
         if not event:
             raise EventNotFound
         day = await self.repository.create_event_day(
-            event_id, day_index, date, start_time=start_time, end_time=end_time
+            event_id, date, start_time=start_time, end_time=end_time
         )
         await self._refresh_setup_status(event)
         return day

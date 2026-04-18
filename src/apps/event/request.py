@@ -31,7 +31,6 @@ class UpdateEventBasicInfoRequest(CamelCaseModel):
 
 
 class CreateEventDayRequest(CamelCaseModel):
-    day_index: int
     date: Date
     start_time: datetime | None = None
     end_time: datetime | None = None

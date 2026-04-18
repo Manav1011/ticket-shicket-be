@@ -39,7 +39,7 @@ async def test_create_draft_event_uses_organizer_ownership_and_defaults():
 async def test_create_event_day_and_start_scan_from_same_service():
     owner_id = uuid4()
     event_id = uuid4()
-    event = SimpleNamespace(id=event_id, organizer_page_id=uuid4())
+    event = SimpleNamespace(id=event_id, organizer_page_id=uuid4(), days_count=0)
     day = SimpleNamespace(
         id=uuid4(),
         event_id=event_id,
@@ -62,7 +62,7 @@ async def test_create_event_day_and_start_scan_from_same_service():
     service = EventService(event_repo, organizer_repo)
 
     created_day = await service.create_event_day(
-        owner_id, event_id, 1, datetime(2026, 4, 15).date()
+        owner_id, event_id, datetime(2026, 4, 15).date()
     )
     updated_day = await service.start_scan(owner_id, created_day.id)
 
@@ -189,6 +189,7 @@ async def test_create_event_day_marks_schedule_complete():
         location_mode="venue",
         timezone="Asia/Kolkata",
         setup_status={},
+        days_count=0,
     )
     day = SimpleNamespace(
         id=uuid4(),
@@ -213,7 +214,7 @@ async def test_create_event_day_marks_schedule_complete():
     event_repo.session = AsyncMock()
     service = EventService(event_repo, organizer_repo)
 
-    await service.create_event_day(owner_id, event_id, 1, datetime(2026, 4, 15).date())
+    await service.create_event_day(owner_id, event_id, datetime(2026, 4, 15).date())
 
     assert event.setup_status["schedule"] is True
 

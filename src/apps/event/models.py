@@ -62,6 +62,9 @@ class EventModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     interested_counter: Mapped[int] = mapped_column(
         Integer, default=0, server_default=text("0"), nullable=False
     )
+    days_count: Mapped[int] = mapped_column(
+        Integer, default=-1, server_default=text("-1"), nullable=False
+    )
 
 
 class EventInterestModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):

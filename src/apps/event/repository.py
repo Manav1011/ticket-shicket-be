@@ -44,8 +44,18 @@ class EventRepository:
         )
 
     async def create_event_day(
-        self, event_id, day_index, day_date, start_time=None, end_time=None
+        self, event_id, day_date, start_time=None, end_time=None
     ) -> EventDayModel:
+        result = await self._session.execute(
+            update(EventModel)
+            .where(EventModel.id == event_id)
+            .values(days_count=EventModel.days_count + 1)
+            .returning(EventModel.days_count)
+        )
+        day_index = result.scalar_one_or_none()
+        if day_index is None:
+            raise ValueError(f"Event {event_id} not found")
+
         event_day = EventDayModel(
             event_id=event_id,
             day_index=day_index,
@@ -89,6 +99,12 @@ class EventRepository:
 
     async def delete_event_day(self, event_day: EventDayModel) -> None:
         await self._session.delete(event_day)
+        await self._session.flush()
+        await self._session.execute(
+            update(EventModel)
+            .where(EventModel.id == event_day.event_id)
+            .values(days_count=EventModel.days_count - 1)
+        )
         await self._session.flush()
 
     async def count_event_days(self, event_id: UUID) -> int:

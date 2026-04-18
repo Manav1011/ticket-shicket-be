@@ -132,7 +132,13 @@ async def create_event_day(
     body: Annotated[CreateEventDayRequest, Body()],
     service: Annotated[EventService, Depends(get_event_service)],
 ) -> BaseResponse[EventDayResponse]:
-    day = await service.create_event_day(request.state.user.id, event_id, **body.model_dump())
+    day = await service.create_event_day(
+        request.state.user.id,
+        event_id,
+        body.date,
+        start_time=body.start_time,
+        end_time=body.end_time,
+    )
     return BaseResponse(data=EventDayResponse.model_validate(day))
 
 

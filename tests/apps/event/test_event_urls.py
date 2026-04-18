@@ -262,7 +262,7 @@ async def test_create_event_day_returns_day_payload():
     owner_id = uuid4()
     event_id = uuid4()
     request = SimpleNamespace(state=SimpleNamespace(user=SimpleNamespace(id=owner_id)))
-    body = CreateEventDayRequest(day_index=1, date="2026-04-15")
+    body = CreateEventDayRequest(date="2026-04-15")
     service = AsyncMock()
     service.create_event_day.return_value = SimpleNamespace(
         id=uuid4(),
