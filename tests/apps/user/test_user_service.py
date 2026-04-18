@@ -106,3 +106,67 @@ async def test_delete_user_revokes_tokens_and_clears_guest_links():
     repo.clear_guest_conversion_links.assert_awaited_once_with(user.id)
     repo.delete.assert_awaited_once_with(user.id)
     session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_find_user_by_email_returns_user():
+    from apps.user.response import UserLookupResponse
+
+    repo = AsyncMock(spec=UserRepository)
+    blocklist = AsyncMock(spec=TokenBlocklist)
+    service = UserService(repo, blocklist)
+
+    mock_user = SimpleNamespace(
+        id=uuid4(),
+        email="alice@example.com",
+        phone="9876543210",
+        first_name="Alice",
+        last_name="Smith",
+    )
+    repo.find_by_email = AsyncMock(return_value=mock_user)
+
+    result = await service.find_user(email="alice@example.com")
+
+    assert result is not None
+    assert isinstance(result, UserLookupResponse)
+    assert result.user_id == mock_user.id
+    assert result.email == "alice@example.com"
+    repo.find_by_email.assert_awaited_once_with("alice@example.com")
+
+
+@pytest.mark.asyncio
+async def test_find_user_by_phone_returns_user():
+    from apps.user.response import UserLookupResponse
+
+    repo = AsyncMock(spec=UserRepository)
+    blocklist = AsyncMock(spec=TokenBlocklist)
+    service = UserService(repo, blocklist)
+
+    mock_user = SimpleNamespace(
+        id=uuid4(),
+        email="bob@example.com",
+        phone="9876543210",
+        first_name="Bob",
+        last_name="Jones",
+    )
+    repo.find_by_phone = AsyncMock(return_value=mock_user)
+
+    result = await service.find_user(phone="9876543210")
+
+    assert result is not None
+    assert isinstance(result, UserLookupResponse)
+    assert result.phone == "9876543210"
+    repo.find_by_phone.assert_awaited_once_with("9876543210")
+
+
+@pytest.mark.asyncio
+async def test_find_user_not_found_returns_none():
+    repo = AsyncMock(spec=UserRepository)
+    blocklist = AsyncMock(spec=TokenBlocklist)
+    service = UserService(repo, blocklist)
+
+    repo.find_by_email = AsyncMock(return_value=None)
+
+    result = await service.find_user(email="ghost@example.com")
+
+    assert result is None

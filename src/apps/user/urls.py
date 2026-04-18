@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import constants
 from .models import UserModel
-from .request import SignInRequest, SignUpRequest, GetUserByIdRequest, DeleteUserByIdRequest
-from .response import BaseUserResponse
+from .request import SignInRequest, SignUpRequest, GetUserByIdRequest, DeleteUserByIdRequest, UserLookupRequest
+from .response import BaseUserResponse, UserLookupResponse
 from .service import UserService
 from .repository import UserRepository
 from auth.dependencies import get_current_user
@@ -104,6 +104,21 @@ async def create_user(
     user = await service.create_user(**body.model_dump())
     return BaseResponse(data=BaseUserResponse.model_validate(user))
 
+@router.get("/find")
+async def find_user_endpoint(
+    email: str | None = None,
+    phone: str | None = None,
+    service: Annotated[UserService, Depends(get_user_service)] = None,
+) -> BaseResponse[UserLookupResponse]:
+    """Find user by email or phone. Returns user ID and basic info."""
+    if not email and not phone:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="email or phone query parameter required")
+
+    user = await service.find_user(email=email, phone=phone)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    return BaseResponse(data=user)
 
 # ==================== PROTECTED ROUTES ====================
 

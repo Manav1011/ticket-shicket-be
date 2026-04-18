@@ -65,3 +65,71 @@ async def test_delete_user_by_id_rejects_other_user():
 
     assert excinfo.value.status_code == 403
     service.delete_user_by_id.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_find_user_by_email_returns_user():
+    from apps.user.urls import find_user_endpoint
+    from apps.user.response import UserLookupResponse
+
+    user_id = uuid4()
+    service = AsyncMock()
+    service.find_user = AsyncMock(return_value=UserLookupResponse(
+        user_id=user_id,
+        email="alice@example.com",
+        phone="9876543210",
+        first_name="Alice",
+        last_name="Smith",
+    ))
+
+    response = await find_user_endpoint(email="alice@example.com", phone=None, service=service)
+
+    assert response.data.email == "alice@example.com"
+    assert response.data.user_id == user_id
+    service.find_user.assert_awaited_once_with(email="alice@example.com", phone=None)
+
+
+@pytest.mark.asyncio
+async def test_find_user_by_phone_returns_user():
+    from apps.user.urls import find_user_endpoint
+    from apps.user.response import UserLookupResponse
+
+    user_id = uuid4()
+    service = AsyncMock()
+    service.find_user = AsyncMock(return_value=UserLookupResponse(
+        user_id=user_id,
+        email="bob@example.com",
+        phone="9876543210",
+        first_name="Bob",
+        last_name="Jones",
+    ))
+
+    response = await find_user_endpoint(email=None, phone="9876543210", service=service)
+
+    assert response.data.phone == "9876543210"
+    service.find_user.assert_awaited_once_with(email=None, phone="9876543210")
+
+
+@pytest.mark.asyncio
+async def test_find_user_not_found_raises_error():
+    from apps.user.urls import find_user_endpoint
+
+    service = AsyncMock()
+    service.find_user = AsyncMock(return_value=None)
+
+    with pytest.raises(HTTPException) as excinfo:
+        await find_user_endpoint(email="ghost@example.com", phone=None, service=service)
+
+    assert excinfo.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_find_user_missing_params_raises_error():
+    from apps.user.urls import find_user_endpoint
+
+    service = AsyncMock()
+
+    with pytest.raises(HTTPException) as excinfo:
+        await find_user_endpoint(email=None, phone=None, service=service)
+
+    assert excinfo.value.status_code == 400

@@ -26,6 +26,12 @@ class UserRepository:
             select(UserModel).where(UserModel.id == user_id)
         )
 
+    async def find_by_id(self, user_id: UUID) -> Optional[UserModel]:
+        """Find user by ID. Returns None if not found (unlike get_by_id which may raise)."""
+        return await self._session.scalar(
+            select(UserModel).where(UserModel.id == user_id)
+        )
+
     async def get_by_email(self, email: str) -> Optional[UserModel]:
         normalized_email = email.strip().lower()
         return await self._session.scalar(

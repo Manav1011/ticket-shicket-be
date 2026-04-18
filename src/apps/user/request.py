@@ -55,3 +55,12 @@ class GetUserByIdRequest(CamelCaseModel):
 
 class DeleteUserByIdRequest(CamelCaseModel):
     user_id: UUID
+
+
+class UserLookupRequest(CamelCaseModel):
+    email: str | None = None
+    phone: str | None = None
+
+    def model_post_init(self, __pydantic_self__) -> None:
+        if not self.email and not self.phone:
+            raise ValueError("At least one of email or phone is required")

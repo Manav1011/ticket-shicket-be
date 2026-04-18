@@ -27,6 +27,31 @@ class UserService:
     async def get_self(self, user_id: UUID) -> UserModel:
         return await self.repository.get_by_id(user_id)
 
+    async def find_user(
+        self,
+        email: str | None = None,
+        phone: str | None = None,
+    ):
+        """Find user by email or phone. Returns user info or None."""
+        from .response import UserLookupResponse
+        
+        user = None
+        if email:
+            user = await self.repository.find_by_email(email)
+        elif phone:
+            user = await self.repository.find_by_phone(phone)
+
+        if not user:
+            return None
+
+        return UserLookupResponse(
+            user_id=user.id,
+            email=user.email,
+            phone=user.phone,
+            first_name=user.first_name,
+            last_name=user.last_name,
+        )
+
     async def login_user(self, email: str, password: str) -> dict[str, str]:
         normalized_email = email.strip().lower()
         user = await self.repository.get_by_email(normalized_email)
