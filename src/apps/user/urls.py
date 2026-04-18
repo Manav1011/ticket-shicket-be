@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Query, Request, Security, status
 from fastapi import HTTPException
@@ -25,6 +26,11 @@ from config import settings
 from apps.user.invite.service import InviteService as UserInviteService
 from apps.user.invite.repository import InviteRepository as UserInviteRepository
 from apps.user.invite.response import InviteResponse
+from apps.event.response import ResellerResponse
+from apps.organizer.repository import OrganizerRepository
+from apps.event.repository import EventRepository
+from apps.event.service import EventService
+from apps.event.exceptions import EventNotFound
 
 router = APIRouter(prefix="/api/user", tags=["User"])
 protected_router = APIRouter(prefix="/api/user", tags=["User"], dependencies=[Depends(get_current_user)])
@@ -44,6 +50,10 @@ def get_user_invite_service(session: Annotated[AsyncSession, Depends(db_session)
     )
 
 
+def get_event_service(session: Annotated[AsyncSession, Depends(db_session)]) -> EventService:
+    return EventService(EventRepository(session), OrganizerRepository(session))
+
+
 # ==================== PROTECTED USER ROUTES ====================
 
 
@@ -54,6 +64,71 @@ async def list_pending_invites(
 ) -> BaseResponse[list[InviteResponse]]:
     invites = await service.list_pending_invites_for_user(request.state.user.id)
     return BaseResponse(data=[InviteResponse.model_validate(i) for i in invites])
+
+
+@protected_router.post("/invites/{invite_id}/accept")
+async def accept_user_invite(
+    invite_id: UUID,
+    request: Request,
+    invite_service: Annotated[UserInviteService, Depends(get_user_invite_service)],
+    event_service: Annotated[EventService, Depends(get_event_service)],
+) -> BaseResponse[ResellerResponse]:
+    """
+    Accept a pending invite (reseller invite).
+    Creates EventReseller record if event exists.
+    """
+    result = await invite_service.accept_invite(request.state.user.id, invite_id)
+
+    event_id_str = result["event_id"]
+    if not event_id_str:
+        from apps.user.invite.exceptions import InviteNotFound
+        raise InviteNotFound("Invite missing event_id in metadata")
+
+    event_id = UUID(event_id_str)
+
+    # Check if event exists
+    event = await event_service.repository.get_by_id(event_id)
+    if not event:
+        raise EventNotFound("Event not found")
+
+    # Check if reseller already exists (idempotent — return existing)
+    existing = await event_service.repository.get_reseller_for_event(
+        request.state.user.id, event_id
+    )
+    if existing:
+        return BaseResponse(data=ResellerResponse.model_validate(existing))
+
+    permissions = result["permissions"]
+
+    reseller = await event_service.repository.create_event_reseller(
+        user_id=request.state.user.id,
+        event_id=event_id,
+        invited_by_id=result["invite"].created_by_id,
+        permissions=permissions,
+    )
+    return BaseResponse(data=ResellerResponse.model_validate(reseller))
+
+
+@protected_router.post("/invites/{invite_id}/decline")
+async def decline_user_invite(
+    invite_id: UUID,
+    request: Request,
+    invite_service: Annotated[UserInviteService, Depends(get_user_invite_service)],
+) -> BaseResponse[dict]:
+    """Decline a pending invite."""
+    await invite_service.decline_invite(request.state.user.id, invite_id)
+    return BaseResponse(data={"declined": True})
+
+
+@protected_router.delete("/invites/{invite_id}")
+async def cancel_user_invite(
+    invite_id: UUID,
+    request: Request,
+    invite_service: Annotated[UserInviteService, Depends(get_user_invite_service)],
+) -> BaseResponse[dict]:
+    """Cancel a pending invite (only the invite creator can cancel)."""
+    await invite_service.cancel_invite(request.state.user.id, invite_id)
+    return BaseResponse(data={"cancelled": True})
 
 
 # ==================== PUBLIC ROUTES ====================
