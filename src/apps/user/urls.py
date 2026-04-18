@@ -27,9 +27,6 @@ from apps.user.invite.service import InviteService as UserInviteService
 from apps.user.invite.repository import InviteRepository as UserInviteRepository
 from apps.user.invite.response import InviteResponse
 from apps.event.response import ResellerResponse
-from apps.organizer.repository import OrganizerRepository
-from apps.event.repository import EventRepository
-from apps.event.service import EventService
 from apps.event.exceptions import EventNotFound
 
 router = APIRouter(prefix="/api/user", tags=["User"])
@@ -50,7 +47,12 @@ def get_user_invite_service(session: Annotated[AsyncSession, Depends(db_session)
     )
 
 
-def get_event_service(session: Annotated[AsyncSession, Depends(db_session)]) -> EventService:
+def get_event_service(session: Annotated[AsyncSession, Depends(db_session)]):
+    # Lazy imports to avoid circular import issues
+    from apps.organizer.repository import OrganizerRepository
+    from apps.event.repository import EventRepository
+    from apps.event.service import EventService
+    
     return EventService(EventRepository(session), OrganizerRepository(session))
 
 
@@ -71,7 +73,7 @@ async def accept_user_invite(
     invite_id: UUID,
     request: Request,
     invite_service: Annotated[UserInviteService, Depends(get_user_invite_service)],
-    event_service: Annotated[EventService, Depends(get_event_service)],
+    event_service: Annotated[dict, Depends(get_event_service)],
 ) -> BaseResponse[ResellerResponse]:
     """
     Accept a pending invite (reseller invite).
