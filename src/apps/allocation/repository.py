@@ -172,10 +172,8 @@ class AllocationRepository:
             event_id: Event UUID
             holder_id: TicketHolder UUID
             b2b_ticket_type_id: The B2B ticket type UUID for this event
-            event_day_id: Optional — if provided, filter to specific day only
+            event_day_id: Optional -- if provided, filter to specific day only
         """
-        from apps.ticketing.models import TicketTypeModel
-
         conditions = [
             TicketModel.event_id == event_id,
             TicketModel.owner_holder_id == holder_id,
@@ -187,22 +185,18 @@ class AllocationRepository:
         result = await self._session.execute(
             select(
                 TicketModel.event_day_id,
-                TicketTypeModel.name,
                 func.count(TicketModel.id).label("count"),
             )
-            .join(TicketTypeModel, TicketModel.ticket_type_id == TicketTypeModel.id)
             .where(*conditions)
             .group_by(
                 TicketModel.event_day_id,
-                TicketTypeModel.name,
             )
         )
         rows = result.all()
         return [
             {
                 "event_day_id": row[0],
-                "ticket_type_name": row[1],
-                "count": row[2],
+                "count": row[1],
             }
             for row in rows
         ]
