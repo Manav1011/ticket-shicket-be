@@ -11,3 +11,10 @@ class AllocationStatus(str, Enum):
 class TicketHolderStatus(str, Enum):
     active = "active"
     deleted = "deleted"
+
+
+class AllocationType(str, Enum):
+    b2b = "b2b"
+    purchase = "purchase"
+    transfer = "transfer"
+    refund = "refund"

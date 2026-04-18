@@ -16,7 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
 from apps.ticketing.enums import OrderStatus, OrderType
-from .enums import AllocationStatus, TicketHolderStatus
+from .enums import AllocationStatus, AllocationType, TicketHolderStatus
 
 
 class TicketHolderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
@@ -57,6 +57,9 @@ class AllocationModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     order_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("orders.id", ondelete="RESTRICT"), nullable=False
     )  # Every allocation is created via an order (free transfers create $0 order)
+    allocation_type: Mapped[str] = mapped_column(
+        Enum(AllocationType), nullable=False
+    )
     status: Mapped[str] = mapped_column(
         Enum(AllocationStatus),
         default=AllocationStatus.pending,

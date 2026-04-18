@@ -27,3 +27,32 @@ class OrganizerPageResponse(CamelCaseModel):
 
 class OrganizerPageListResponse(BaseResponse[OrganizerPageResponse]):
     pass
+
+
+# --- B2B Ticket & Allocation Response Schemas ---
+
+
+class MyB2BTicketItem(CamelCaseModel):
+    event_day_id: UUID
+    ticket_type_id: UUID
+    ticket_type_name: str
+    count: int
+
+
+class MyB2BTicketsResponse(CamelCaseModel):
+    event_id: UUID
+    holder_id: UUID
+    tickets: list[MyB2BTicketItem]
+    total: int
+
+
+class MyB2BAllocationItem(CamelCaseModel):
+    allocation_id: UUID
+    direction: str  # "received" | "transferred"
+    from_holder_id: UUID | None
+    to_holder_id: UUID
+    ticket_count: int
+    ticket_ids: list[UUID]
+    status: str
+    source: str  # from metadata_: "b2b_free" or "b2b_paid"
+    created_at: datetime

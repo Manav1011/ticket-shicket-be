@@ -7,7 +7,7 @@ import uuid
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.allocation.enums import AllocationStatus
+from apps.allocation.enums import AllocationStatus, AllocationType
 from apps.allocation.models import AllocationModel, OrderModel
 from apps.allocation.repository import AllocationRepository
 from apps.allocation.service import AllocationService
@@ -127,6 +127,7 @@ class SuperAdminService:
             from_holder_id=None,
             to_holder_id=to_holder.id,
             order_id=order.id,
+            allocation_type=AllocationType.b2b,
             ticket_count=len(ticket_ids),
             metadata_={
                 "b2b_request_id": str(b2b_request.id),
@@ -308,6 +309,7 @@ class SuperAdminService:
             from_holder_id=None,
             to_holder_id=to_holder.id,
             order_id=order.id,
+            allocation_type=AllocationType.b2b,
             ticket_count=len(ticket_ids),
             metadata_={
                 "b2b_request_id": str(b2b_request.id),

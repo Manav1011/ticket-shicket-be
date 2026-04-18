@@ -11,7 +11,7 @@ from utils.schema import BaseResponse
 
 from .repository import OrganizerRepository
 from .request import CreateOrganizerPageRequest, UpdateOrganizerPageRequest, CreateB2BRequestBody, ConfirmB2BPaymentBody
-from .response import OrganizerPageResponse
+from .response import OrganizerPageResponse, MyB2BTicketsResponse, MyB2BAllocationItem
 from .service import OrganizerService
 from apps.superadmin.response import B2BRequestResponse
 
@@ -206,3 +206,37 @@ async def confirm_b2b_payment(
         user_id=request.state.user.id,
     )
     return BaseResponse(data=B2BRequestResponse.model_validate(b2b_req))
+
+
+@router.get("/b2b/events/{event_id}/my-tickets")
+async def get_my_b2b_tickets(
+    event_id: UUID,
+    request: Request,
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+    event_day_id: UUID | None = None,
+) -> BaseResponse[MyB2BTicketsResponse]:
+    """
+    [Organizer] Get B2B tickets owned by the organizer for an event.
+    Grouped by event day and ticket type.
+    """
+    result = await service.get_my_b2b_tickets(event_id, request.state.user.id, event_day_id=event_day_id)
+    return BaseResponse(data=MyB2BTicketsResponse(**result))
+
+
+@router.get("/b2b/events/{event_id}/my-allocations")
+async def get_my_b2b_allocations(
+    event_id: UUID,
+    request: Request,
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+    event_day_id: UUID | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> BaseResponse[list[MyB2BAllocationItem]]:
+    """
+    [Organizer] Get B2B allocation history (received AND transferred)
+    for tickets owned by the organizer.
+    """
+    allocations = await service.get_my_b2b_allocations(
+        event_id, request.state.user.id, event_day_id=event_day_id, limit=limit, offset=offset
+    )
+    return BaseResponse(data=[MyB2BAllocationItem(**a) for a in allocations])

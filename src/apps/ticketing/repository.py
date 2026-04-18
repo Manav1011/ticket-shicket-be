@@ -134,3 +134,21 @@ class TicketingRepository:
         await self._session.flush()
         await self._session.refresh(ticket_type)
         return ticket_type
+
+    async def get_b2b_ticket_type_for_event(
+        self,
+        event_id: UUID,
+    ) -> TicketTypeModel | None:
+        """
+        Get the B2B ticket type for an event. There is exactly 1 B2B type per event.
+        Returns None if none exist — does NOT create.
+        """
+        from apps.ticketing.enums import TicketCategory
+
+        result = await self._session.scalar(
+            select(TicketTypeModel).where(
+                TicketTypeModel.event_id == event_id,
+                TicketTypeModel.category == TicketCategory.b2b,
+            )
+        )
+        return result

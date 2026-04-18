@@ -11,6 +11,9 @@ from apps.superadmin.enums import B2BRequestStatus
 
 
 from apps.ticketing.repository import TicketingRepository
+from apps.allocation.repository import AllocationRepository
+from apps.event.repository import EventRepository
+from exceptions import ForbiddenError
 
 
 class OrganizerService:
@@ -18,6 +21,7 @@ class OrganizerService:
         self.repository = repository
         self._super_admin_service = SuperAdminService(repository.session)
         self._ticketing_repo = TicketingRepository(repository.session)
+        self._allocation_repo = AllocationRepository(repository.session)
 
     async def list_organizers(self, owner_user_id):
         return await self.repository.list_by_owner(owner_user_id)
@@ -220,8 +224,6 @@ class OrganizerService:
         [Organizer] Confirm payment for an approved paid B2B request.
         Verifies user owns the organizer page that owns this event, then triggers allocation.
         """
-        from exceptions import ForbiddenError
-
         # Verify the B2B request belongs to this event
         b2b_req = await self.repository.get_b2b_request_by_id(request_id)
         if not b2b_req or b2b_req.event_id != event_id:
@@ -230,3 +232,103 @@ class OrganizerService:
         return await self._super_admin_service.process_paid_b2b_allocation(
             request_id=request_id,
         )
+
+    # --- B2B My Tickets & Allocations ---
+
+    async def get_my_b2b_tickets(
+        self,
+        event_id: uuid.UUID,
+        user_id: uuid.UUID,
+        event_day_id: uuid.UUID | None = None,
+    ) -> dict:
+        """
+        [Organizer] Get B2B tickets owned by the organizer for an event.
+        Groups tickets by event_day. Single query to get B2B type, then single query
+        to get counts with GROUP BY.
+
+        Args:
+            event_id: Event UUID
+            user_id: Organizer user UUID
+            event_day_id: Optional -- if provided, filter to specific event day only
+        """
+        # 1. Verify event ownership
+        event = await EventRepository(self.repository.session).get_by_id_for_owner(event_id, user_id)
+        if not event:
+            raise ForbiddenError("You do not own this event's organizer page")
+
+        # 2. Get organizer's holder
+        holder = await self._allocation_repo.get_holder_by_user_id(user_id)
+        if not holder:
+            return {
+                "event_id": event_id,
+                "holder_id": None,
+                "tickets": [],
+                "total": 0,
+            }
+
+        # 3. Get B2B ticket type for this event (read-only — no INSERT)
+        b2b_type = await self._ticketing_repo.get_b2b_ticket_type_for_event(event_id)
+        if not b2b_type:
+            return {
+                "event_id": event_id,
+                "holder_id": holder.id,
+                "tickets": [],
+                "total": 0,
+            }
+
+        # 4. Single query with GROUP BY — get counts grouped by event_day
+        rows = await self._allocation_repo.list_b2b_tickets_by_holder(
+            event_id=event_id,
+            holder_id=holder.id,
+            b2b_ticket_type_id=b2b_type.id,
+            event_day_id=event_day_id,
+        )
+
+        grand_total = sum(row["count"] for row in rows)
+
+        return {
+            "event_id": event_id,
+            "holder_id": holder.id,
+            "tickets": rows,
+            "total": grand_total,
+        }
+
+    async def get_my_b2b_allocations(
+        self,
+        event_id: uuid.UUID,
+        user_id: uuid.UUID,
+        event_day_id: uuid.UUID | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict]:
+        """
+        [Organizer] Get B2B allocation history (received AND transferred)
+        for tickets owned by the organizer. Single-query JOIN for ticket_ids.
+
+        Args:
+            event_id: Event UUID
+            user_id: Organizer user UUID
+            event_day_id: UUID | None -- if provided, filter to allocations from that event day
+            limit: Pagination limit
+            offset: Pagination offset
+        """
+        # 1. Verify event ownership
+        event = await EventRepository(self.repository.session).get_by_id_for_owner(event_id, user_id)
+        if not event:
+            raise ForbiddenError("You do not own this event's organizer page")
+
+        # 2. Get organizer's holder
+        holder = await self._allocation_repo.get_holder_by_user_id(user_id)
+        if not holder:
+            return []
+
+        # 3. Get allocations with single-query ticket_ids
+        allocations = await self._allocation_repo.list_b2b_allocations_for_holder(
+            event_id=event_id,
+            holder_id=holder.id,
+            event_day_id=event_day_id,
+            limit=limit,
+            offset=offset,
+        )
+
+        return allocations
