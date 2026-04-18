@@ -29,7 +29,7 @@ def get_super_admin_service(
     return SuperAdminService(session)
 
 
-@router.get("/b2b-requests")
+@router.get("/b2b/requests")
 async def list_b2b_requests(
     request: Request,
     service: Annotated[SuperAdminService, Depends(get_super_admin_service)],
@@ -50,7 +50,7 @@ async def list_b2b_requests(
     return BaseResponse(data=[B2BRequestResponse.model_validate(r) for r in requests])
 
 
-@router.get("/b2b-requests/pending")
+@router.get("/b2b/requests/pending")
 async def list_pending_b2b_requests(
     request: Request,
     service: Annotated[SuperAdminService, Depends(get_super_admin_service)],
@@ -64,7 +64,7 @@ async def list_pending_b2b_requests(
     return BaseResponse(data=[B2BRequestResponse.model_validate(r) for r in requests])
 
 
-@router.get("/b2b-requests/{request_id}")
+@router.get("/b2b/requests/{request_id}")
 async def get_b2b_request(
     request_id: UUID,
     request: Request,
@@ -77,7 +77,7 @@ async def get_b2b_request(
     return BaseResponse(data=B2BRequestResponse.model_validate(b2b_request))
 
 
-@router.post("/b2b-requests/{request_id}/approve-free")
+@router.post("/b2b/requests/{request_id}/approve-free")
 async def approve_b2b_request_free(
     request_id: UUID,
     request: Request,
@@ -97,7 +97,7 @@ async def approve_b2b_request_free(
     return BaseResponse(data=B2BRequestResponse.model_validate(b2b_request))
 
 
-@router.post("/b2b-requests/{request_id}/approve-paid")
+@router.post("/b2b/requests/{request_id}/approve-paid")
 async def approve_b2b_request_paid(
     request_id: UUID,
     request: Request,
@@ -119,7 +119,7 @@ async def approve_b2b_request_paid(
     return BaseResponse(data=B2BRequestResponse.model_validate(b2b_request))
 
 
-@router.post("/b2b-requests/{request_id}/reject")
+@router.post("/b2b/requests/{request_id}/reject")
 async def reject_b2b_request(
     request_id: UUID,
     request: Request,

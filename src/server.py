@@ -72,5 +72,12 @@ def create_app(debug: bool = False) -> FastAPI:
 
     init_middlewares(_app)    
     start_exception_handlers(_app)
+    # Attempt to mount Starlette-Admin if available.
+    try:
+        from admin import mount_admin
+        mount_admin(_app)        
+    except Exception:
+        # Keep the app usable even if admin initialization fails.
+        pass
 
     return _app

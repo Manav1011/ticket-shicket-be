@@ -124,7 +124,7 @@ async def upload_organizer_cover(
 
 # --- B2B Request Endpoints ---
 
-@router.post("/events/{event_id}/b2b-requests")
+@router.post("/b2b/events/{event_id}/requests")
 async def create_b2b_request(
     event_id: UUID,
     request: Request,
@@ -161,7 +161,7 @@ async def create_b2b_request(
     return BaseResponse(data=B2BRequestResponse.model_validate(b2b_req))
 
 
-@router.get("/events/{event_id}/b2b-requests")
+@router.get("/b2b/events/{event_id}/requests")
 async def list_b2b_requests_for_event(
     event_id: UUID,
     request: Request,
@@ -187,7 +187,7 @@ async def list_b2b_requests_for_event(
     return BaseResponse(data=[B2BRequestResponse.model_validate(r) for r in requests])
 
 
-@router.post("/events/{event_id}/b2b-requests/{b2b_request_id}/confirm-payment")
+@router.post("/b2b/events/{event_id}/requests/{b2b_request_id}/confirm-payment")
 async def confirm_b2b_payment(
     event_id: UUID,
     b2b_request_id: UUID,
