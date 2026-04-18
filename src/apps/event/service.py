@@ -10,6 +10,8 @@ from .response import FieldErrorResponse
 from sqlalchemy.exc import IntegrityError
 from src.utils.s3_client import get_s3_client
 from src.utils.file_validation import FileValidator, FileValidationError
+from .repository import EventRepository
+from apps.organizer.repository import OrganizerRepository
 
 
 def _serialize_for_json(obj):
@@ -27,7 +29,7 @@ def _serialize_for_json(obj):
 
 
 class EventService:
-    def __init__(self, repository, organizer_repository) -> None:
+    def __init__(self, repository: EventRepository, organizer_repository: OrganizerRepository) -> None:
         self.repository = repository
         self.organizer_repository = organizer_repository
 

@@ -1,6 +1,13 @@
 from enum import Enum
 
 
+def _to_options(enum_cls: type[Enum]) -> list[dict[str, str]]:
+    return [
+        {"value": member.value, "label": member.name.replace("_", " ").title()}
+        for member in enum_cls
+    ]
+
+
 class AssetType(str, Enum):
     banner = "banner"
     gallery_image = "gallery_image"
