@@ -53,3 +53,12 @@ class UpdateMediaAssetMetadataRequest(CamelCaseModel):
 
 class UpdateShowTicketsRequest(CamelCaseModel):
     show_tickets: bool | None = None
+
+
+class CreateResellerInviteRequest(CamelCaseModel):
+    user_ids: list[UUID]  # Required: list of user IDs to invite
+    permissions: list[str] = []  # Optional permissions for each invite
+
+    def model_post_init(self, __pydantic_self__) -> None:
+        if len(self.user_ids) == 0:
+            raise ValueError("At least one user_id is required")

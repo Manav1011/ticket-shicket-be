@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import InviteModel
@@ -52,3 +52,39 @@ class InviteRepository:
                 )
             )
         )
+
+    async def create_invite_batch(
+        self,
+        target_user_ids: list[UUID],
+        created_by_id: UUID,
+        metadata: dict,
+        invite_type: str,
+    ) -> list[InviteModel]:
+        """
+        Bulk insert multiple invites in a single SQL statement.
+        Returns all created InviteModel objects with full data.
+        """
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+        from .enums import InviteStatus
+
+        values = [
+            {
+                "target_user_id": uid,
+                "created_by_id": created_by_id,
+                "status": InviteStatus.pending.value,
+                "invite_type": invite_type,
+                "meta": metadata,
+            }
+            for uid in target_user_ids
+        ]
+
+        # Single bulk INSERT ... VALUES (...), (...), (...) statement
+        stmt = pg_insert(InviteModel).values(values).returning(InviteModel.id)
+        result = await self._session.execute(stmt)
+        created_ids = list(result.scalars().all())
+
+        # Re-fetch to get fully populated objects for response
+        invites = await self._session.scalars(
+            select(InviteModel).where(InviteModel.id.in_(created_ids))
+        )
+        return list(invites.all())

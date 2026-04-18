@@ -38,6 +38,21 @@ class InviteService:
         await self.repository.session.refresh(invite)
         return invite
 
+    async def create_invite_batch(
+        self,
+        target_user_ids: list[UUID],
+        created_by_id: UUID,
+        metadata: dict,
+        invite_type: str = InviteType.reseller.value,
+    ) -> list[InviteModel]:
+        """Create multiple invites in a single DB round-trip."""
+        return await self.repository.create_invite_batch(
+            target_user_ids=target_user_ids,
+            created_by_id=created_by_id,
+            metadata=metadata,
+            invite_type=invite_type,
+        )
+
     async def list_pending_invites_for_user(self, user_id: UUID) -> list[InviteModel]:
         return await self.repository.list_pending_invites_for_user(user_id)
 

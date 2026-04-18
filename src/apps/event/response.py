@@ -198,5 +198,15 @@ class ResellerResponse(CamelCaseModel):
     event_id: UUID
     invited_by_id: UUID
     permissions: dict | list[str]
+
+
+class ResellerInviteResponse(CamelCaseModel):
+    id: UUID
+    target_user_id: UUID
+    created_by_id: UUID
+    status: str
+    invite_type: str
+    meta: dict
+    created_at: datetime
     accepted_at: datetime | None = None
     created_at: datetime

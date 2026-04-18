@@ -10,8 +10,8 @@ from utils.schema import BaseResponse
 
 from apps.organizer.repository import OrganizerRepository
 from .repository import EventRepository
-from .request import CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest, UpdateEventDayRequest, UpdateMediaAssetMetadataRequest, UpdateShowTicketsRequest
-from .response import EventDayResponse, EventReadinessResponse, EventResponse, PublishValidationResponse, ScanStatusHistoryResponse, MediaAssetResponse, ResellerResponse
+from .request import CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest, UpdateEventDayRequest, UpdateMediaAssetMetadataRequest, UpdateShowTicketsRequest, CreateResellerInviteRequest
+from .response import EventDayResponse, EventReadinessResponse, EventResponse, PublishValidationResponse, ScanStatusHistoryResponse, MediaAssetResponse, ResellerResponse, ResellerInviteResponse
 from .service import EventService
 
 from apps.user.invite.service import InviteService as UserInviteService
@@ -326,49 +326,45 @@ async def update_media_asset_metadata(
 async def create_reseller_invite(
     event_id: UUID,
     request: Request,
-    body: Annotated[CreateInviteRequest, Body()],
+    body: Annotated[CreateResellerInviteRequest, Body()],
     event_service: Annotated[EventService, Depends(get_event_service)],
     invite_service: Annotated[UserInviteService, Depends(get_user_invite_service)],
-) -> BaseResponse[InviteResponse]:
+) -> BaseResponse[list[ResellerInviteResponse]]:
     # Verify organizer owns event
     event = await event_service.repository.get_by_id_for_owner(event_id, request.state.user.id)
     if not event:
         from apps.event.exceptions import OrganizerOwnershipError
         raise OrganizerOwnershipError
 
-    # Find target user by email or phone
-    if body.lookup_type not in ("email", "phone"):
-        from exceptions import BadRequestError
-        raise BadRequestError("lookup_type must be 'email' or 'phone'")
+    # Validate all users exist first (fail fast before any inserts)
+    for user_id in body.user_ids:
+        target_user = await invite_service.user_repository.find_by_id(user_id)
+        if not target_user:
+            from exceptions import NotFoundError
+            raise NotFoundError(f"User {user_id} not found")
+        if target_user.id == request.state.user.id:
+            from exceptions import ForbiddenError
+            raise ForbiddenError("Cannot invite yourself as a reseller")
+        # Check for duplicate pending invite
+        existing = await invite_service.repository.get_pending_invite_for_user_event(
+            target_user_id=user_id,
+            event_id=event_id,
+        )
+        if existing:
+            from exceptions import ConflictError
+            raise ConflictError(f"Pending invite already exists for user {user_id}")
 
-    target_user = None
-    if body.lookup_type == "email":
-        target_user = await invite_service.user_repository.find_by_email(body.lookup_value)
-    elif body.lookup_type == "phone":
-        target_user = await invite_service.user_repository.find_by_phone(body.lookup_value)
-
-    if not target_user:
-        from exceptions import NotFoundError
-        raise NotFoundError("User not found")
-
-    # Prevent self-invite
-    if target_user.id == request.state.user.id:
-        from exceptions import ForbiddenError
-        raise ForbiddenError("Cannot invite yourself as a reseller")
-
-    # Create invite
-    meta = body.metadata.model_dump() if body.metadata else {}
-    meta["event_id"] = str(event_id)
-    if body.metadata and body.metadata.permissions:
-        meta["permissions"] = body.metadata.permissions
+    # Batch create all invites in ONE DB call
+    meta = {"event_id": str(event_id), "permissions": body.permissions or []}
     from apps.user.invite.enums import InviteType
-    invite = await invite_service.create_invite(
-        target_user_id=target_user.id,
+    created_invites = await invite_service.create_invite_batch(
+        target_user_ids=body.user_ids,
         created_by_id=request.state.user.id,
         metadata=meta,
         invite_type=InviteType.reseller.value,
     )
-    return BaseResponse(data=InviteResponse.model_validate(invite))
+
+    return BaseResponse(data=[ResellerInviteResponse.model_validate(i) for i in created_invites])
 
 
 @router.get("/{event_id}/resellers")

@@ -21,6 +21,7 @@ from apps.event.urls import (
     start_scan,
     update_basic_info,
     update_event_day,
+    create_reseller_invite,
 )
 
 
@@ -487,3 +488,45 @@ async def test_interest_event_endpoint_passes_actor_and_metadata_to_service():
     )
     assert response.data.created is True
     assert response.data.interested_counter == 1
+
+
+@pytest.mark.asyncio
+async def test_create_reseller_invite_accepts_user_ids():
+    from apps.event.request import CreateResellerInviteRequest
+    from apps.event.response import ResellerInviteResponse
+
+    owner_id = uuid4()
+    event_id = uuid4()
+    target_user_id = uuid4()
+    request = SimpleNamespace(state=SimpleNamespace(user=SimpleNamespace(id=owner_id)))
+    body = CreateResellerInviteRequest(user_ids=[target_user_id])
+    event_service = AsyncMock()
+    invite_service = AsyncMock()
+    mock_event = SimpleNamespace(id=event_id, organizer_page_id=uuid4())
+    event_service.repository.get_by_id_for_owner = AsyncMock(return_value=mock_event)
+    invite_service.user_repository.find_by_id = AsyncMock(return_value=SimpleNamespace(id=target_user_id))
+    invite_service.repository.get_pending_invite_for_user_event = AsyncMock(return_value=None)
+    invite_service.create_invite_batch = AsyncMock(return_value=[
+        SimpleNamespace(
+            id=uuid4(),
+            target_user_id=target_user_id,
+            created_by_id=owner_id,
+            status="pending",
+            invite_type="reseller",
+            meta={"event_id": str(event_id), "permissions": []},
+            created_at=datetime.utcnow(),
+        )
+    ])
+
+    response = await create_reseller_invite(
+        event_id=event_id,
+        request=request,
+        body=body,
+        event_service=event_service,
+        invite_service=invite_service,
+    )
+
+    assert response.data is not None
+    assert len(response.data) == 1
+    assert response.data[0].status == "pending"
+    invite_service.create_invite_batch.assert_awaited_once()
