@@ -351,8 +351,8 @@ async def create_reseller_invite(
             event_id=event_id,
         )
         if existing:
-            from exceptions import ConflictError
-            raise ConflictError(f"Pending invite already exists for user {user_id}")
+            from exceptions import AlreadyExistsError
+            raise AlreadyExistsError(f"Pending invite already exists for user {user_id}")
 
     # Batch create all invites in ONE DB call
     meta = {"event_id": str(event_id), "permissions": body.permissions or []}

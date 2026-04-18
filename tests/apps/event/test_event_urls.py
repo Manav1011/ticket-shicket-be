@@ -563,3 +563,32 @@ async def test_list_reseller_invites_returns_invites():
 
     assert len(response.data) == 1
     assert response.data[0].status == "pending"
+
+
+@pytest.mark.asyncio
+async def test_create_reseller_invite_fails_for_duplicate():
+    from apps.event.request import CreateResellerInviteRequest
+    from exceptions import AlreadyExistsError
+
+    owner_id = uuid4()
+    event_id = uuid4()
+    target_user_id = uuid4()
+    request = SimpleNamespace(state=SimpleNamespace(user=SimpleNamespace(id=owner_id)))
+    body = CreateResellerInviteRequest(user_ids=[target_user_id])
+    event_service = AsyncMock()
+    invite_service = AsyncMock()
+    mock_event = SimpleNamespace(id=event_id, organizer_page_id=uuid4())
+    event_service.repository.get_by_id_for_owner = AsyncMock(return_value=mock_event)
+    invite_service.user_repository.find_by_id = AsyncMock(return_value=SimpleNamespace(id=target_user_id))
+    invite_service.repository.get_pending_invite_for_user_event = AsyncMock(
+        return_value=SimpleNamespace(id=uuid4())  # Returns existing invite = duplicate
+    )
+
+    with pytest.raises(AlreadyExistsError):
+        await create_reseller_invite(
+            event_id=event_id,
+            request=request,
+            body=body,
+            event_service=event_service,
+            invite_service=invite_service,
+        )
