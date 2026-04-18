@@ -34,7 +34,6 @@ class OrganizerPageListResponse(BaseResponse[OrganizerPageResponse]):
 
 class MyB2BTicketItem(CamelCaseModel):
     event_day_id: UUID
-    ticket_type_id: UUID
     ticket_type_name: str
     count: int
 
