@@ -22,6 +22,7 @@ from apps.event.urls import (
     update_basic_info,
     update_event_day,
     create_reseller_invite,
+    list_event_reseller_invites,
 )
 
 
@@ -530,3 +531,35 @@ async def test_create_reseller_invite_accepts_user_ids():
     assert len(response.data) == 1
     assert response.data[0].status == "pending"
     invite_service.create_invite_batch.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_list_reseller_invites_returns_invites():
+    from apps.event.response import ResellerInviteResponse
+
+    owner_id = uuid4()
+    event_id = uuid4()
+    request = SimpleNamespace(state=SimpleNamespace(user=SimpleNamespace(id=owner_id)))
+    event_service = AsyncMock()
+    mock_event = SimpleNamespace(id=event_id)
+    event_service.repository.get_by_id_for_owner = AsyncMock(return_value=mock_event)
+    event_service.repository.list_reseller_invites_for_event = AsyncMock(return_value=[
+        SimpleNamespace(
+            id=uuid4(),
+            target_user_id=uuid4(),
+            created_by_id=owner_id,
+            status="pending",
+            invite_type="reseller",
+            meta={"event_id": str(event_id)},
+            created_at=datetime.utcnow(),
+        )
+    ])
+
+    response = await list_event_reseller_invites(
+        event_id=event_id,
+        request=request,
+        event_service=event_service,
+    )
+
+    assert len(response.data) == 1
+    assert response.data[0].status == "pending"

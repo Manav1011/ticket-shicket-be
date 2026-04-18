@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.organizer.models import OrganizerPageModel
 from apps.ticketing.models import DayTicketAllocationModel, TicketTypeModel
+from apps.user.invite.models import InviteModel
 
 from .models import EventDayModel, EventModel, EventInterestModel, ScanStatusHistoryModel, EventMediaAssetModel, EventResellerModel
 
@@ -278,6 +279,29 @@ class EventRepository:
             .where(EventResellerModel.event_id == event_id)
             .order_by(EventResellerModel.created_at.desc())
         )
+        return list(result.all())
+
+    async def list_reseller_invites_for_event(
+        self,
+        event_id: UUID,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[InviteModel]:
+        """List invites for an event, optionally filtered by status."""
+        from apps.user.invite.enums import InviteType
+
+        query = select(InviteModel).where(
+            and_(
+                InviteModel.meta.contains({"event_id": str(event_id)}),
+                InviteModel.invite_type == InviteType.reseller.value,
+            )
+        )
+        if status:
+            query = query.where(InviteModel.status == status)
+
+        query = query.order_by(InviteModel.created_at.desc()).limit(limit).offset(offset)
+        result = await self._session.scalars(query)
         return list(result.all())
 
     async def list_published_events(self) -> list[EventModel]:

@@ -367,6 +367,26 @@ async def create_reseller_invite(
     return BaseResponse(data=[ResellerInviteResponse.model_validate(i) for i in created_invites])
 
 
+@router.get("/{event_id}/reseller-invites")
+async def list_event_reseller_invites(
+    event_id: UUID,
+    request: Request,
+    event_service: Annotated[EventService, Depends(get_event_service)],
+    status: str | None = None,  # pending, accepted, declined, cancelled
+) -> BaseResponse[list[ResellerInviteResponse]]:
+    # Verify organizer owns event
+    event = await event_service.repository.get_by_id_for_owner(event_id, request.state.user.id)
+    if not event:
+        from apps.event.exceptions import OrganizerOwnershipError
+        raise OrganizerOwnershipError
+
+    invites = await event_service.repository.list_reseller_invites_for_event(
+        event_id=event_id,
+        status=status,
+    )
+    return BaseResponse(data=[ResellerInviteResponse.model_validate(i) for i in invites])
+
+
 @router.get("/{event_id}/resellers")
 async def list_event_resellers(
     event_id: UUID,
