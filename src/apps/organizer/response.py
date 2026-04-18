@@ -46,11 +46,11 @@ class MyB2BTicketsResponse(CamelCaseModel):
 
 class MyB2BAllocationItem(CamelCaseModel):
     allocation_id: UUID
+    event_day_id: UUID
     direction: str  # "received" | "transferred"
     from_holder_id: UUID | None
     to_holder_id: UUID
     ticket_count: int
-    ticket_ids: list[UUID]
     status: str
     source: str  # from metadata_: "b2b_free" or "b2b_paid"
     created_at: datetime

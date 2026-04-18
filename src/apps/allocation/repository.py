@@ -211,29 +211,19 @@ class AllocationRepository:
     ) -> list[dict]:
         """
         List B2B allocations where the given holder is sender or receiver.
-        Fetches ticket_ids via subquery — single query, no N+1.
+        Returns event_day_id per allocation. Single query, no N+1.
 
         Args:
             event_id: Event UUID
             holder_id: TicketHolder UUID
-            event_day_id: Optional — if provided, filter allocations to tickets from that day only
+            event_day_id: Optional -- if provided, filter allocations to tickets from that day only
             limit: Pagination limit
             offset: Pagination offset
         """
         from apps.ticketing.models import TicketModel
 
-        # Subquery: get all ticket_ids for this holder's B2B allocations, optionally filtered by day
-        ticket_subq = (
-            select(AllocationTicketModel.allocation_id)
-            .join(TicketModel, AllocationTicketModel.ticket_id == TicketModel.id)
-            .where(TicketModel.owner_holder_id == holder_id)
-        )
-        if event_day_id:
-            ticket_subq = ticket_subq.where(TicketModel.event_day_id == event_day_id)
-        ticket_subq = ticket_subq.distinct().subquery()
-
-        # Main query: allocations involving this holder, using the subquery to filter
-        alloc_ids = (
+        # Subquery: filter allocations to those involving this holder
+        alloc_filter = (
             select(AllocationModel.id)
             .where(
                 AllocationModel.event_id == event_id,
@@ -249,41 +239,39 @@ class AllocationRepository:
             .subquery()
         )
 
-        # Fetch allocations + join their ticket IDs in one query
+        # Subquery: get event_day_id from first ticket in each allocation
+        day_subq = (
+            select(
+                AllocationTicketModel.allocation_id,
+                TicketModel.event_day_id,
+            )
+            .join(TicketModel, AllocationTicketModel.ticket_id == TicketModel.id)
+            .where(AllocationTicketModel.allocation_id.in_(select(alloc_filter)))
+            .distinct(AllocationTicketModel.allocation_id)
+            .subquery()
+        )
+
+        # Main query: allocations with event_day_id
         result = await self._session.execute(
-            select(AllocationModel)
-            .where(AllocationModel.id.in_(select(alloc_ids)))
+            select(AllocationModel, day_subq.c.event_day_id)
+            .join(day_subq, AllocationModel.id == day_subq.c.allocation_id)
             .order_by(AllocationModel.created_at.desc())
         )
-        allocations = result.scalars().all()
-
-        # Fetch all ticket_ids for these allocations in ONE query
-        alloc_id_list = [a.id for a in allocations]
-        if not alloc_id_list:
-            return []
-
-        tickets_result = await self._session.execute(
-            select(AllocationTicketModel.allocation_id, AllocationTicketModel.ticket_id)
-            .where(AllocationTicketModel.allocation_id.in_(alloc_id_list))
-        )
-        tickets_by_alloc = {}
-        for alloc_id, ticket_id in tickets_result.all():
-            tickets_by_alloc.setdefault(alloc_id, []).append(ticket_id)
+        rows = result.all()
 
         enriched = []
-        for alloc in allocations:
+        for alloc, day_id in rows:
             direction = "received" if alloc.to_holder_id == holder_id else "transferred"
             metadata = alloc.metadata_ or {}
             source = metadata.get("source", "b2b_free")
-            ticket_ids = tickets_by_alloc.get(alloc.id, [])
 
             enriched.append({
                 "allocation_id": alloc.id,
+                "event_day_id": day_id,
                 "direction": direction,
                 "from_holder_id": alloc.from_holder_id,
                 "to_holder_id": alloc.to_holder_id,
                 "ticket_count": alloc.ticket_count,
-                "ticket_ids": ticket_ids,
                 "status": alloc.status,
                 "source": source,
                 "created_at": alloc.created_at,
