@@ -3,6 +3,7 @@ from apps.resellers.repository import ResellerRepository
 from apps.resellers.response import (
     ResellerEventsResponse,
     ResellerEventItem,
+    ResellerTicketItem,
     ResellerTicketsResponse,
     ResellerAllocationItem,
     ResellerAllocationsResponse,
@@ -69,7 +70,6 @@ class ResellerService:
             b2b_ticket_type_id=b2b_type.id,
         )
 
-        from src.apps.resellers.response import ResellerTicketItem
         tickets = [ResellerTicketItem(event_day_id=r["event_day_id"], count=r["count"]) for r in rows]
         total = sum(r["count"] for r in rows)
 
@@ -110,7 +110,6 @@ class ResellerService:
             offset=offset,
         )
 
-        from src.apps.resellers.response import ResellerAllocationItem
         allocations = [
             ResellerAllocationItem(
                 allocation_id=r["allocation_id"],
