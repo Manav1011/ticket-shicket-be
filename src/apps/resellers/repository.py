@@ -20,13 +20,13 @@ class ResellerRepository:
         result = await self._session.execute(
             select(
                 EventModel.id,
-                EventModel.name,
+                EventModel.title,
                 EventModel.status,
                 OrganizerPageModel.name.label("organizer_name"),
                 EventResellerModel.accepted_at,
             )
             .join(EventResellerModel, EventResellerModel.event_id == EventModel.id)
-            .join(OrganizerPageModel, OrganizerPageModel.id == EventModel.organizer_id)
+            .join(OrganizerPageModel, OrganizerPageModel.id == EventModel.organizer_page_id)
             .where(
                 EventResellerModel.user_id == user_id,
                 EventResellerModel.accepted_at.isnot(None),
