@@ -6,6 +6,8 @@ from config import settings
 from db.session import engine
 from db.redis import redis
 from utils import logger, scheduler
+# Import jobs to register scheduled tasks
+from src import jobs  # noqa: F401
 
 
 @asynccontextmanager
