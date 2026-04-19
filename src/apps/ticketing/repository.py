@@ -1,7 +1,8 @@
 from typing import Optional
 from uuid import UUID
+from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import DayTicketAllocationModel, TicketModel, TicketTypeModel
@@ -152,3 +153,60 @@ class TicketingRepository:
             )
         )
         return result
+
+    async def lock_tickets_for_transfer(
+        self,
+        owner_holder_id: UUID,
+        event_id: UUID,
+        ticket_type_id: UUID,
+        quantity: int,
+        order_id: UUID,
+        lock_ttl_minutes: int = 30,
+    ) -> list[UUID]:
+        """
+        Atomically lock `quantity` tickets for a transfer request.
+        Uses FIFO (ticket_index ASC).
+        Sets lock_reference_type='transfer', lock_reference_id=order_id,
+        and lock_expires_at=now+lock_ttl_minutes.
+
+        Returns locked ticket IDs.
+        Raises ValueError if fewer than `quantity` tickets could be locked,
+        with message: "Only {N} tickets available, requested {quantity}"
+        """
+        expires_at = datetime.utcnow() + timedelta(minutes=lock_ttl_minutes)
+
+        # Subquery: select ticket IDs ordered by ticket_index, limited by quantity
+        # Uses FOR UPDATE to prevent concurrent lock acquisition
+        subq = (
+            select(TicketModel.id)
+            .where(
+                TicketModel.event_id == event_id,
+                TicketModel.ticket_type_id == ticket_type_id,
+                TicketModel.owner_holder_id == owner_holder_id,
+                TicketModel.lock_reference_id.is_(None),
+            )
+            .order_by(TicketModel.ticket_index.asc())
+            .limit(quantity)
+            .with_for_update()
+        )
+
+        # Lock the selected tickets in a single atomic UPDATE
+        result = await self._session.execute(
+            update(TicketModel)
+            .where(TicketModel.id.in_(subq))
+            .values(
+                lock_reference_type="transfer",
+                lock_reference_id=order_id,
+                lock_expires_at=expires_at,
+            )
+            .returning(TicketModel.id)
+        )
+        locked_ids = list(result.scalars().all())
+
+        if len(locked_ids) < quantity:
+            # Rollback-worthy failure — not enough lockable tickets
+            raise ValueError(
+                f"Only {len(locked_ids)} tickets available, requested {quantity}"
+            )
+
+        return locked_ids
