@@ -12,6 +12,7 @@ from apps.superadmin.enums import B2BRequestStatus
 
 from apps.ticketing.repository import TicketingRepository
 from apps.allocation.repository import AllocationRepository
+from apps.allocation.service import AllocationService
 from apps.event.repository import EventRepository
 from exceptions import ForbiddenError
 
@@ -22,6 +23,7 @@ class OrganizerService:
         self._super_admin_service = SuperAdminService(repository.session)
         self._ticketing_repo = TicketingRepository(repository.session)
         self._allocation_repo = AllocationRepository(repository.session)
+        self._allocation_service = AllocationService(repository.session)
 
     async def list_organizers(self, owner_user_id):
         return await self.repository.list_by_owner(owner_user_id)
@@ -409,7 +411,7 @@ class OrganizerService:
             raise NotFoundError("Organizer has no ticket holder account")
 
         # 5. Get reseller's holder (resolve/create)
-        reseller_holder = await self._allocation_repo.resolve_holder(
+        reseller_holder = await self._allocation_service.resolve_holder(
             user_id=reseller_id,
             create_if_missing=True,
         )
