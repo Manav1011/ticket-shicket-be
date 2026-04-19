@@ -1,127 +1,127 @@
 # Graph Report - .  (2026-04-18)
 
 ## Corpus Check
-- 159 files · ~161,949 words
+- 162 files · ~168,083 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1210 nodes · 3784 edges · 64 communities detected
-- Extraction: 39% EXTRACTED · 61% INFERRED · 0% AMBIGUOUS · INFERRED: 2326 edges (avg confidence: 0.5)
+- 1261 nodes · 4042 edges · 64 communities detected
+- Extraction: 37% EXTRACTED · 63% INFERRED · 0% AMBIGUOUS · INFERRED: 2532 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
 ## God Nodes (most connected - your core abstractions)
 1. `FileValidationError` - 101 edges
-2. `EventService` - 84 edges
-3. `EventRepository` - 84 edges
-4. `CamelCaseModel` - 74 edges
-5. `EventModel` - 72 edges
-6. `EventMediaAssetModel` - 71 edges
-7. `EventAccessType` - 70 edges
+2. `EventRepository` - 94 edges
+3. `EventService` - 91 edges
+4. `CamelCaseModel` - 78 edges
+5. `EventModel` - 73 edges
+6. `EventMediaAssetModel` - 72 edges
+7. `EventAccessType` - 71 edges
 8. `OrganizerService` - 69 edges
-9. `OrganizerPageModel` - 64 edges
-10. `BaseResponse` - 60 edges
+9. `BaseResponse` - 68 edges
+10. `OrganizerPageModel` - 65 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `POST /api/user/invites/{invite_id}/accept     1. Calls invite_service.accept_inv` --uses--> `BaseResponse`  [INFERRED]
+  tests/apps/user/test_user_invite_urls.py → src/utils/schema.py
+- `POST /api/user/invites/{invite_id}/decline     Just calls invite_service.decline` --uses--> `BaseResponse`  [INFERRED]
+  tests/apps/user/test_user_invite_urls.py → src/utils/schema.py
+- `DELETE /api/user/invites/{invite_id}     Just calls invite_service.cancel_invite` --uses--> `BaseResponse`  [INFERRED]
+  tests/apps/user/test_user_invite_urls.py → src/utils/schema.py
+- `get_current_super_admin should set request.state.super_admin AND return the admi` --uses--> `SuperAdminModel`  [INFERRED]
+  tests/apps/superadmin/test_superadmin_auth.py → src/apps/superadmin/models.py
 - `Adding a jti should add it to the Redis set.` --uses--> `TokenBlocklist`  [INFERRED]
-  tests/unit/auth/test_blocklist.py → src/auth/blocklist.py
-- `Blocked jti should return True.` --uses--> `TokenBlocklist`  [INFERRED]
-  tests/unit/auth/test_blocklist.py → src/auth/blocklist.py
-- `Non-blocklisted jti should return False.` --uses--> `TokenBlocklist`  [INFERRED]
-  tests/unit/auth/test_blocklist.py → src/auth/blocklist.py
-- `Adding a jti with TTL should also set expiry on the set.` --uses--> `TokenBlocklist`  [INFERRED]
-  tests/unit/auth/test_blocklist.py → src/auth/blocklist.py
-- `Removing a jti should remove it from the Redis set.` --uses--> `TokenBlocklist`  [INFERRED]
   tests/unit/auth/test_blocklist.py → src/auth/blocklist.py
 
 ## Communities
 
 ### Community 0 - "Community 0"
-Cohesion: 0.03
-Nodes (204): async_test_client(), auth_headers(), db_session(), guest_device_id(), invalid_file_type_bytes(), mock_s3_client(), oversized_image_bytes(), Create FastAPI app with mocked lifespan for HTTP testing. (+196 more)
+Cohesion: 0.05
+Nodes (175): _collect_models(), mount_admin(), Admin integration helper for Starlette-Admin.  This module collects the project', Return a list of model classes to register in the admin UI., Attempt to initialize and mount Starlette-Admin at `/admin`.      This function, Base, Base, A mixin class to add a primary key field in a model. (+167 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.03
-Nodes (118): AlreadyExistsError, BadRequestError, Redis-based token blocklist for invalidating access tokens.  Uses a Redis SET to, Manages a Redis SET of blocked token JTIs., Add a jti to the blocklist.         Optionally set a TTL (in seconds) to auto-ex, Check if a jti is in the blocklist., Remove a jti from the blocklist (not typically needed)., TokenBlocklist (+110 more)
+Nodes (120): AlreadyExistsError, BaseModel, B2BRequestStatus, TicketCategory, ForbiddenError, InviteAlreadyProcessed, OrganizerNotFound, OrganizerSlugAlreadyExists (+112 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.06
-Nodes (92): BaseResponse, CamelCaseModel, InviteType, InviteNotFound, InviteRepository, AllocateTicketTypeRequest, CreateDraftEventRequest, CreateEventDayRequest (+84 more)
+Cohesion: 0.05
+Nodes (124): BaseResponse, CamelCaseModel, InviteType, AlreadyExistsError, InviteNotFound, Custom exception for representing a Conflict (HTTP 409) error indicating that th, InviteRepository, OrganizerRepository (+116 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.09
-Nodes (72): _collect_models(), mount_admin(), Admin integration helper for Starlette-Admin.  This module collects the project', Return a list of model classes to register in the admin UI., Attempt to initialize and mount Starlette-Admin at `/admin`.      This function, Base, Base, A mixin class to add a primary key field in a model. (+64 more)
+Cohesion: 0.03
+Nodes (103): BadRequestError, Redis-based token blocklist for invalidating access tokens.  Uses a Redis SET to, Manages a Redis SET of blocked token JTIs., Add a jti to the blocklist.         Optionally set a TTL (in seconds) to auto-ex, Check if a jti is in the blocklist., Remove a jti from the blocklist (not typically needed)., TokenBlocklist, CustomException (+95 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.06
-Nodes (53): BaseModel, B2BRequestStatus, TicketCategory, OrganizerRepository, TicketingRepository, ApproveB2BRequestFreeBody, ApproveB2BRequestPaidBody, ConfirmB2BPaymentBody (+45 more)
+Cohesion: 0.04
+Nodes (73): CannotDecreaseQuantity, EventNotFound, InvalidAllocation, InvalidAsset, InvalidQuantity, InvalidScanTransition, OpenEventDoesNotSupportTickets, OrganizerOwnershipError (+65 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.03
-Nodes (23): Allocation app package., confirm_b2b_payment(), convert_guest(), create_b2b_request(), delete_media_asset(), generate_device_id(), get_guest_self(), get_my_b2b_allocations() (+15 more)
+Cohesion: 0.04
+Nodes (20): PublicEventService, PublicOrganizerService, EventRepository, _AsyncNullContext, Open event with venue and all basic info complete should be ready., Ticketed event without tickets can publish but section marked incomplete., Ticketed event without tickets should NOT fail validation., Ticketed event day without start_time should fail schedule validation. (+12 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.04
-Nodes (19): PublicEventService, EventRepository, _AsyncNullContext, Open event with venue and all basic info complete should be ready., Ticketed event without tickets can publish but section marked incomplete., Ticketed event without tickets should NOT fail validation., Ticketed event day without start_time should fail schedule validation., Publishing event should set status, is_published, and published_at. (+11 more)
+Cohesion: 0.03
+Nodes (27): Allocation app package., accept_user_invite(), cancel_user_invite(), confirm_b2b_payment(), convert_guest(), create_b2b_request(), decline_user_invite(), delete_media_asset() (+19 more)
 
 ### Community 7 - "Community 7"
 Cohesion: 0.05
-Nodes (34): BaseSettings, AppEnvironment, assemble_db_url(), Enum representing different application environments.      - LOCAL: Indicates th, A settings class for the project defining all the necessary parameters within th, Settings, delete_cookies(), Delete authentication cookies from an HTTP response.      Args:         response (+26 more)
+Nodes (33): BaseSettings, AppEnvironment, assemble_db_url(), Enum representing different application environments.      - LOCAL: Indicates th, A settings class for the project defining all the necessary parameters within th, Settings, delete_cookies(), Delete authentication cookies from an HTTP response.      Args:         response (+25 more)
 
 ### Community 8 - "Community 8"
-Cohesion: 0.07
-Nodes (2): PublicOrganizerService, GuestRepository
+Cohesion: 0.09
+Nodes (16): AppGenerator, ColoredOutput, create_super_admin(), directory_created(), error(), file_created(), header(), highlight() (+8 more)
 
 ### Community 9 - "Community 9"
-Cohesion: 0.09
-Nodes (19): Exception, AllocationError, AllocationLockError, AllocationOwnershipError, AllocationStatusTransitionError, Base exception for allocation errors., Raised when ticket lock acquisition fails., Raised when ownership check fails during allocation. (+11 more)
-
-### Community 10 - "Community 10"
-Cohesion: 0.14
-Nodes (15): AppGenerator, ColoredOutput, create_super_admin(), directory_created(), error(), file_created(), header(), highlight() (+7 more)
-
-### Community 11 - "Community 11"
 Cohesion: 0.1
 Nodes (18): get_s3_client(), Wrapper around boto3 S3 client for event media uploads., Determine MIME type based on file extension., Get S3 client singleton., Upload file to S3 and return storage key.          Args:             resource_id, Delete file from S3.          Args:             storage_key: S3 storage key (pat, Generate public URL for file (works for LocalStack and real AWS).          Args:, S3Client (+10 more)
 
-### Community 12 - "Community 12"
-Cohesion: 0.12
+### Community 10 - "Community 10"
+Cohesion: 0.11
 Nodes (0): 
 
-### Community 13 - "Community 13"
+### Community 11 - "Community 11"
 Cohesion: 0.15
-Nodes (10): Adding a jti should add it to the Redis set., Blocked jti should return True., Non-blocklisted jti should return False., Adding a jti with TTL should also set expiry on the set., Removing a jti should remove it from the Redis set., test_add_jti_to_blocklist(), test_add_jti_with_ttl(), test_is_jti_blocklisted_false() (+2 more)
+Nodes (10): Exception raised for an unexpected HTTP response.      Attributes:         respo, Initialize the exception with the unexpected HTTP response.          Args:, UnexpectedResponse, HTTPClient, Send a PATCH request.          :param url: The URL to send the request to. Defau, Deletes a resource at the specified URL.          :param url: The URL of the res, Send a GET request.          :param url: The URL to send the request to. Default, Send a POST request.          :param url: The URL to send the request to. Defaul (+2 more)
 
-### Community 14 - "Community 14"
+### Community 12 - "Community 12"
+Cohesion: 0.17
+Nodes (1): GuestRepository
+
+### Community 13 - "Community 13"
 Cohesion: 0.17
 Nodes (0): 
 
-### Community 15 - "Community 15"
-Cohesion: 0.2
-Nodes (8): Test that upload endpoint calls service method., Test listing media assets returns list., Test delete endpoint calls service., Test update metadata endpoint., test_delete_media_asset_calls_service(), test_list_media_assets_returns_list(), test_update_media_asset_metadata(), test_upload_media_asset_calls_service()
+### Community 14 - "Community 14"
+Cohesion: 0.22
+Nodes (2): TestEnumService, TestToOptions
 
-### Community 16 - "Community 16"
+### Community 15 - "Community 15"
 Cohesion: 0.22
 Nodes (3): Integration tests for Guest Module - Full Flow  These tests document the complet, Integration test covering complete guest lifecycle.      This test class documen, TestGuestFullLifecycle
 
+### Community 16 - "Community 16"
+Cohesion: 0.25
+Nodes (0): 
+
 ### Community 17 - "Community 17"
-Cohesion: 0.5
-Nodes (7): validate_banner_image(), _validate_file_size(), _validate_file_type(), validate_gallery_image(), validate_gallery_video(), _validate_image_dimensions(), validate_promo_video_url()
+Cohesion: 0.25
+Nodes (0): 
 
 ### Community 18 - "Community 18"
 Cohesion: 0.29
-Nodes (6): Mock OrganizerService., Test that upload logo endpoint calls service method., Test that upload cover endpoint calls service method., service_mock(), test_upload_cover_endpoint_calls_service(), test_upload_logo_endpoint_calls_service()
+Nodes (6): POST /api/user/invites/{invite_id}/decline     Just calls invite_service.decline, POST /api/user/invites/{invite_id}/accept     1. Calls invite_service.accept_inv, DELETE /api/user/invites/{invite_id}     Just calls invite_service.cancel_invite, test_accept_invite_under_user_endpoint(), test_cancel_invite_under_user_endpoint(), test_decline_invite_under_user_endpoint()
 
 ### Community 19 - "Community 19"
+Cohesion: 0.29
+Nodes (2): test_update_ticket_allocation_quantity_calls_service_correctly(), test_update_ticket_allocation_quantity_increases_successfully()
+
+### Community 20 - "Community 20"
 Cohesion: 0.33
 Nodes (0): 
 
-### Community 20 - "Community 20"
+### Community 21 - "Community 21"
 Cohesion: 0.5
 Nodes (2): strong_password(), validate_input_fields()
-
-### Community 21 - "Community 21"
-Cohesion: 0.4
-Nodes (0): 
 
 ### Community 22 - "Community 22"
 Cohesion: 0.4
@@ -137,27 +137,27 @@ Nodes (1): empty message  Revision ID: 7c7609b23301 Revises: 760216553727 Create
 
 ### Community 25 - "Community 25"
 Cohesion: 0.5
-Nodes (1): add days_count to events  Revision ID: 45787abf577 Revises: 86361eeddf67 Create
+Nodes (1): change days_count default to -1 for zero-based day_index  Revision ID: 3bca6e2a9
 
 ### Community 26 - "Community 26"
 Cohesion: 0.5
-Nodes (1): empty message  Revision ID: 760216553727 Revises:  Create Date: 2026-04-15 22:30
+Nodes (1): add days_count to events  Revision ID: 45787abf577 Revises: 86361eeddf67 Create
 
 ### Community 27 - "Community 27"
 Cohesion: 0.5
-Nodes (1): empty message  Revision ID: 86361eeddf67 Revises: 7c7609b23301 Create Date: 2026
+Nodes (1): empty message  Revision ID: 760216553727 Revises:  Create Date: 2026-04-15 22:30
 
 ### Community 28 - "Community 28"
 Cohesion: 0.5
-Nodes (0): 
+Nodes (1): empty message  Revision ID: 86361eeddf67 Revises: 7c7609b23301 Create Date: 2026
 
 ### Community 29 - "Community 29"
 Cohesion: 0.5
-Nodes (2): get_current_super_admin should set request.state.super_admin AND return the admi, test_get_current_super_admin_sets_request_state()
+Nodes (0): 
 
 ### Community 30 - "Community 30"
 Cohesion: 0.5
-Nodes (0): 
+Nodes (2): get_current_super_admin should set request.state.super_admin AND return the admi, test_get_current_super_admin_sets_request_state()
 
 ### Community 31 - "Community 31"
 Cohesion: 0.5
@@ -292,7 +292,7 @@ Cohesion: 1.0
 Nodes (1): Step 5: Guest logout revokes the refresh token.          Expected:         - POS
 
 ## Knowledge Gaps
-- **65 isolated node(s):** `Base custom exception class for raising necessary exceptions in the app.      At`, `Custom exception for representing a Bad Request (HTTP 400) error.`, `Custom exception for representing an Unauthorized (HTTP 401) error.`, `Custom exception for representing a Forbidden (HTTP 403) error.`, `Custom exception for representing a Not Found (HTTP 404) error.` (+60 more)
+- **66 isolated node(s):** `Base custom exception class for raising necessary exceptions in the app.      At`, `Custom exception for representing a Bad Request (HTTP 400) error.`, `Custom exception for representing an Unauthorized (HTTP 401) error.`, `Custom exception for representing a Forbidden (HTTP 403) error.`, `Custom exception for representing a Not Found (HTTP 404) error.` (+61 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **Thin community `Community 37`** (2 nodes): `test_event_reseller_model.py`, `test_event_reseller_model_creation()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
@@ -352,17 +352,17 @@ Nodes (1): Step 5: Guest logout revokes the refresh token.          Expected:   
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `EventService` connect `Community 0` to `Community 1`, `Community 2`, `Community 4`, `Community 6`, `Community 15`?**
-  _High betweenness centrality (0.081) - this node is a cross-community bridge._
-- **Why does `FileValidationError` connect `Community 0` to `Community 17`, `Community 2`, `Community 4`, `Community 9`?**
-  _High betweenness centrality (0.077) - this node is a cross-community bridge._
-- **Why does `EventRepository` connect `Community 6` to `Community 0`, `Community 2`, `Community 3`, `Community 4`, `Community 8`?**
-  _High betweenness centrality (0.070) - this node is a cross-community bridge._
+- **Why does `EventService` connect `Community 4` to `Community 0`, `Community 1`, `Community 2`, `Community 5`, `Community 7`?**
+  _High betweenness centrality (0.085) - this node is a cross-community bridge._
+- **Why does `EventRepository` connect `Community 5` to `Community 0`, `Community 1`, `Community 2`, `Community 4`, `Community 7`?**
+  _High betweenness centrality (0.078) - this node is a cross-community bridge._
+- **Why does `FileValidationError` connect `Community 1` to `Community 0`, `Community 2`, `Community 3`, `Community 4`?**
+  _High betweenness centrality (0.072) - this node is a cross-community bridge._
 - **Are the 94 inferred relationships involving `FileValidationError` (e.g. with `Check if event is ready to publish, return section-by-section validation errors.` and `Publish event. Returns 400 with validation errors if not ready.`) actually correct?**
   _`FileValidationError` has 94 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 56 inferred relationships involving `EventService` (e.g. with `Check if event is ready to publish, return section-by-section validation errors.` and `Publish event. Returns 400 with validation errors if not ready.`) actually correct?**
-  _`EventService` has 56 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 56 inferred relationships involving `EventRepository` (e.g. with `Check if event is ready to publish, return section-by-section validation errors.` and `Publish event. Returns 400 with validation errors if not ready.`) actually correct?**
-  _`EventRepository` has 56 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 68 inferred relationships involving `CamelCaseModel` (e.g. with `TokenPayload` and `TokenPair`) actually correct?**
-  _`CamelCaseModel` has 68 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 65 inferred relationships involving `EventRepository` (e.g. with `Check if event is ready to publish, return section-by-section validation errors.` and `Publish event. Returns 400 with validation errors if not ready.`) actually correct?**
+  _`EventRepository` has 65 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 63 inferred relationships involving `EventService` (e.g. with `Check if event is ready to publish, return section-by-section validation errors.` and `Publish event. Returns 400 with validation errors if not ready.`) actually correct?**
+  _`EventService` has 63 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 72 inferred relationships involving `CamelCaseModel` (e.g. with `TokenPayload` and `TokenPair`) actually correct?**
+  _`CamelCaseModel` has 72 INFERRED edges - model-reasoned connections that need verification._

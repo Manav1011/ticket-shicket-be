@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
+from pydantic import field_validator
 from utils.schema import BaseResponse, CamelCaseModel
 
 
@@ -63,3 +64,10 @@ class B2BTransferResponse(CamelCaseModel):
     reseller_id: UUID
     mode: str  # "free" | "paid"
     message: str | None = None  # only present when mode="paid" and not_implemented
+
+    @field_validator('mode')
+    @classmethod
+    def validate_mode(cls, v):
+        if v not in ('free', 'paid'):
+            raise ValueError('mode must be either "free" or "paid"')
+        return v

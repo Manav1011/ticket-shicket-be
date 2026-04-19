@@ -361,7 +361,6 @@ class OrganizerService:
         All in one DB transaction — rollback on any failure.
         """
         from apps.user.repository import UserRepository
-        from apps.event.repository import EventRepository
         from apps.ticketing.enums import OrderType, OrderStatus
         from apps.allocation.enums import AllocationType
         from apps.ticketing.models import TicketModel, OrderModel
@@ -405,7 +404,8 @@ class OrganizerService:
         # 4. Get organizer's holder
         org_holder = await self._allocation_repo.get_holder_by_user_id(user_id)
         if not org_holder:
-            raise ValueError("Organizer has no ticket holder account")
+            from exceptions import NotFoundError
+            raise NotFoundError("Organizer has no ticket holder account")
 
         # 5. Get reseller's holder (resolve/create)
         reseller_holder = await self._allocation_repo.resolve_holder(
@@ -416,7 +416,8 @@ class OrganizerService:
         # 6. Check organizer's available ticket count
         b2b_ticket_type = await self._ticketing_repo.get_b2b_ticket_type_for_event(event_id)
         if not b2b_ticket_type:
-            raise ValueError("No B2B ticket type found for this event")
+            from exceptions import NotFoundError
+            raise NotFoundError("No B2B ticket type found for this event")
 
         ticket_rows = await self._allocation_repo.list_b2b_tickets_by_holder(
             event_id=event_id,
@@ -444,18 +445,14 @@ class OrganizerService:
         await self.repository.session.refresh(order)
 
         # 8. Atomically lock tickets using order.id as lock_reference_id
-        try:
-            locked_ticket_ids = await self._ticketing_repo.lock_tickets_for_transfer(
-                owner_holder_id=org_holder.id,
-                event_id=event_id,
-                ticket_type_id=b2b_ticket_type.id,
-                quantity=quantity,
-                order_id=order.id,
-                lock_ttl_minutes=30,
-            )
-        except ValueError as e:
-            # Partial lock failure — rollback happens automatically when this propagates
-            raise
+        locked_ticket_ids = await self._ticketing_repo.lock_tickets_for_transfer(
+            owner_holder_id=org_holder.id,
+            event_id=event_id,
+            ticket_type_id=b2b_ticket_type.id,
+            quantity=quantity,
+            order_id=order.id,
+            lock_ttl_minutes=30,
+        )
 
         # 9. Create allocation (org → reseller, type=b2b)
         allocation = await self._allocation_repo.create_allocation(

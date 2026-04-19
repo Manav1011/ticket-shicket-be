@@ -178,6 +178,7 @@ class AllocationRepository:
             TicketModel.event_id == event_id,
             TicketModel.owner_holder_id == holder_id,
             TicketModel.ticket_type_id == b2b_ticket_type_id,
+            TicketModel.lock_reference_id.is_(None),  # Only count unlocked tickets
         ]
         if event_day_id:
             conditions.append(TicketModel.event_day_id == event_day_id)
