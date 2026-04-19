@@ -17,8 +17,6 @@ class ResellerService:
 
     async def list_my_events(self, user_id: UUID) -> ResellerEventsResponse:
         """List events where user is an accepted reseller."""
-        from apps.holder.repository import HolderRepository
-
         rows = await self._repo.list_my_events(user_id)
         events = []
         for row in rows:

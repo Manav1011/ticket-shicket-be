@@ -64,9 +64,9 @@ class ResellerRepository:
         Get TicketHolder for a user.
         Returns None if user has no holder yet.
         """
-        from apps.holder.repository import HolderRepository
-        holder_repo = HolderRepository(self._session)
-        return await holder_repo.get_holder_by_user_id(user_id)
+        from apps.allocation.repository import AllocationRepository
+        allocation_repo = AllocationRepository(self._session)
+        return await allocation_repo.get_holder_by_user_id(user_id)
 
     async def get_b2b_ticket_type_for_event(self, event_id: UUID):
         """
