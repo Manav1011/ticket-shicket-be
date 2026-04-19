@@ -52,6 +52,30 @@ class AllocationRepository:
         await self._session.refresh(holder)
         return holder
 
+    async def resolve_holder(
+        self,
+        user_id: UUID | None = None,
+        phone: str | None = None,
+        email: str | None = None,
+        create_if_missing: bool = False,
+    ) -> TicketHolderModel:
+        """
+        Get a holder by user_id, phone, or email.
+        If not found and create_if_missing=True, create a new holder.
+        """
+        holder = None
+        if user_id:
+            holder = await self.get_holder_by_user_id(user_id)
+        elif phone:
+            holder = await self.get_holder_by_phone(phone)
+        elif email:
+            holder = await self.get_holder_by_email(email)
+
+        if not holder and create_if_missing:
+            holder = await self.create_holder(user_id=user_id, phone=phone, email=email)
+
+        return holder
+
     # --- Allocation ---
 
     async def get_allocation_by_id(self, allocation_id: UUID) -> Optional[AllocationModel]:
