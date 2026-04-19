@@ -431,7 +431,8 @@ class OrganizerService:
         available = sum(r["count"] for r in ticket_rows)
 
         if available < quantity:
-            raise ValueError(f"Only {available} tickets available, requested {quantity}")
+            from exceptions import BadRequestError
+            raise BadRequestError(f"Only {available} B2B tickets available, requested {quantity}")
 
         # 7. Create the transfer order FIRST (to get its ID for locking)
         order = OrderModel(
