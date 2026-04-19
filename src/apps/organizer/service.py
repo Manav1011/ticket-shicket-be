@@ -352,6 +352,7 @@ class OrganizerService:
         2. Validate reseller is associated with this event (EventResellerModel accepted record)
         3. Validate event ownership
         4. Get organizer's TicketHolder
+        4.5. Validate event_day_id exists (if provided)
         5. Get reseller's TicketHolder (resolve/create)
         6. Check organizer's available ticket count ≥ quantity
         7. Atomically lock quantity tickets (FIFO)
@@ -409,6 +410,13 @@ class OrganizerService:
         if not org_holder:
             from exceptions import NotFoundError
             raise NotFoundError("Organizer has no ticket holder account")
+
+        # 4.5 Validate event_day_id if provided
+        if event_day_id:
+            event_day = await event_repo.get_event_day_by_id(event_day_id)
+            if not event_day or event_day.event_id != event_id:
+                from exceptions import NotFoundError
+                raise NotFoundError("Event day not found or does not belong to this event")
 
         # 5. Get reseller's holder (resolve/create)
         reseller_holder = await self._allocation_service.resolve_holder(
