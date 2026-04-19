@@ -450,7 +450,7 @@ class OrganizerService:
             subtotal_amount=0.0,
             discount_amount=0.0,
             final_amount=0.0,
-            status=OrderStatus.completed,
+            status=OrderStatus.paid,
         )
         self.repository.session.add(order)
         await self.repository.session.flush()
