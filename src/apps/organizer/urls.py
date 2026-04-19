@@ -10,8 +10,8 @@ from db.session import db_session
 from utils.schema import BaseResponse
 
 from .repository import OrganizerRepository
-from .request import CreateOrganizerPageRequest, UpdateOrganizerPageRequest, CreateB2BRequestBody, ConfirmB2BPaymentBody
-from .response import OrganizerPageResponse, MyB2BTicketsResponse, MyB2BAllocationItem
+from .request import CreateOrganizerPageRequest, UpdateOrganizerPageRequest, CreateB2BRequestBody, ConfirmB2BPaymentBody, CreateB2BTransferRequest
+from .response import OrganizerPageResponse, MyB2BTicketsResponse, MyB2BAllocationItem, B2BTransferResponse
 from .service import OrganizerService
 from apps.superadmin.response import B2BRequestResponse
 
@@ -206,6 +206,29 @@ async def confirm_b2b_payment(
         user_id=request.state.user.id,
     )
     return BaseResponse(data=B2BRequestResponse.model_validate(b2b_req))
+
+
+@router.post("/b2b/events/{event_id}/transfers")
+async def create_b2b_transfer_endpoint(
+    event_id: UUID,
+    request: Request,
+    body: Annotated[CreateB2BTransferRequest, Body()],
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+) -> BaseResponse[B2BTransferResponse]:
+    """
+    [Organizer] Transfer B2B tickets to a reseller.
+    Free mode: immediately transfers ticket ownership.
+    Paid mode: returns not_implemented stub.
+    """
+    result = await service.create_b2b_transfer(
+        user_id=request.state.user.id,
+        event_id=event_id,
+        reseller_id=body.reseller_id,
+        quantity=body.quantity,
+        event_day_id=body.event_day_id,
+        mode=body.mode,
+    )
+    return BaseResponse(data=result)
 
 
 @router.get("/b2b/events/{event_id}/my-tickets")
