@@ -11,6 +11,7 @@ from apps.superadmin.enums import B2BRequestStatus
 
 
 from apps.ticketing.repository import TicketingRepository
+from apps.allocation.enums import AllocationStatus
 from apps.allocation.repository import AllocationRepository
 from apps.allocation.service import AllocationService
 from apps.event.repository import EventRepository
@@ -500,6 +501,13 @@ class OrganizerService:
                 lock_reference_id=None,
                 lock_expires_at=None,
             )
+        )
+
+        # 13. Mark allocation as completed (free transfer is immediate)
+        await self._allocation_repo.transition_allocation_status(
+            allocation.id,
+            AllocationStatus.pending,
+            AllocationStatus.completed,
         )
 
         return B2BTransferResponse(

@@ -17,7 +17,7 @@ async def cleanup_expired_ticket_locks():
     """
     Every 5 minutes: find tickets with expired lock_expires_at and clear their lock.
     Processes in batches of 1000 to avoid heavy table locks.
-    Tickets without lock_expires_at set are never touched.
+    Tickets without lock_expires_atGo set are never touched.
     """
     from db.session import async_session
 
