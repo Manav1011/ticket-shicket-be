@@ -19,9 +19,9 @@ async def cleanup_expired_ticket_locks():
     Processes in batches of 1000 to avoid heavy table locks.
     Tickets without lock_expires_at set are never touched.
     """
-    from db.session import db_session
+    from db.session import async_session
 
-    async with db_session() as session:
+    async with async_session() as session:
         total_cleaned = 0
         while True:
             # Select up to BATCH_SIZE expired ticket IDs

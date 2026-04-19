@@ -208,7 +208,7 @@ async def confirm_b2b_payment(
     return BaseResponse(data=B2BRequestResponse.model_validate(b2b_req))
 
 
-@router.post("/b2b/events/{event_id}/transfers")
+@router.post("/b2b/events/{event_id}/transfers/reseller")
 async def create_b2b_transfer_endpoint(
     event_id: UUID,
     request: Request,

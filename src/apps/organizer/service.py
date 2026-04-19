@@ -363,7 +363,8 @@ class OrganizerService:
         from apps.user.repository import UserRepository
         from apps.ticketing.enums import OrderType, OrderStatus
         from apps.allocation.enums import AllocationType
-        from apps.ticketing.models import TicketModel, OrderModel
+        from apps.allocation.models import OrderModel
+        from apps.ticketing.models import TicketModel
         from apps.organizer.response import B2BTransferResponse
         from sqlalchemy import update
 
