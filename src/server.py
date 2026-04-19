@@ -17,6 +17,7 @@ from apps.user import user_router, protected_user_router
 from apps.guest import guest_router, protected_guest_router
 from apps.superadmin.urls import router as superadmin_router
 from apps.core.urls import router as core_router
+from apps.resellers.urls import router as resellers_router
 
 
 def root_health_path(_app: FastAPI) -> None:
@@ -70,6 +71,7 @@ def create_app(debug: bool = False) -> FastAPI:
     base_router.include_router(ticketing_router)
     base_router.include_router(superadmin_router)
     base_router.include_router(core_router)
+    base_router.include_router(resellers_router)
     _app.include_router(base_router, responses={422: {"model": BaseValidationResponse}})
 
     init_middlewares(_app)    
