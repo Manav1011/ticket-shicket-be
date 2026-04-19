@@ -1,4 +1,5 @@
 import re
+from uuid import UUID
 
 from pydantic import field_validator, Field
 
@@ -58,3 +59,10 @@ class CreateB2BRequestBody(CamelCaseModel):
 
 class ConfirmB2BPaymentBody(CamelCaseModel):
     pass
+
+
+class CreateB2BTransferRequest(CamelCaseModel):
+    reseller_id: UUID
+    quantity: int = Field(gt=0)
+    event_day_id: UUID | None = None  # optional if event has only 1 day
+    mode: str = "free"  # "free" or "paid"

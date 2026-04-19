@@ -54,3 +54,12 @@ class MyB2BAllocationItem(CamelCaseModel):
     status: str
     source: str  # from metadata_: "b2b_free" or "b2b_paid"
     created_at: datetime
+
+
+class B2BTransferResponse(CamelCaseModel):
+    transfer_id: UUID
+    status: str  # "completed" | "not_implemented"
+    ticket_count: int
+    reseller_id: UUID
+    mode: str  # "free" | "paid"
+    message: str | None = None  # only present when mode="paid" and not_implemented
