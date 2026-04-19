@@ -332,3 +332,171 @@ class OrganizerService:
         )
 
         return allocations
+
+    async def create_b2b_transfer(
+        self,
+        user_id: uuid.UUID,
+        event_id: uuid.UUID,
+        reseller_id: uuid.UUID,
+        quantity: int,
+        event_day_id: uuid.UUID | None,
+        mode: str = "free",
+    ) -> "B2BTransferResponse":
+        """
+        [Organizer] Transfer B2B tickets to a reseller (free mode).
+
+        Flow:
+        1. Validate reseller exists (user lookup)
+        2. Validate reseller is associated with this event (EventResellerModel accepted record)
+        3. Validate event ownership
+        4. Get organizer's TicketHolder
+        5. Get reseller's TicketHolder (resolve/create)
+        6. Check organizer's available ticket count ≥ quantity
+        7. Atomically lock quantity tickets (FIFO)
+        8. Create $0 TRANSFER order (completed)
+        9. Create allocation (org → reseller, type=b2b)
+        10. Upsert allocation_edges (org → reseller)
+        11. Update ticket ownership to reseller, clear lock fields
+
+        All in one DB transaction — rollback on any failure.
+        """
+        from apps.user.repository import UserRepository
+        from apps.event.repository import EventRepository
+        from apps.ticketing.enums import OrderType, OrderStatus
+        from apps.allocation.enums import AllocationType
+        from apps.ticketing.models import TicketModel, OrderModel
+        from apps.organizer.response import B2BTransferResponse
+        from sqlalchemy import update
+
+        if mode == "paid":
+            return B2BTransferResponse(
+                transfer_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
+                status="not_implemented",
+                ticket_count=0,
+                reseller_id=reseller_id,
+                mode="paid",
+                message="Paid transfer coming soon",
+            )
+
+        if user_id == reseller_id:
+            from exceptions import BadRequestError
+            raise BadRequestError("Cannot transfer tickets to yourself")
+
+        # 1. Validate reseller exists
+        user_repo = UserRepository(self.repository.session)
+        reseller = await user_repo.find_by_id(reseller_id)
+        if not reseller:
+            from exceptions import NotFoundError
+            raise NotFoundError("Reseller user not found")
+
+        # 2. Validate reseller is associated with this event (invite accepted)
+        event_repo = EventRepository(self.repository.session)
+        reseller_record = await event_repo.get_reseller_for_event(reseller_id, event_id)
+        if not reseller_record or reseller_record.accepted_at is None:
+            from exceptions import ForbiddenError
+            raise ForbiddenError("Reseller is not associated with this event")
+
+        # 3. Validate event ownership
+        event = await event_repo.get_by_id_for_owner(event_id, user_id)
+        if not event:
+            from exceptions import ForbiddenError
+            raise ForbiddenError("You do not own this event's organizer page")
+
+        # 4. Get organizer's holder
+        org_holder = await self._allocation_repo.get_holder_by_user_id(user_id)
+        if not org_holder:
+            raise ValueError("Organizer has no ticket holder account")
+
+        # 5. Get reseller's holder (resolve/create)
+        reseller_holder = await self._allocation_repo.resolve_holder(
+            user_id=reseller_id,
+            create_if_missing=True,
+        )
+
+        # 6. Check organizer's available ticket count
+        b2b_ticket_type = await self._ticketing_repo.get_b2b_ticket_type_for_event(event_id)
+        if not b2b_ticket_type:
+            raise ValueError("No B2B ticket type found for this event")
+
+        ticket_rows = await self._allocation_repo.list_b2b_tickets_by_holder(
+            event_id=event_id,
+            holder_id=org_holder.id,
+            b2b_ticket_type_id=b2b_ticket_type.id,
+            event_day_id=event_day_id,
+        )
+        available = sum(r["count"] for r in ticket_rows)
+
+        if available < quantity:
+            raise ValueError(f"Only {available} tickets available, requested {quantity}")
+
+        # 7. Create the transfer order FIRST (to get its ID for locking)
+        order = OrderModel(
+            event_id=event_id,
+            user_id=user_id,
+            type=OrderType.transfer,
+            subtotal_amount=0.0,
+            discount_amount=0.0,
+            final_amount=0.0,
+            status=OrderStatus.completed,
+        )
+        self.repository.session.add(order)
+        await self.repository.session.flush()
+        await self.repository.session.refresh(order)
+
+        # 8. Atomically lock tickets using order.id as lock_reference_id
+        try:
+            locked_ticket_ids = await self._ticketing_repo.lock_tickets_for_transfer(
+                owner_holder_id=org_holder.id,
+                event_id=event_id,
+                ticket_type_id=b2b_ticket_type.id,
+                quantity=quantity,
+                order_id=order.id,
+                lock_ttl_minutes=30,
+            )
+        except ValueError as e:
+            # Partial lock failure — rollback happens automatically when this propagates
+            raise
+
+        # 9. Create allocation (org → reseller, type=b2b)
+        allocation = await self._allocation_repo.create_allocation(
+            event_id=event_id,
+            from_holder_id=org_holder.id,
+            to_holder_id=reseller_holder.id,
+            order_id=order.id,
+            allocation_type=AllocationType.b2b,
+            ticket_count=len(locked_ticket_ids),
+            metadata_={"source": "organizer_transfer", "mode": mode},
+        )
+
+        # 10. Add tickets to allocation
+        await self._allocation_repo.add_tickets_to_allocation(
+            allocation.id, locked_ticket_ids
+        )
+
+        # 11. Upsert edge (org → reseller)
+        await self._allocation_repo.upsert_edge(
+            event_id=event_id,
+            from_holder_id=org_holder.id,
+            to_holder_id=reseller_holder.id,
+            ticket_count=len(locked_ticket_ids),
+        )
+
+        # 12. Update ticket ownership to reseller AND clear lock fields
+        await self.repository.session.execute(
+            update(TicketModel)
+            .where(TicketModel.id.in_(locked_ticket_ids))
+            .values(
+                owner_holder_id=reseller_holder.id,
+                lock_reference_type=None,
+                lock_reference_id=None,
+                lock_expires_at=None,
+            )
+        )
+
+        return B2BTransferResponse(
+            transfer_id=order.id,
+            status="completed",
+            ticket_count=len(locked_ticket_ids),
+            reseller_id=reseller_id,
+            mode=mode,
+        )
