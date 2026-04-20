@@ -6,6 +6,7 @@ from .exceptions import OrganizerNotFound, OrganizerSlugAlreadyExists
 from .models import OrganizerPageModel
 from src.utils.s3_client import get_s3_client
 from src.utils.file_validation import FileValidator, FileValidationError
+from src.utils.validation import normalize_slug
 from apps.superadmin.service import SuperAdminService
 from apps.superadmin.enums import B2BRequestStatus
 
@@ -32,11 +33,53 @@ class OrganizerService:
     async def list_organizer_events(self, owner_user_id, organizer_id, status=None):
         return await self.repository.list_events_for_owner(owner_user_id, organizer_id, status)
 
+    async def list_my_events(
+        self,
+        user_id: UUID,
+        status: str | None = None,
+        event_access_type: str | None = None,
+        date_from=None,
+        date_to=None,
+        search: str | None = None,
+        sort_by: str = "created_at",
+        order: str = "desc",
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[list, dict]:
+        """
+        List all events for user across all their organizer pages.
+        Returns (events, pagination_meta).
+        """
+        from apps.event.repository import EventRepository
+
+        event_repo = EventRepository(self.repository.session)
+
+        events, total = await event_repo.list_events_for_user(
+            owner_user_id=user_id,
+            status=status,
+            event_access_type=event_access_type,
+            date_from=date_from,
+            date_to=date_to,
+            search=search,
+            sort_by=sort_by,
+            order=order,
+            limit=limit,
+            offset=offset,
+        )
+
+        pagination_meta = {
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + len(events) < total,
+        }
+
+        return events, pagination_meta
+
     async def create_organizer(
         self,
         owner_user_id,
         name,
-        slug,
         bio,
         logo_url,
         cover_image_url,
@@ -46,9 +89,13 @@ class OrganizerService:
         youtube_url,
         visibility,
     ):
-        normalized_slug = re.sub(r"[^a-z0-9]+", "-", slug.strip().lower()).strip("-")
-        if await self.repository.get_by_slug(normalized_slug):
-            raise OrganizerSlugAlreadyExists
+        # Auto-generate slug from name
+        base_slug = normalize_slug(name)
+        normalized_slug = base_slug
+        counter = 1
+        while await self.repository.get_by_slug(normalized_slug):
+            normalized_slug = f"{base_slug}-{counter}"
+            counter += 1
 
         organizer = OrganizerPageModel(
             owner_user_id=owner_user_id,
@@ -75,7 +122,7 @@ class OrganizerService:
             raise OrganizerNotFound
 
         if "slug" in payload and payload["slug"] is not None:
-            normalized_slug = re.sub(r"[^a-z0-9]+", "-", payload["slug"].strip().lower()).strip("-")
+            normalized_slug = normalize_slug(payload["slug"])
             existing = await self.repository.get_by_slug(normalized_slug)
             if existing and existing.id != organizer_id:
                 raise OrganizerSlugAlreadyExists
