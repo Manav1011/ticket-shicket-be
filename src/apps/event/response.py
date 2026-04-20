@@ -210,3 +210,15 @@ class ResellerInviteResponse(CamelCaseModel):
     created_at: datetime
     accepted_at: datetime | None = None
     created_at: datetime
+
+
+class PaginationMeta(CamelCaseModel):
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
+class PaginatedEventResponse(CamelCaseModel):
+    events: list[EventResponse]
+    pagination: PaginationMeta
