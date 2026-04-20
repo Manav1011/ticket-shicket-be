@@ -1,10 +1,11 @@
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, File, UploadFile, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.event.response import EventSummaryResponse
+from apps.event.response import EventSummaryResponse, EventResponse
 from auth.dependencies import get_current_user
 from db.session import db_session
 from utils.schema import BaseResponse
@@ -72,6 +73,44 @@ async def list_organizer_events(
 ) -> BaseResponse[list[EventSummaryResponse]]:
     events = await service.list_organizer_events(request.state.user.id, organizer_id, status)
     return BaseResponse(data=[EventSummaryResponse.model_validate(item) for item in events])
+
+
+@router.get("/events")
+async def list_my_events(
+    request: Request,
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+    status: str | None = None,
+    event_access_type: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    search: str | None = None,
+    sort_by: str = "created_at",
+    order: str = "desc",
+    limit: int = 20,
+    offset: int = 0,
+) -> BaseResponse[dict]:
+    """
+    [Organizer] List all events across all organizer pages owned by the current user.
+    Supports filtering by status, event_access_type, date range, and title search.
+    Sortable by created_at, start_date, title, status. Paginated with limit/offset.
+    """
+    events, pagination_meta = await service.list_my_events(
+        user_id=request.state.user.id,
+        status=status,
+        event_access_type=event_access_type,
+        date_from=date_from,
+        date_to=date_to,
+        search=search,
+        sort_by=sort_by,
+        order=order,
+        limit=limit,
+        offset=offset,
+    )
+
+    return BaseResponse(data={
+        "events": [EventResponse.model_validate(e) for e in events],
+        "pagination": pagination_meta,
+    })
 
 
 @router.post("/{organizer_id}/logo")

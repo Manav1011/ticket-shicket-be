@@ -6,7 +6,6 @@ from .exceptions import OrganizerNotFound, OrganizerSlugAlreadyExists
 from .models import OrganizerPageModel
 from src.utils.s3_client import get_s3_client
 from src.utils.file_validation import FileValidator, FileValidationError
-from src.utils.validation import normalize_slug
 from apps.superadmin.service import SuperAdminService
 from apps.superadmin.enums import B2BRequestStatus
 
@@ -80,6 +79,7 @@ class OrganizerService:
         self,
         owner_user_id,
         name,
+        slug,
         bio,
         logo_url,
         cover_image_url,
@@ -89,13 +89,9 @@ class OrganizerService:
         youtube_url,
         visibility,
     ):
-        # Auto-generate slug from name
-        base_slug = normalize_slug(name)
-        normalized_slug = base_slug
-        counter = 1
-        while await self.repository.get_by_slug(normalized_slug):
-            normalized_slug = f"{base_slug}-{counter}"
-            counter += 1
+        normalized_slug = re.sub(r"[^a-z0-9]+", "-", slug.strip().lower()).strip("-")
+        if await self.repository.get_by_slug(normalized_slug):
+            raise OrganizerSlugAlreadyExists
 
         organizer = OrganizerPageModel(
             owner_user_id=owner_user_id,
@@ -122,7 +118,7 @@ class OrganizerService:
             raise OrganizerNotFound
 
         if "slug" in payload and payload["slug"] is not None:
-            normalized_slug = normalize_slug(payload["slug"])
+            normalized_slug = re.sub(r"[^a-z0-9]+", "-", payload["slug"].strip().lower()).strip("-")
             existing = await self.repository.get_by_slug(normalized_slug)
             if existing and existing.id != organizer_id:
                 raise OrganizerSlugAlreadyExists
