@@ -53,3 +53,11 @@ def validate_email(email: str) -> str | None:
     if not isinstance(email, str) and email is not None:
         raise InvalidEmailException
     return email
+
+
+def normalize_slug(text: str) -> str:
+    """
+    Convert any string into a URL-safe slug.
+    Example: "Maya's Event Organizers & Co. 2026!" → "maya-s-event-organizers-co-2026"
+    """
+    return re.sub(r"[^a-z0-9]+", "-", text.strip().lower()).strip("-")

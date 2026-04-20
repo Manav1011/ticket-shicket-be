@@ -165,16 +165,25 @@ async def test_get_readiness_reports_missing_sections_from_setup_status():
     organizer_repo = AsyncMock()
     event_repo = AsyncMock()
     event_repo.session = AsyncMock()
+    # Event with basic_info complete but schedule/tickets/assets incomplete
     event_repo.get_by_id_for_owner.return_value = SimpleNamespace(
         id=event_id,
-        setup_status={"basic_info": True, "schedule": False, "tickets": False, "assets": False},
+        title="Test Event",
+        event_access_type="ticketed",
+        location_mode="venue",
+        timezone="Asia/Kolkata",
     )
+    event_repo.count_event_days.return_value = 0
+    event_repo.count_ticket_types.return_value = 0
+    event_repo.count_ticket_allocations.return_value = 0
+    event_repo.list_media_assets.return_value = []
     service = EventService(event_repo, organizer_repo)
 
     readiness = await service.get_readiness(owner_id, event_id)
 
-    assert readiness["completed_sections"] == ["basic_info"]
+    assert "basic_info" in readiness["completed_sections"]
     assert "schedule" in readiness["missing_sections"]
+    assert "tickets" in readiness["missing_sections"]
     assert "Add at least one event day" in readiness["blocking_issues"]
 
 

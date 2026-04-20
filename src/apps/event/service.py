@@ -312,12 +312,10 @@ class EventService:
 
     async def get_readiness(self, owner_user_id, event_id):
         event = await self.get_event_detail(owner_user_id, event_id)
-        status = event.setup_status or {
-            "basic_info": False,
-            "schedule": False,
-            "tickets": False,
-            "assets": False,
-        }
+        day_count = await self.repository.count_event_days(event.id)
+        ticket_type_count = await self.repository.count_ticket_types(event.id)
+        allocation_count = await self.repository.count_ticket_allocations(event.id)
+        status = await self._build_setup_status(event, day_count, ticket_type_count, allocation_count)
         missing_sections = [name for name, done in status.items() if not done]
         blocking_issues = []
         if not status["basic_info"]:

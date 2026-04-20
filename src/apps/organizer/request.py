@@ -13,7 +13,6 @@ URL_REGEX = r"^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(/.*)?$"
 
 class CreateOrganizerPageRequest(CamelCaseModel):
     name: str
-    slug: str
     bio: str | None = None
     logo_url: str | None = None
     cover_image_url: str | None = None

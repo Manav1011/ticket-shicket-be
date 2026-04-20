@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, ConfigDict
 
 from apps.event.enums import EventAccessType, LocationMode
 from utils.schema import CamelCaseModel
@@ -76,6 +76,8 @@ class EventSortField(str, Enum):
 
 
 class EventFilterParams(CamelCaseModel):
+    model_config = ConfigDict(validate_default=True)
+
     status: str | None = None
     event_access_type: str | None = None
     date_from: Date | None = None

@@ -56,6 +56,20 @@ def start_exception_handlers(_app: FastAPI) -> None:
         Handler for all the :`Exception` raised within the apps.
         """
         exc = args[1]
+        from pydantic_core._pydantic_core import ValidationError
+
+        # Pydantic field_validator raises ValidationError — return 422 directly
+        if isinstance(exc, ValidationError):
+            logger.warning(f"ValidationError caught in handler: {exc}")
+            return JSONResponse(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                content={
+                    "status": "Error",
+                    "code": status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    "message": str(exc),
+                },
+            )
+
         logger.error(f"{exc.__class__.__name__}: {str(exc)}")
 
         if settings.is_production:

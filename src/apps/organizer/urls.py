@@ -94,6 +94,37 @@ async def list_my_events(
     Supports filtering by status, event_access_type, date range, and title search.
     Sortable by created_at, start_date, title, status. Paginated with limit/offset.
     """
+    # Validate sort_by - must be valid EventSortField value
+    valid_sort_fields = {"created_at", "start_date", "title", "status"}
+    if sort_by not in valid_sort_fields:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail=f"sort_by must be one of: {valid_sort_fields}")
+
+    # Validate order
+    if order not in ("asc", "desc"):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail="order must be 'asc' or 'desc'")
+
+    # Validate status
+    if status is not None and status not in ("draft", "published", "archived"):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail="status must be draft, published, or archived")
+
+    # Validate event_access_type
+    if event_access_type is not None and event_access_type not in ("open", "ticketed"):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail="event_access_type must be open or ticketed")
+
+    # Validate limit (must be 1-100)
+    if limit < 1 or limit > 100:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail="limit must be between 1 and 100")
+
+    # Validate offset (must be >= 0)
+    if offset < 0:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail="offset must be >= 0")
+
     events, pagination_meta = await service.list_my_events(
         user_id=request.state.user.id,
         status=status,
