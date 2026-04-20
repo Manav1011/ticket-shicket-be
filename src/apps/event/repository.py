@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 from uuid import UUID
 
@@ -312,3 +313,60 @@ class EventRepository:
             .order_by(EventModel.created_at.desc())
         )
         return list(result.all())
+
+    async def list_events_for_user(
+        self,
+        owner_user_id: UUID,
+        status: str | None = None,
+        event_access_type: str | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        search: str | None = None,
+        sort_by: str = "created_at",
+        order: str = "desc",
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[list[EventModel], int]:
+        """
+        List all events for a user across all their organizer pages.
+        Returns (events, total_count). Optimized — uses index on organizer_page_id + owner_user_id.
+        """
+        # Base conditions: event belongs to an organizer page owned by this user
+        conditions = [
+            OrganizerPageModel.owner_user_id == owner_user_id,
+        ]
+
+        if status is not None:
+            conditions.append(EventModel.status == status)
+        if event_access_type is not None:
+            conditions.append(EventModel.event_access_type == event_access_type)
+        if date_from is not None:
+            conditions.append(EventModel.start_date >= date_from)
+        if date_to is not None:
+            conditions.append(EventModel.start_date <= date_to)
+        if search is not None:
+            conditions.append(EventModel.title.ilike(f"%{search}%"))
+
+        # Sorting
+        sort_column = {
+            "created_at": EventModel.created_at,
+            "start_date": EventModel.start_date,
+            "title": EventModel.title,
+            "status": EventModel.status,
+        }.get(sort_by, EventModel.created_at)
+
+        if order == "asc":
+            query = select(EventModel).join_from(EventModel, OrganizerPageModel).where(*conditions).order_by(sort_column.asc())
+        else:
+            query = select(EventModel).join_from(EventModel, OrganizerPageModel).where(*conditions).order_by(sort_column.desc())
+
+        # Count total
+        count_query = select(func.count(EventModel.id)).join_from(EventModel, OrganizerPageModel).where(*conditions)
+        total = await self._session.scalar(count_query) or 0
+
+        # Paginated results
+        query = query.limit(limit).offset(offset)
+        result = await self._session.scalars(query)
+        events = list(result.all())
+
+        return events, total
