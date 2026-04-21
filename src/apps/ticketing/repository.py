@@ -210,3 +210,35 @@ class TicketingRepository:
             )
 
         return locked_ids
+
+    async def select_tickets_for_transfer(
+        self,
+        owner_holder_id: UUID,
+        event_id: UUID,
+        quantity: int,
+        event_day_id: UUID | None = None,
+    ) -> list[dict]:
+        """
+        Select tickets for transfer from a holder's pool.
+        Returns list of dicts with ticket id and ticket_index.
+        Uses FIFO ordering (ticket_index ASC).
+
+        Does NOT lock or update — caller decides what to do with selected tickets.
+        """
+        conditions = [
+            TicketModel.event_id == event_id,
+            TicketModel.owner_holder_id == owner_holder_id,
+            TicketModel.status == "active",
+            TicketModel.lock_reference_id.is_(None),
+        ]
+        if event_day_id:
+            conditions.append(TicketModel.event_day_id == event_day_id)
+
+        result = await self._session.execute(
+            select(TicketModel.id, TicketModel.ticket_index)
+            .where(*conditions)
+            .order_by(TicketModel.ticket_index.asc())
+            .limit(quantity)
+        )
+        rows = result.all()
+        return [{"ticket_id": row[0], "ticket_index": row[1]} for row in rows]
