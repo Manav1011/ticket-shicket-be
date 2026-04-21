@@ -156,6 +156,45 @@ class AllocationRepository:
         await self._session.flush()
         return records
 
+    async def create_allocation_with_claim_link(
+        self,
+        event_id: UUID,
+        from_holder_id: UUID | None,
+        to_holder_id: UUID,
+        order_id: UUID,
+        allocation_type: "AllocationType",
+        ticket_count: int,
+        token_hash: str,
+        created_by_holder_id: UUID,
+        metadata_: dict | None = None,
+    ) -> tuple[AllocationModel, ClaimLinkModel]:
+        """
+        Create an allocation and its associated claim link in a single transaction.
+        Returns (allocation, claim_link).
+
+        The claim link is created for the recipient (to_holder_id).
+        """
+        allocation = await self.create_allocation(
+            event_id=event_id,
+            from_holder_id=from_holder_id,
+            to_holder_id=to_holder_id,
+            order_id=order_id,
+            allocation_type=allocation_type,
+            ticket_count=ticket_count,
+            metadata_=metadata_,
+        )
+
+        claim_link = await ClaimLinkRepository(self._session).create(
+            allocation_id=allocation.id,
+            token_hash=token_hash,
+            event_id=event_id,
+            from_holder_id=from_holder_id,
+            to_holder_id=to_holder_id,
+            created_by_holder_id=created_by_holder_id,
+        )
+
+        return allocation, claim_link
+
     # --- AllocationEdge ---
 
     async def upsert_edge(
