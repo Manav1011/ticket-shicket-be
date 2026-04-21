@@ -1,7 +1,9 @@
 import uuid
+from datetime import datetime
 
 from sqlalchemy import (
     CheckConstraint,
+    DateTime,
     Enum,
     ForeignKey,
     Integer,
@@ -16,7 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
 from apps.ticketing.enums import OrderStatus, OrderType
-from .enums import AllocationStatus, AllocationType, TicketHolderStatus
+from .enums import AllocationStatus, AllocationType, ClaimLinkStatus, TicketHolderStatus
 
 
 class TicketHolderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
@@ -39,6 +41,37 @@ class TicketHolderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
             "phone IS NOT NULL OR email IS NOT NULL",
             name="ck_ticket_holders_has_contact",
         ),
+    )
+
+
+class ClaimLinkModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
+    __tablename__ = "claim_links"
+
+    allocation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("allocations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token_hash: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    from_holder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ticket_holders.id", ondelete="CASCADE"), nullable=True
+    )
+    to_holder_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("ticket_holders.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(
+        Enum(ClaimLinkStatus),
+        default=ClaimLinkStatus.active,
+        server_default=text("'active'"),
+        nullable=False,
+        index=True,
+    )
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_by_holder_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("ticket_holders.id", ondelete="CASCADE"), nullable=False
     )
 
 
