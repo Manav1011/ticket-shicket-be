@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -72,6 +73,23 @@ class ClaimLinkModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_by_holder_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("ticket_holders.id", ondelete="CASCADE"), nullable=False
+    )
+
+
+class RevokedScanTokenModel(Base, UUIDPrimaryKeyMixin):
+    __tablename__ = "revoked_scan_tokens"
+
+    event_day_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("event_days.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    jti: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    reason: Mapped[str] = mapped_column(String(32), nullable=False)
+    revoked_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("event_day_id", "jti", name="uq_revoked_scan_tokens_event_day_jti"),
     )
 
 
