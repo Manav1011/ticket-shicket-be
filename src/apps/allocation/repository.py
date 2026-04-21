@@ -6,8 +6,8 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.ticketing.models import TicketModel, TicketTypeModel
-from .enums import AllocationStatus, AllocationType
-from .models import AllocationEdgeModel, AllocationModel, AllocationTicketModel, TicketHolderModel
+from .enums import AllocationStatus, AllocationType, ClaimLinkStatus
+from .models import AllocationEdgeModel, AllocationModel, AllocationTicketModel, TicketHolderModel, ClaimLinkModel
 
 
 class AllocationRepository:
@@ -279,3 +279,64 @@ class AllocationRepository:
             })
 
         return enriched
+
+
+class ClaimLinkRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        allocation_id: UUID,
+        token_hash: str,
+        event_id: UUID,
+        from_holder_id: UUID | None,
+        to_holder_id: UUID,
+        created_by_holder_id: UUID,
+    ) -> ClaimLinkModel:
+        """Create a new claim link."""
+        link = ClaimLinkModel(
+            allocation_id=allocation_id,
+            token_hash=token_hash,
+            event_id=event_id,
+            from_holder_id=from_holder_id,
+            to_holder_id=to_holder_id,
+            status=ClaimLinkStatus.active,
+            created_by_holder_id=created_by_holder_id,
+        )
+        self._session.add(link)
+        await self._session.flush()
+        await self._session.refresh(link)
+        return link
+
+    async def get_by_token_hash(self, token_hash: str) -> ClaimLinkModel | None:
+        """Get a claim link by its token hash."""
+        return await self._session.scalar(
+            select(ClaimLinkModel).where(ClaimLinkModel.token_hash == token_hash)
+        )
+
+    async def get_active_by_to_holder(self, to_holder_id: UUID) -> ClaimLinkModel | None:
+        """Get the active claim link for a recipient holder."""
+        return await self._session.scalar(
+            select(ClaimLinkModel)
+            .where(
+                ClaimLinkModel.to_holder_id == to_holder_id,
+                ClaimLinkModel.status == ClaimLinkStatus.active,
+            )
+            .order_by(ClaimLinkModel.created_at.desc())
+        )
+
+    async def revoke(self, token_hash: str) -> bool:
+        """
+        Revoke a claim link by setting status to inactive.
+        Returns True if revocation succeeded.
+        """
+        result = await self._session.execute(
+            update(ClaimLinkModel)
+            .where(
+                ClaimLinkModel.token_hash == token_hash,
+                ClaimLinkModel.status == ClaimLinkStatus.active,
+            )
+            .values(status=ClaimLinkStatus.inactive)
+        )
+        return result.rowcount > 0
