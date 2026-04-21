@@ -2,12 +2,12 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select, update, func, or_
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.ticketing.models import TicketModel, TicketTypeModel
 from .enums import AllocationStatus, AllocationType, ClaimLinkStatus
-from .models import AllocationEdgeModel, AllocationModel, AllocationTicketModel, TicketHolderModel, ClaimLinkModel
+from .models import AllocationEdgeModel, AllocationModel, AllocationTicketModel, TicketHolderModel, ClaimLinkModel, RevokedScanTokenModel
 
 
 class AllocationRepository:
@@ -340,3 +340,50 @@ class ClaimLinkRepository:
             .values(status=ClaimLinkStatus.inactive)
         )
         return result.rowcount > 0
+
+
+class RevokedScanTokenRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add_revoked(
+        self,
+        event_day_id: UUID,
+        jti: str,
+        reason: str,
+    ) -> None:
+        """
+        Add a JTI to the revoked tokens table.
+        Uses ON CONFLICT DO NOTHING to handle duplicate revocations gracefully.
+        """
+        stmt = pg_insert(RevokedScanTokenModel).values(
+            event_day_id=event_day_id,
+            jti=jti,
+            reason=reason,
+        )
+        stmt = stmt.on_conflict_do_nothing(
+            constraint="uq_revoked_scan_tokens_event_day_jti",
+        )
+        await self._session.execute(stmt)
+
+    async def is_revoked(self, event_day_id: UUID, jti: str) -> bool:
+        """Check if a JTI has been revoked for a given event day."""
+        result = await self._session.scalar(
+            select(RevokedScanTokenModel.jti).where(
+                RevokedScanTokenModel.event_day_id == event_day_id,
+                RevokedScanTokenModel.jti == jti,
+            )
+        )
+        return result is not None
+
+    async def get_revoked_jtis_for_event_day(
+        self,
+        event_day_id: UUID,
+    ) -> list[str]:
+        """Get all revoked JTI strings for an event day."""
+        result = await self._session.scalars(
+            select(RevokedScanTokenModel.jti).where(
+                RevokedScanTokenModel.event_day_id == event_day_id,
+            )
+        )
+        return list(result.all())
