@@ -18,3 +18,8 @@ class AllocationType(str, Enum):
     purchase = "purchase"
     transfer = "transfer"
     refund = "refund"
+
+
+class ClaimLinkStatus(str, Enum):
+    active = "active"
+    inactive = "inactive"
