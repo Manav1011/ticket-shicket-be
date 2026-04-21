@@ -242,3 +242,26 @@ class TicketingRepository:
         )
         rows = result.all()
         return [{"ticket_id": row[0], "ticket_index": row[1]} for row in rows]
+
+    async def update_ticket_ownership_batch(
+        self,
+        ticket_ids: list[UUID],
+        new_owner_holder_id: UUID,
+    ) -> None:
+        """
+        Update owner_holder_id for a batch of tickets.
+        Clears lock fields as part of ownership transfer.
+        """
+        if not ticket_ids:
+            return
+        
+        await self._session.execute(
+            update(TicketModel)
+            .where(TicketModel.id.in_(ticket_ids))
+            .values(
+                owner_holder_id=new_owner_holder_id,
+                lock_reference_type=None,
+                lock_reference_id=None,
+                lock_expires_at=None,
+            )
+        )
