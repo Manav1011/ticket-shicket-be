@@ -3,7 +3,8 @@
     "allow": [
       "Bash(docker exec *)",
       "Bash(curl -s -X POST http://localhost:8080/api/user/create -H 'Content-Type: application/json' -d '{ *)",
-      "Bash(python3 -m json.tool)"
+      "Bash(python3 -m json.tool)",
+      "Bash(python3 -c \"from apps.allocation.enums import ClaimLinkStatus; from apps.allocation.models import ClaimLinkModel, RevokedScanTokenModel; from apps.allocation.repository import ClaimLinkRepository, RevokedScanTokenRepository, AllocationRepository; from apps.ticketing.repository import TicketingRepository; from src.utils.claim_link_utils import generate_claim_link_token; from src.utils.jwt_utils import generate_scan_jwt; print\\('All imports OK'\\)\")"
     ]
   },
   "hooks": {
