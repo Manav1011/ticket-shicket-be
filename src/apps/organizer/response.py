@@ -71,3 +71,19 @@ class B2BTransferResponse(CamelCaseModel):
         if v not in ('free', 'paid'):
             raise ValueError('mode must be either "free" or "paid"')
         return v
+
+
+class CustomerTransferResponse(CamelCaseModel):
+    transfer_id: UUID
+    status: str  # "completed" | "not_implemented" | "pending_payment"
+    ticket_count: int
+    mode: str  # "free" | "paid"
+    claim_link: str | None = None  # URL path like "/claim/abc12345" (only when status=completed)
+    message: str | None = None  # only when mode="paid" and status="not_implemented"
+
+    @field_validator('mode')
+    @classmethod
+    def validate_mode(cls, v):
+        if v not in ('free', 'paid'):
+            raise ValueError('mode must be either "free" or "paid"')
+        return v
