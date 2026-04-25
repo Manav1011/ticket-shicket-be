@@ -57,6 +57,9 @@ class ClaimLinkModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     event_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    event_day_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("event_days.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     from_holder_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("ticket_holders.id", ondelete="CASCADE"), nullable=True
     )
