@@ -560,3 +560,202 @@ class OrganizerService:
             reseller_id=reseller_id,
             mode=mode,
         )
+
+    async def create_customer_transfer(
+        self,
+        user_id: uuid.UUID,
+        event_id: uuid.UUID,
+        phone: str | None,
+        email: str | None,
+        quantity: int,
+        event_day_id: uuid.UUID,
+        mode: str = "free",
+    ) -> "CustomerTransferResponse":
+        """
+        [Organizer] Transfer B2B tickets to a customer (free mode).
+        Customer receives a claim link; their ticket ownership is transferred immediately.
+
+        Flow (free mode):
+        1. Validate event ownership
+        2. Validate event_day_id provided and belongs to event
+        3. Resolve customer TicketHolder (phone+email match, or phone-only, or email-only)
+        4. Get organizer's TicketHolder
+        5. Check organizer's available ticket count ≥ quantity (scoped to event_day)
+        6. Create $0 TRANSFER order (status=paid, immediate)
+        7. Lock tickets (FIFO, 30-min TTL) for specific ticket_type + event_day
+        8. Create Allocation + ClaimLink in one transaction (create_allocation_with_claim_link)
+           - ClaimLink.event_day_id = the target event_day (claim is scoped per day)
+        9. Add tickets to allocation (add_tickets_to_allocation)
+        10. Upsert AllocationEdge (org → customer)
+        11. Update ticket ownership to customer, clear lock fields
+        12. Mark allocation as completed (free transfer is immediate)
+        13. Send notifications (mock SMS/WhatsApp/Email)
+
+        Flow (paid mode):
+        - Returns stub: status="not_implemented", mode="paid"
+
+        Returns:
+            CustomerTransferResponse with transfer_id, status, ticket_count, mode, claim_link
+        """
+        from apps.ticketing.enums import OrderType, OrderStatus
+        from apps.allocation.enums import AllocationType
+        from apps.allocation.models import OrderModel
+        from apps.ticketing.models import TicketModel
+        from apps.organizer.response import CustomerTransferResponse
+        from apps.event.repository import EventRepository
+        from src.utils.claim_link_utils import generate_claim_link_token
+        from src.utils.notifications.sms import mock_send_sms
+        from src.utils.notifications.whatsapp import mock_send_whatsapp
+        from src.utils.notifications.email import mock_send_email
+        from exceptions import BadRequestError, NotFoundError
+        from sqlalchemy import update
+
+        if mode == "paid":
+            return CustomerTransferResponse(
+                transfer_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
+                status="not_implemented",
+                ticket_count=0,
+                mode="paid",
+                message="Paid customer transfer coming soon",
+            )
+
+        if not phone and not email:
+            raise BadRequestError("Either phone or email must be provided")
+
+        # 1. Validate event ownership
+        event_repo = EventRepository(self.repository.session)
+        event = await event_repo.get_by_id_for_owner(event_id, user_id)
+        if not event:
+            raise ForbiddenError("You do not own this event's organizer page")
+
+        # 2. Validate event_day_id exists and belongs to event
+        event_day = await event_repo.get_event_day_by_id(event_day_id)
+        if not event_day or event_day.event_id != event_id:
+            raise NotFoundError("Event day not found or does not belong to this event")
+
+        # 3. Resolve customer TicketHolder
+        # If both phone AND email: try to find holder matching BOTH first
+        # If not found: create new holder with both fields
+        # If only one provided: resolve/create by that single field
+        if phone and email:
+            existing = await self._allocation_repo.get_holder_by_phone_and_email(phone, email)
+            if existing:
+                customer_holder = existing
+            else:
+                customer_holder = await self._allocation_repo.create_holder(
+                    phone=phone, email=email
+                )
+        elif phone:
+            customer_holder = await self._allocation_repo.get_holder_by_phone(phone)
+            if not customer_holder:
+                customer_holder = await self._allocation_repo.create_holder(phone=phone)
+        else:
+            customer_holder = await self._allocation_repo.get_holder_by_email(email)
+            if not customer_holder:
+                customer_holder = await self._allocation_repo.create_holder(email=email)
+
+        # 4. Get organizer's holder
+        org_holder = await self._allocation_repo.get_holder_by_user_id(user_id)
+        if not org_holder:
+            raise NotFoundError("Organizer has no ticket holder account")
+
+        # 5. Check organizer's available ticket count ≥ quantity
+        b2b_ticket_type = await self._ticketing_repo.get_b2b_ticket_type_for_event(event_id)
+        if not b2b_ticket_type:
+            raise NotFoundError("No B2B ticket type found for this event")
+
+        ticket_rows = await self._allocation_repo.list_b2b_tickets_by_holder(
+            event_id=event_id,
+            holder_id=org_holder.id,
+            b2b_ticket_type_id=b2b_ticket_type.id,
+            event_day_id=event_day_id,
+        )
+        available = sum(r["count"] for r in ticket_rows)
+        if available < quantity:
+            raise BadRequestError(f"Only {available} B2B tickets available, requested {quantity}")
+
+        # 6. Create $0 TRANSFER order (status=paid — immediate completion)
+        order = OrderModel(
+            event_id=event_id,
+            user_id=user_id,
+            type=OrderType.transfer,
+            subtotal_amount=0.0,
+            discount_amount=0.0,
+            final_amount=0.0,
+            status=OrderStatus.paid,
+        )
+        self.repository.session.add(order)
+        await self.repository.session.flush()
+        await self.repository.session.refresh(order)
+
+        # 7. Lock tickets using order.id as lock_reference_id
+        locked_ticket_ids = await self._ticketing_repo.lock_tickets_for_transfer(
+            owner_holder_id=org_holder.id,
+            event_id=event_id,
+            ticket_type_id=b2b_ticket_type.id,
+            quantity=quantity,
+            order_id=order.id,
+            lock_ttl_minutes=30,
+        )
+
+        # 8. Create allocation + claim link in one transaction
+        raw_token = generate_claim_link_token(length=8)
+        allocation, claim_link = await self._allocation_repo.create_allocation_with_claim_link(
+            event_id=event_id,
+            event_day_id=event_day_id,
+            from_holder_id=org_holder.id,
+            to_holder_id=customer_holder.id,
+            order_id=order.id,
+            allocation_type=AllocationType.transfer,
+            ticket_count=len(locked_ticket_ids),
+            token_hash=raw_token,
+            created_by_holder_id=org_holder.id,
+            metadata_={"source": "organizer_customer_free", "mode": mode},
+        )
+
+        # 9. Add tickets to allocation
+        await self._allocation_repo.add_tickets_to_allocation(allocation.id, locked_ticket_ids)
+
+        # 10. Upsert allocation edge (org → customer)
+        await self._allocation_repo.upsert_edge(
+            event_id=event_id,
+            from_holder_id=org_holder.id,
+            to_holder_id=customer_holder.id,
+            ticket_count=len(locked_ticket_ids),
+        )
+
+        # 11. Update ticket ownership to customer, clear lock fields
+        await self.repository.session.execute(
+            update(TicketModel)
+            .where(TicketModel.id.in_(locked_ticket_ids))
+            .values(
+                owner_holder_id=customer_holder.id,
+                lock_reference_type=None,
+                lock_reference_id=None,
+                lock_expires_at=None,
+            )
+        )
+
+        # 12. Mark allocation as completed (free transfer is immediate)
+        await self._allocation_repo.transition_allocation_status(
+            allocation.id,
+            AllocationStatus.pending,
+            AllocationStatus.completed,
+        )
+
+        # 13. Send notifications (mock — real integration replaces these later)
+        claim_url = f"/claim/{raw_token}"
+        message = f"You received {len(locked_ticket_ids)} ticket(s). Claim at: {claim_url}"
+
+        mock_send_sms(phone or "", message, template="customer_transfer")
+        mock_send_whatsapp(phone or "", message, template="customer_transfer")
+        if email:
+            mock_send_email(email, "You received tickets!", message)
+
+        return CustomerTransferResponse(
+            transfer_id=order.id,
+            status="completed",
+            ticket_count=len(locked_ticket_ids),
+            mode=mode,
+            claim_link=claim_url,
+        )
