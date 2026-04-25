@@ -154,6 +154,41 @@ class TicketingRepository:
         )
         return result
 
+    async def get_or_create_b2b_ticket_type_for_event(
+        self,
+        event_id: UUID,
+        name: str = "B2B",
+        price: float = 0.0,
+        currency: str = "INR",
+    ) -> TicketTypeModel:
+        """
+        Get or create a B2B ticket type for a given event.
+        If a B2B ticket type already exists for this event, returns it.
+        Otherwise creates a new B2B ticket type linked to this event.
+        """
+        from apps.ticketing.enums import TicketCategory
+
+        existing = await self._session.scalar(
+            select(TicketTypeModel).where(
+                TicketTypeModel.event_id == event_id,
+                TicketTypeModel.category == TicketCategory.b2b,
+            )
+        )
+        if existing:
+            return existing
+
+        ticket_type = TicketTypeModel(
+            event_id=event_id,
+            name=name,
+            category=TicketCategory.b2b,
+            price=price,
+            currency=currency,
+        )
+        self._session.add(ticket_type)
+        await self._session.flush()
+        await self._session.refresh(ticket_type)
+        return ticket_type
+
     async def lock_tickets_for_transfer(
         self,
         owner_holder_id: UUID,

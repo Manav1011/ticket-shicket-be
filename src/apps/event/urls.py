@@ -9,6 +9,7 @@ from db.session import db_session
 from utils.schema import BaseResponse
 
 from apps.organizer.repository import OrganizerRepository
+from apps.ticketing.repository import TicketingRepository
 from .repository import EventRepository
 from .request import CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest, UpdateEventDayRequest, UpdateMediaAssetMetadataRequest, UpdateShowTicketsRequest, CreateResellerInviteRequest
 from .response import EventDayResponse, EventReadinessResponse, EventResponse, PublishValidationResponse, ScanStatusHistoryResponse, MediaAssetResponse, ResellerResponse, ResellerInviteResponse
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/api/events", tags=["Event"], dependencies=[Depends(g
 def get_event_service(
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> EventService:
-    return EventService(EventRepository(session), OrganizerRepository(session))
+    return EventService(EventRepository(session), OrganizerRepository(session), TicketingRepository(session))
 
 
 def get_user_invite_service(

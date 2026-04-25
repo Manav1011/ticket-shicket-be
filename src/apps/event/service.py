@@ -12,6 +12,7 @@ from src.utils.s3_client import get_s3_client
 from src.utils.file_validation import FileValidator, FileValidationError
 from .repository import EventRepository
 from apps.organizer.repository import OrganizerRepository
+from apps.ticketing.repository import TicketingRepository
 
 
 def _serialize_for_json(obj):
@@ -29,9 +30,10 @@ def _serialize_for_json(obj):
 
 
 class EventService:
-    def __init__(self, repository: EventRepository, organizer_repository: OrganizerRepository) -> None:
+    def __init__(self, repository: EventRepository, organizer_repository: OrganizerRepository, ticketing_repository: TicketingRepository | None = None) -> None:
         self.repository = repository
         self.organizer_repository = organizer_repository
+        self._ticketing_repo = ticketing_repository
 
     async def create_draft_event(self, owner_user_id, organizer_page_id, title, event_access_type):
         if not title or not title.strip():
@@ -62,6 +64,9 @@ class EventService:
         self.repository.add(event)
         await self.repository.session.flush()
         await self.repository.session.refresh(event)
+        # Auto-create B2B ticket type for this event so B2B transfers work out of the box
+        if self._ticketing_repo is not None:
+            await self._ticketing_repo.get_or_create_b2b_ticket_type_for_event(event.id)
         return event
 
     async def _build_setup_status(self, event, day_count, ticket_type_count, allocation_count):
