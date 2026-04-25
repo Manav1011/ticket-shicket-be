@@ -11,8 +11,8 @@ from db.session import db_session
 from utils.schema import BaseResponse
 
 from .repository import OrganizerRepository
-from .request import CreateOrganizerPageRequest, UpdateOrganizerPageRequest, CreateB2BRequestBody, ConfirmB2BPaymentBody, CreateB2BTransferRequest
-from .response import OrganizerPageResponse, MyB2BTicketsResponse, MyB2BAllocationItem, B2BTransferResponse
+from .request import CreateOrganizerPageRequest, UpdateOrganizerPageRequest, CreateB2BRequestBody, ConfirmB2BPaymentBody, CreateB2BTransferRequest, CreateCustomerTransferRequest
+from .response import OrganizerPageResponse, MyB2BTicketsResponse, MyB2BAllocationItem, B2BTransferResponse, CustomerTransferResponse
 from .service import OrganizerService
 from apps.superadmin.response import B2BRequestResponse
 
@@ -294,6 +294,30 @@ async def create_b2b_transfer_endpoint(
         user_id=request.state.user.id,
         event_id=event_id,
         reseller_id=body.reseller_id,
+        quantity=body.quantity,
+        event_day_id=body.event_day_id,
+        mode=body.mode,
+    )
+    return BaseResponse(data=result)
+
+
+@router.post("/b2b/events/{event_id}/transfers/customer")
+async def create_customer_transfer_endpoint(
+    event_id: UUID,
+    request: Request,
+    body: Annotated[CreateCustomerTransferRequest, Body()],
+    service: Annotated[OrganizerService, Depends(get_organizer_service)],
+) -> BaseResponse[CustomerTransferResponse]:
+    """
+    [Organizer] Transfer B2B tickets to a customer via phone or email.
+    Free mode: immediately transfers ticket ownership and generates a claim link.
+    Paid mode: returns not_implemented stub.
+    """
+    result = await service.create_customer_transfer(
+        user_id=request.state.user.id,
+        event_id=event_id,
+        phone=body.phone,
+        email=body.email,
         quantity=body.quantity,
         event_day_id=body.event_day_id,
         mode=body.mode,
