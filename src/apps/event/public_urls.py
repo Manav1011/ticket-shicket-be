@@ -16,6 +16,7 @@ from .repository import EventRepository
 from .response import EventInterestResponse, EventSummaryResponse, EventDetailResponse
 from .service import EventService
 from .public_service import PublicEventService
+from .claim_service import ClaimService
 
 router = APIRouter(
     prefix="/api/open/events",
@@ -83,3 +84,35 @@ async def get_public_event(
 ) -> BaseResponse[EventDetailResponse]:
     event = await service.get_public_event(event_id)
     return BaseResponse(data=EventDetailResponse.model_validate(event))
+
+
+# ── Claim Link Redemption ───────────────────────────────────────────────────
+
+claim_router = APIRouter(
+    prefix="/api/open/claim",
+    tags=["Claim Link"],
+)
+
+
+def get_claim_service(
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> ClaimService:
+    return ClaimService(session)
+
+
+@claim_router.get("/{token}", operation_id="redeem_claim_link")
+async def redeem_claim_link(
+    token: str,
+    service: Annotated[ClaimService, Depends(get_claim_service)],
+) -> str:
+    """
+    [PUBLIC — No Auth Required]
+
+    Redeem a claim link token and receive a scan JWT.
+    The JWT contains the customer's ticket indexes for a specific event day.
+
+    Returns:
+        Plain JWT string (not a JSON object)
+    """
+    jwt = await service.get_jwt_for_claim_token(token)
+    return jwt
