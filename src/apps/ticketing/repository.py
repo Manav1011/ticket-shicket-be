@@ -159,6 +159,7 @@ class TicketingRepository:
         owner_holder_id: UUID,
         event_id: UUID,
         ticket_type_id: UUID,
+        event_day_id: UUID,
         quantity: int,
         order_id: UUID,
         lock_ttl_minutes: int = 30,
@@ -181,6 +182,7 @@ class TicketingRepository:
             select(TicketModel.id)
             .where(
                 TicketModel.event_id == event_id,
+                TicketModel.event_day_id == event_day_id,
                 TicketModel.ticket_type_id == ticket_type_id,
                 TicketModel.owner_holder_id == owner_holder_id,
                 TicketModel.lock_reference_id.is_(None),

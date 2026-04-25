@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Body, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.dependencies import get_current_user
@@ -11,6 +11,8 @@ from utils.schema import BaseResponse
 from .repository import ResellerRepository
 from .response import ResellerEventsResponse, ResellerTicketsResponse, ResellerAllocationsResponse
 from .service import ResellerService
+from apps.organizer.request import CreateCustomerTransferRequest
+from apps.organizer.response import CustomerTransferResponse
 
 router = APIRouter(
     prefix="/api/resellers", tags=["Resellers"], dependencies=[Depends(get_current_user)]
@@ -52,3 +54,27 @@ async def get_my_reseller_allocations(
 ) -> ResellerAllocationsResponse:
     """Get my allocations for an event I resell."""
     return await service.get_my_allocations(event_id, request.state.user.id, limit, offset)
+
+
+@router.post("/b2b/events/{event_id}/transfers/customer")
+async def create_reseller_customer_transfer_endpoint(
+    event_id: UUID,
+    request: Request,
+    body: Annotated[CreateCustomerTransferRequest, Body()],
+    service: Annotated[ResellerService, Depends(get_reseller_service)],
+) -> BaseResponse[CustomerTransferResponse]:
+    """
+    [Reseller] Transfer B2B tickets to a customer via phone or email.
+    Free mode: immediately transfers ticket ownership and generates a claim link.
+    Paid mode: returns not_implemented stub.
+    """
+    result = await service.create_reseller_customer_transfer(
+        user_id=request.state.user.id,
+        event_id=event_id,
+        phone=body.phone,
+        email=body.email,
+        quantity=body.quantity,
+        event_day_id=body.event_day_id,
+        mode=body.mode,
+    )
+    return BaseResponse(data=result)

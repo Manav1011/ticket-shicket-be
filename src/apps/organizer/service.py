@@ -1,5 +1,6 @@
 import re
 import uuid
+import hashlib
 from uuid import UUID
 
 from .exceptions import OrganizerNotFound, OrganizerSlugAlreadyExists
@@ -16,6 +17,14 @@ from apps.allocation.repository import AllocationRepository
 from apps.allocation.service import AllocationService
 from apps.event.repository import EventRepository
 from exceptions import ForbiddenError
+from apps.user.repository import UserRepository
+from apps.ticketing.enums import OrderType, OrderStatus
+from apps.allocation.enums import AllocationType
+from apps.allocation.models import OrderModel
+from apps.ticketing.models import TicketModel
+from apps.organizer.response import B2BTransferResponse, CustomerTransferResponse
+from exceptions import BadRequestError, NotFoundError
+from sqlalchemy import update
 
 
 class OrganizerService:
@@ -407,13 +416,6 @@ class OrganizerService:
 
         All in one DB transaction — rollback on any failure.
         """
-        from apps.user.repository import UserRepository
-        from apps.ticketing.enums import OrderType, OrderStatus
-        from apps.allocation.enums import AllocationType
-        from apps.allocation.models import OrderModel
-        from apps.ticketing.models import TicketModel
-        from apps.organizer.response import B2BTransferResponse
-        from sqlalchemy import update
 
         if mode == "paid":
             return B2BTransferResponse(
@@ -505,6 +507,7 @@ class OrganizerService:
             owner_holder_id=org_holder.id,
             event_id=event_id,
             ticket_type_id=b2b_ticket_type.id,
+            event_day_id=event_day_id,
             quantity=quantity,
             order_id=order.id,
             lock_ttl_minutes=30,
@@ -597,18 +600,10 @@ class OrganizerService:
         Returns:
             CustomerTransferResponse with transfer_id, status, ticket_count, mode, claim_link
         """
-        from apps.ticketing.enums import OrderType, OrderStatus
-        from apps.allocation.enums import AllocationType
-        from apps.allocation.models import OrderModel
-        from apps.ticketing.models import TicketModel
-        from apps.organizer.response import CustomerTransferResponse
-        from apps.event.repository import EventRepository
         from src.utils.claim_link_utils import generate_claim_link_token
         from src.utils.notifications.sms import mock_send_sms
         from src.utils.notifications.whatsapp import mock_send_whatsapp
         from src.utils.notifications.email import mock_send_email
-        from exceptions import BadRequestError, NotFoundError
-        from sqlalchemy import update
 
         if mode == "paid":
             return CustomerTransferResponse(
@@ -634,17 +629,27 @@ class OrganizerService:
             raise NotFoundError("Event day not found or does not belong to this event")
 
         # 3. Resolve customer TicketHolder
-        # If both phone AND email: try to find holder matching BOTH first
-        # If not found: create new holder with both fields
-        # If only one provided: resolve/create by that single field
+        # Priority order when both phone+email provided:
+        #   1. Try AND lookup
+        #   2. Try phone-only lookup
+        #   3. Try email-only lookup
+        #   4. Create new if nothing found
         if phone and email:
             existing = await self._allocation_repo.get_holder_by_phone_and_email(phone, email)
             if existing:
                 customer_holder = existing
             else:
-                customer_holder = await self._allocation_repo.create_holder(
-                    phone=phone, email=email
-                )
+                by_phone = await self._allocation_repo.get_holder_by_phone(phone)
+                if by_phone:
+                    customer_holder = by_phone
+                else:
+                    by_email = await self._allocation_repo.get_holder_by_email(email)
+                    if by_email:
+                        customer_holder = by_email
+                    else:
+                        customer_holder = await self._allocation_repo.create_holder(
+                            phone=phone, email=email
+                        )
         elif phone:
             customer_holder = await self._allocation_repo.get_holder_by_phone(phone)
             if not customer_holder:
@@ -652,8 +657,7 @@ class OrganizerService:
         else:
             customer_holder = await self._allocation_repo.get_holder_by_email(email)
             if not customer_holder:
-                customer_holder = await self._allocation_repo.create_holder(email=email)
-
+                customer_holder = await self._allocation_repo.create_holder(email=email)        
         # 4. Get organizer's holder
         org_holder = await self._allocation_repo.get_holder_by_user_id(user_id)
         if not org_holder:
@@ -693,6 +697,7 @@ class OrganizerService:
             owner_holder_id=org_holder.id,
             event_id=event_id,
             ticket_type_id=b2b_ticket_type.id,
+            event_day_id=event_day_id,
             quantity=quantity,
             order_id=order.id,
             lock_ttl_minutes=30,
@@ -700,6 +705,7 @@ class OrganizerService:
 
         # 8. Create allocation + claim link in one transaction
         raw_token = generate_claim_link_token(length=8)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         allocation, claim_link = await self._allocation_repo.create_allocation_with_claim_link(
             event_id=event_id,
             event_day_id=event_day_id,
@@ -708,7 +714,7 @@ class OrganizerService:
             order_id=order.id,
             allocation_type=AllocationType.transfer,
             ticket_count=len(locked_ticket_ids),
-            token_hash=raw_token,
+            token_hash=token_hash,
             created_by_holder_id=org_holder.id,
             metadata_={"source": "organizer_customer_free", "mode": mode},
         )

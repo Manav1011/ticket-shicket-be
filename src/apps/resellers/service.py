@@ -1,4 +1,7 @@
 from uuid import UUID
+import hashlib
+import uuid as uuid_lib
+
 from apps.resellers.repository import ResellerRepository
 from apps.resellers.response import (
     ResellerEventsResponse,
@@ -8,12 +11,22 @@ from apps.resellers.response import (
     ResellerAllocationItem,
     ResellerAllocationsResponse,
 )
-from exceptions import ForbiddenError, NotFoundError
+from apps.allocation.enums import AllocationType, AllocationStatus
+from apps.allocation.models import OrderModel
+from apps.allocation.repository import AllocationRepository
+from apps.ticketing.enums import OrderType, OrderStatus
+from apps.ticketing.models import TicketModel
+from apps.ticketing.repository import TicketingRepository
+from apps.organizer.response import CustomerTransferResponse
+from exceptions import ForbiddenError, NotFoundError, BadRequestError
+from sqlalchemy import update, select
 
 
 class ResellerService:
     def __init__(self, session):
         self._repo = ResellerRepository(session)
+        self._allocation_repo = AllocationRepository(session)
+        self._ticketing_repo = TicketingRepository(session)
 
     async def list_my_events(self, user_id: UUID) -> ResellerEventsResponse:
         """List events where user is an accepted reseller."""
@@ -127,4 +140,207 @@ class ResellerService:
             event_id=event_id,
             allocations=allocations,
             total=len(allocations),
+        )
+
+    async def create_reseller_customer_transfer(
+        self,
+        user_id: uuid_lib.UUID,
+        event_id: uuid_lib.UUID,
+        phone: str | None,
+        email: str | None,
+        quantity: int,
+        event_day_id: uuid_lib.UUID,
+        mode: str = "free",
+    ) -> "CustomerTransferResponse":
+        """
+        [Reseller] Transfer B2B tickets to a customer (free mode).
+        Customer receives a claim link; their ticket ownership is transferred immediately.
+
+        Flow (free mode):
+        1. Validate reseller is associated with this event
+        2. Validate event_day_id exists and belongs to event
+        3. Resolve customer TicketHolder (phone+email match, or phone-only, or email-only)
+        4. Get reseller's TicketHolder
+        5. Check reseller's available ticket count ≥ quantity (scoped to event_day)
+        6. Create $0 TRANSFER order (status=paid, immediate)
+        7. Lock tickets (FIFO, 30-min TTL) for specific ticket_type + event_day
+        8. Create Allocation + ClaimLink in one transaction
+        9. Add tickets to allocation
+        10. Upsert AllocationEdge (reseller → customer)
+        11. Update ticket ownership to customer, clear lock fields
+        12. Mark allocation as completed (free transfer is immediate)
+        13. Send notifications (mock SMS/WhatsApp/Email)
+
+        Flow (paid mode):
+        - Returns stub: status="not_implemented", mode="paid"
+
+        Returns:
+            CustomerTransferResponse with transfer_id, status, ticket_count, mode, claim_link
+        """
+        from src.utils.claim_link_utils import generate_claim_link_token
+        from src.utils.notifications.sms import mock_send_sms
+        from src.utils.notifications.whatsapp import mock_send_whatsapp
+        from src.utils.notifications.email import mock_send_email
+
+        if mode == "paid":
+            return CustomerTransferResponse(
+                transfer_id=uuid_lib.UUID("00000000-0000-0000-0000-000000000000"),
+                status="not_implemented",
+                ticket_count=0,
+                mode="paid",
+                message="Paid customer transfer coming soon",
+            )
+
+        if not phone and not email:
+            raise BadRequestError("Either phone or email must be provided")
+
+        # 1. Validate reseller is associated with this event
+        is_reseller = await self._repo.is_accepted_reseller(user_id, event_id)
+        if not is_reseller:
+            raise ForbiddenError("You are not a reseller for this event")
+
+        # 2. Validate event_day_id exists and belongs to event
+        from apps.event.repository import EventRepository
+        event_repo = EventRepository(self._repo._session)
+        event_day = await event_repo.get_event_day_by_id(event_day_id)
+        if not event_day or event_day.event_id != event_id:
+            raise NotFoundError("Event day not found or does not belong to this event")
+
+        # 3. Resolve customer TicketHolder
+        # Priority order when both phone+email provided:
+        #   1. Try AND lookup
+        #   2. Try phone-only lookup
+        #   3. Try email-only lookup
+        #   4. Create new if nothing found
+        if phone and email:
+            existing = await self._allocation_repo.get_holder_by_phone_and_email(phone, email)
+            if existing:
+                customer_holder = existing
+            else:
+                by_phone = await self._allocation_repo.get_holder_by_phone(phone)
+                if by_phone:
+                    customer_holder = by_phone
+                else:
+                    by_email = await self._allocation_repo.get_holder_by_email(email)
+                    if by_email:
+                        customer_holder = by_email
+                    else:
+                        customer_holder = await self._allocation_repo.create_holder(
+                            phone=phone, email=email
+                        )
+        elif phone:
+            customer_holder = await self._allocation_repo.get_holder_by_phone(phone)
+            if not customer_holder:
+                customer_holder = await self._allocation_repo.create_holder(phone=phone)
+        else:
+            customer_holder = await self._allocation_repo.get_holder_by_email(email)
+            if not customer_holder:
+                customer_holder = await self._allocation_repo.create_holder(email=email)
+
+        # 4. Get reseller's holder
+        reseller_holder = await self._repo.get_my_holder_for_event(user_id)
+        if not reseller_holder:
+            raise NotFoundError("Reseller has no ticket holder account")
+
+        # 5. Check reseller's available ticket count ≥ quantity
+        b2b_ticket_type = await self._ticketing_repo.get_b2b_ticket_type_for_event(event_id)
+        if not b2b_ticket_type:
+            raise NotFoundError("No B2B ticket type found for this event")
+
+        ticket_rows = await self._allocation_repo.list_b2b_tickets_by_holder(
+            event_id=event_id,
+            holder_id=reseller_holder.id,
+            b2b_ticket_type_id=b2b_ticket_type.id,
+            event_day_id=event_day_id,
+        )
+        available = sum(r["count"] for r in ticket_rows)
+        if available < quantity:
+            raise BadRequestError(f"Only {available} B2B tickets available, requested {quantity}")
+
+        # 6. Create $0 TRANSFER order (status=paid — immediate completion)
+        order = OrderModel(
+            event_id=event_id,
+            user_id=user_id,
+            type=OrderType.transfer,
+            subtotal_amount=0.0,
+            discount_amount=0.0,
+            final_amount=0.0,
+            status=OrderStatus.paid,
+        )
+        self._repo._session.add(order)
+        await self._repo._session.flush()
+        await self._repo._session.refresh(order)
+
+        # 7. Lock tickets using order.id as lock_reference_id
+        locked_ticket_ids = await self._ticketing_repo.lock_tickets_for_transfer(
+            owner_holder_id=reseller_holder.id,
+            event_id=event_id,
+            ticket_type_id=b2b_ticket_type.id,
+            event_day_id=event_day_id,
+            quantity=quantity,
+            order_id=order.id,
+            lock_ttl_minutes=30,
+        )
+
+        # 8. Create allocation + claim link in one transaction
+        raw_token = generate_claim_link_token(length=8)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        allocation, claim_link = await self._allocation_repo.create_allocation_with_claim_link(
+            event_id=event_id,
+            event_day_id=event_day_id,
+            from_holder_id=reseller_holder.id,
+            to_holder_id=customer_holder.id,
+            order_id=order.id,
+            allocation_type=AllocationType.transfer,
+            ticket_count=len(locked_ticket_ids),
+            token_hash=token_hash,
+            created_by_holder_id=reseller_holder.id,
+            metadata_={"source": "reseller_customer_free", "mode": mode},
+        )
+
+        # 9. Add tickets to allocation
+        await self._allocation_repo.add_tickets_to_allocation(allocation.id, locked_ticket_ids)
+
+        # 10. Upsert allocation edge (reseller → customer)
+        await self._allocation_repo.upsert_edge(
+            event_id=event_id,
+            from_holder_id=reseller_holder.id,
+            to_holder_id=customer_holder.id,
+            ticket_count=len(locked_ticket_ids),
+        )
+
+        # 11. Update ticket ownership to customer, clear lock fields
+        await self._repo._session.execute(
+            update(TicketModel)
+            .where(TicketModel.id.in_(locked_ticket_ids))
+            .values(
+                owner_holder_id=customer_holder.id,
+                lock_reference_type=None,
+                lock_reference_id=None,
+                lock_expires_at=None,
+            )
+        )
+
+        # 12. Mark allocation as completed (free transfer is immediate)
+        await self._allocation_repo.transition_allocation_status(
+            allocation.id,
+            AllocationStatus.pending,
+            AllocationStatus.completed,
+        )
+
+        # 13. Send notifications (mock — real integration replaces these later)
+        claim_url = f"/claim/{raw_token}"
+        message = f"You received {len(locked_ticket_ids)} ticket(s). Claim at: {claim_url}"
+
+        mock_send_sms(phone or "", message, template="customer_transfer")
+        mock_send_whatsapp(phone or "", message, template="customer_transfer")
+        if email:
+            mock_send_email(email, "You received tickets!", message)
+
+        return CustomerTransferResponse(
+            transfer_id=order.id,
+            status="completed",
+            ticket_count=len(locked_ticket_ids),
+            mode=mode,
+            claim_link=claim_url,
         )
