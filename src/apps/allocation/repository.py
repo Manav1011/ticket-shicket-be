@@ -40,6 +40,20 @@ class AllocationRepository:
             select(TicketHolderModel).where(TicketHolderModel.email == email)
         )
 
+    async def get_holder_by_phone_and_email(
+        self, phone: str, email: str
+    ) -> Optional[TicketHolderModel]:
+        """
+        Get a TicketHolder matching BOTH phone AND email.
+        Used when transfer initiator provides both contact methods.
+        """
+        return await self._session.scalar(
+            select(TicketHolderModel).where(
+                TicketHolderModel.phone == phone,
+                TicketHolderModel.email == email,
+            )
+        )
+
     async def create_holder(
         self,
         user_id: UUID | None = None,
