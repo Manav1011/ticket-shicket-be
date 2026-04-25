@@ -159,6 +159,7 @@ class AllocationRepository:
     async def create_allocation_with_claim_link(
         self,
         event_id: UUID,
+        event_day_id: UUID,
         from_holder_id: UUID | None,
         to_holder_id: UUID,
         order_id: UUID,
@@ -173,6 +174,7 @@ class AllocationRepository:
         Returns (allocation, claim_link).
 
         The claim link is created for the recipient (to_holder_id).
+        The claim link is scoped to a specific event_day_id.
         """
         allocation = await self.create_allocation(
             event_id=event_id,
@@ -188,6 +190,7 @@ class AllocationRepository:
             allocation_id=allocation.id,
             token_hash=token_hash,
             event_id=event_id,
+            event_day_id=event_day_id,
             from_holder_id=from_holder_id,
             to_holder_id=to_holder_id,
             created_by_holder_id=created_by_holder_id,
@@ -361,15 +364,17 @@ class ClaimLinkRepository:
         allocation_id: UUID,
         token_hash: str,
         event_id: UUID,
+        event_day_id: UUID,
         from_holder_id: UUID | None,
         to_holder_id: UUID,
         created_by_holder_id: UUID,
     ) -> ClaimLinkModel:
-        """Create a new claim link."""
+        """Create a new claim link scoped to a specific event_day."""
         link = ClaimLinkModel(
             allocation_id=allocation_id,
             token_hash=token_hash,
             event_id=event_id,
+            event_day_id=event_day_id,
             from_holder_id=from_holder_id,
             to_holder_id=to_holder_id,
             status=ClaimLinkStatus.active,
