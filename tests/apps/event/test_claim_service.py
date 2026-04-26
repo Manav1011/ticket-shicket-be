@@ -9,7 +9,42 @@ from src.apps.event.claim_service import ClaimService
 @pytest.mark.asyncio
 async def test_get_jwt_for_claim_token_success():
     """Valid active claim link returns JWT string."""
-    pass
+    session = AsyncMock()
+    service = ClaimService(session)
+
+    holder_id = uuid4()
+    event_day_id = uuid4()
+    claim_link = MagicMock()
+    claim_link.status = ClaimLinkStatus.active
+    claim_link.to_holder_id = holder_id
+    claim_link.event_day_id = event_day_id
+    claim_link.jwt_jti = "stored-jti"
+
+    ticket_one = MagicMock()
+    ticket_one.ticket_index = 2
+    ticket_two = MagicMock()
+    ticket_two.ticket_index = 1
+
+    scalars_result = MagicMock()
+    scalars_result.all.return_value = [ticket_one, ticket_two]
+    session.scalars = AsyncMock(return_value=scalars_result)
+    service._claim_link_repo.get_by_token_hash = AsyncMock(return_value=claim_link)
+
+    with patch(
+        "src.apps.event.claim_service.generate_scan_jwt",
+        return_value="scan-jwt",
+    ) as generate_scan_jwt:
+        response = await service.get_claim_redemption("raw-token")
+
+    assert response.jwt == "scan-jwt"
+    assert response.ticket_count == 2
+    generate_scan_jwt.assert_called_once_with(
+        jti="stored-jti",
+        holder_id=holder_id,
+        event_day_id=event_day_id,
+        indexes=[1, 2],
+    )
+    session.flush.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -76,8 +111,10 @@ async def test_split_claim_transfers_tickets_and_reissues_jwt():
 
     allocation = MagicMock()
     allocation.id = uuid4()
+    customer_b_claim_link = MagicMock()
+    customer_b_claim_link.jwt_jti = None
     service._allocation_repo.create_allocation_with_claim_link = AsyncMock(
-        return_value=(allocation, MagicMock())
+        return_value=(allocation, customer_b_claim_link)
     )
     service._allocation_repo.add_tickets_to_allocation = AsyncMock()
     service._allocation_repo.upsert_edge = AsyncMock()
@@ -95,6 +132,9 @@ async def test_split_claim_transfers_tickets_and_reissues_jwt():
     ), patch(
         "src.apps.event.claim_service.generate_claim_link_token",
         return_value="claimb123",
+    ), patch(
+        "src.apps.event.claim_service.secrets.token_hex",
+        side_effect=["customer-b-jti", "customer-a-new-jti"],
     ):
         response = await service.split_claim(
             raw_token="raw-token",
@@ -106,6 +146,8 @@ async def test_split_claim_transfers_tickets_and_reissues_jwt():
     assert response.tickets_transferred == 2
     assert response.remaining_ticket_count == 1
     assert response.new_jwt
+    assert customer_b_claim_link.jwt_jti == "customer-b-jti"
+    assert claim_link.jwt_jti == "customer-a-new-jti"
 
     ticketing_repo.lock_tickets_for_transfer.assert_awaited_once_with(
         owner_holder_id=customer_a_id,

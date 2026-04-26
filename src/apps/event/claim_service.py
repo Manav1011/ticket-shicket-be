@@ -78,20 +78,21 @@ class ClaimService:
         # Extract sorted indexes (all tickets are for the same event_day)
         indexes = sorted(ticket.ticket_index for ticket in tickets)
 
-        # 5. Generate unique JTI for this JWT
-        jti = secrets.token_hex(8)  # 16-char hex string
+        # 5. Use the stored JTI when available; legacy links may not have one.
+        jti = claim_link.jwt_jti if claim_link.jwt_jti else secrets.token_hex(8)
 
-        # 6. Generate JWT
+        # 6. Persist the generated JTI for legacy links so future revocation works.
+        if not claim_link.jwt_jti:
+            claim_link.jwt_jti = jti
+            await self._session.flush()
+
+        # 7. Generate JWT
         jwt = generate_scan_jwt(
             jti=jti,
             holder_id=claim_link.to_holder_id,
             event_day_id=claim_link.event_day_id,
             indexes=indexes,
         )
-
-        # 7. Store JTI in claim link for future revocation
-        claim_link.jwt_jti = jti
-        await self._session.flush()
 
         # 8. Return response with ticket count, not indexes
         return ClaimRedemptionResponse(
@@ -171,7 +172,11 @@ class ClaimService:
 
         customer_b_raw_token = generate_claim_link_token(length=8)
         customer_b_token_hash = hashlib.sha256(customer_b_raw_token.encode()).hexdigest()
-        allocation, _claim_link = await self._allocation_repo.create_allocation_with_claim_link(
+        customer_b_jti = secrets.token_hex(8)
+        (
+            allocation,
+            customer_b_claim_link,
+        ) = await self._allocation_repo.create_allocation_with_claim_link(
             event_id=event_id,
             event_day_id=event_day_id,
             from_holder_id=customer_a_id,
@@ -183,6 +188,8 @@ class ClaimService:
             created_by_holder_id=customer_a_id,
             metadata_={"source": "customer_split"},
         )
+        customer_b_claim_link.jwt_jti = customer_b_jti
+        await self._session.flush()
 
         await self._allocation_repo.add_tickets_to_allocation(
             allocation.id,
