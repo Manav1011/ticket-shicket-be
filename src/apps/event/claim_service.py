@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.allocation.repository import AllocationRepository, ClaimLinkRepository
 from apps.allocation.enums import ClaimLinkStatus
+from apps.ticketing.models import TicketModel
 from apps.event.response import ClaimRedemptionResponse
 from src.utils.jwt_utils import generate_scan_jwt
 from exceptions import NotFoundError, BadRequestError
