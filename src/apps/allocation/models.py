@@ -73,6 +73,7 @@ class ClaimLinkModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
         nullable=False,
         index=True,
     )
+    jwt_jti: Mapped[str | None] = mapped_column(String(32), nullable=True)
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_by_holder_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("ticket_holders.id", ondelete="CASCADE"), nullable=False

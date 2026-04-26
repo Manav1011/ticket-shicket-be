@@ -82,7 +82,11 @@ class ClaimService:
             indexes=indexes,
         )
 
-        # 7. Return response with ticket count, not indexes
+        # 7. Store JTI in claim link for future revocation
+        claim_link.jwt_jti = jti
+        await self._session.flush()
+
+        # 8. Return response with ticket count, not indexes
         return ClaimRedemptionResponse(
             holder_id=claim_link.to_holder_id,
             event_day_id=claim_link.event_day_id,
