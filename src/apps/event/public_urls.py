@@ -13,7 +13,7 @@ from utils.schema import BaseResponse
 from apps.organizer.repository import OrganizerRepository
 from apps.ticketing.repository import TicketingRepository
 from .repository import EventRepository
-from .response import EventInterestResponse, EventSummaryResponse, EventDetailResponse
+from .response import EventInterestResponse, EventSummaryResponse, EventDetailResponse, ClaimRedemptionResponse
 from .service import EventService
 from .public_service import PublicEventService
 from .claim_service import ClaimService
@@ -104,15 +104,14 @@ def get_claim_service(
 async def redeem_claim_link(
     token: str,
     service: Annotated[ClaimService, Depends(get_claim_service)],
-) -> str:
+) -> BaseResponse[ClaimRedemptionResponse]:
     """
     [PUBLIC — No Auth Required]
 
-    Redeem a claim link token and receive a scan JWT.
-    The JWT contains the customer's ticket indexes for a specific event day.
+    Redeem a claim link token and receive a scan JWT with ticket count.
 
     Returns:
-        Plain JWT string (not a JSON object)
+        ClaimRedemptionResponse with holder_id, event_day_id, ticket_count, jwt
     """
-    jwt = await service.get_jwt_for_claim_token(token)
-    return jwt
+    redemption = await service.get_claim_redemption(token)
+    return BaseResponse(data=redemption)

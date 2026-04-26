@@ -10,8 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.allocation.repository import AllocationRepository, ClaimLinkRepository
-from apps.ticketing.models import TicketModel
 from apps.allocation.enums import ClaimLinkStatus
+from apps.event.response import ClaimRedemptionResponse
 from src.utils.jwt_utils import generate_scan_jwt
 from exceptions import NotFoundError, BadRequestError
 
@@ -22,7 +22,7 @@ class ClaimService:
         self._allocation_repo = AllocationRepository(session)
         self._claim_link_repo = ClaimLinkRepository(session)
 
-    async def get_jwt_for_claim_token(self, raw_token: str) -> str:
+    async def get_claim_redemption(self, raw_token: str) -> ClaimRedemptionResponse:
         """
         Resolve a claim link token and return a scan JWT for the customer.
 
@@ -31,10 +31,10 @@ class ClaimService:
         2. Look up ClaimLink by token_hash
         3. Verify claim link is active
         4. Query tickets where owner_holder_id = to_holder_id AND event_day_id = claim_link.event_day_id
-        5. Generate JTI and return JWT with ticket indexes
+        5. Generate JTI and return JWT with ticket count
 
         Returns:
-            JWT string
+            ClaimRedemptionResponse with holder_id, event_day_id, ticket_count, jwt
 
         Raises:
             NotFoundError if token invalid or claim link not found
@@ -81,4 +81,10 @@ class ClaimService:
             indexes=indexes,
         )
 
-        return jwt
+        # 7. Return response with ticket count, not indexes
+        return ClaimRedemptionResponse(
+            holder_id=claim_link.to_holder_id,
+            event_day_id=claim_link.event_day_id,
+            ticket_count=len(indexes),
+            jwt=jwt,
+        )

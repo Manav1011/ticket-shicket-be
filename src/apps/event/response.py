@@ -222,3 +222,10 @@ class PaginationMeta(CamelCaseModel):
 class PaginatedEventResponse(CamelCaseModel):
     events: list[EventResponse]
     pagination: PaginationMeta
+
+
+class ClaimRedemptionResponse(CamelCaseModel):
+    holder_id: UUID
+    event_day_id: UUID
+    ticket_count: int
+    jwt: str
