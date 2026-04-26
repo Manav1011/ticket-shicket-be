@@ -431,6 +431,17 @@ class ClaimLinkRepository:
         )
         return result.rowcount > 0
 
+    async def revoke_claim_link(self, claim_link_id: UUID) -> None:
+        """
+        Revoke a claim link by setting its status to inactive.
+        Used when a customer splits tickets and the old claim link becomes invalid.
+        """
+        await self._session.execute(
+            update(ClaimLinkModel)
+            .where(ClaimLinkModel.id == claim_link_id)
+            .values(status=ClaimLinkStatus.inactive)
+        )
+
 
 class RevokedScanTokenRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -455,6 +466,18 @@ class RevokedScanTokenRepository:
             constraint="uq_revoked_scan_tokens_event_day_jti",
         )
         await self._session.execute(stmt)
+
+    async def add_revoked_jti(
+        self,
+        event_day_id: UUID,
+        jti: str,
+        reason: str = "split",
+    ) -> None:
+        """
+        Add a JTI to the revoked list.
+        Called during split to invalidate a customer's old JWT.
+        """
+        await self.add_revoked(event_day_id=event_day_id, jti=jti, reason=reason)
 
     async def is_revoked(self, event_day_id: UUID, jti: str) -> bool:
         """Check if a JTI has been revoked for a given event day."""

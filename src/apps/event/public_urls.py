@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Body, Depends, Request
 from fastapi_limiter.depends import RateLimiter
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,7 +13,14 @@ from utils.schema import BaseResponse
 from apps.organizer.repository import OrganizerRepository
 from apps.ticketing.repository import TicketingRepository
 from .repository import EventRepository
-from .response import EventInterestResponse, EventSummaryResponse, EventDetailResponse, ClaimRedemptionResponse
+from .request import SplitClaimRequest
+from .response import (
+    ClaimRedemptionResponse,
+    EventDetailResponse,
+    EventInterestResponse,
+    EventSummaryResponse,
+    SplitClaimResponse,
+)
 from .service import EventService
 from .public_service import PublicEventService
 from .claim_service import ClaimService
@@ -115,3 +122,23 @@ async def redeem_claim_link(
     """
     redemption = await service.get_claim_redemption(token)
     return BaseResponse(data=redemption)
+
+
+@claim_router.post("/{token}/split", operation_id="split_claim")
+async def split_claim(
+    token: str,
+    body: Annotated[SplitClaimRequest, Body()],
+    service: Annotated[ClaimService, Depends(get_claim_service)],
+) -> BaseResponse[SplitClaimResponse]:
+    """
+    [PUBLIC — No Auth Required]
+
+    Split tickets from Customer A to Customer B.
+    Customer A's old JWT is revoked, and a new JWT is issued for remaining tickets.
+    """
+    result = await service.split_claim(
+        raw_token=token,
+        to_email=body.to_email,
+        ticket_count=body.ticket_count,
+    )
+    return BaseResponse(data=result)

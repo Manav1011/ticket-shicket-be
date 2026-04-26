@@ -229,3 +229,11 @@ class ClaimRedemptionResponse(CamelCaseModel):
     event_day_id: UUID
     ticket_count: int
     jwt: str
+
+
+class SplitClaimResponse(CamelCaseModel):
+    status: str
+    tickets_transferred: int
+    remaining_ticket_count: int
+    new_jwt: str
+    message: str

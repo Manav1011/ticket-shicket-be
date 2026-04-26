@@ -68,6 +68,11 @@ class CreateResellerInviteRequest(CamelCaseModel):
             raise ValueError("At least one user_id is required")
 
 
+class SplitClaimRequest(CamelCaseModel):
+    to_email: str
+    ticket_count: int
+
+
 class EventSortField(str, Enum):
     created_at = "created_at"
     start_date = "start_date"
