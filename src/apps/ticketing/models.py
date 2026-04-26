@@ -70,3 +70,6 @@ class TicketModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     lock_reference_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
     lock_reference_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     lock_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    claim_link_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("claim_links.id", ondelete="SET NULL"), nullable=True, index=True
+    )

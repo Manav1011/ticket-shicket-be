@@ -11,11 +11,10 @@ def test_valid_free_response():
         status="completed",
         ticket_count=5,
         mode="free",
-        claim_link="/claim/abc12345",
     )
     assert resp.transfer_id == transfer_id
     assert resp.status == "completed"
-    assert resp.claim_link == "/claim/abc12345"
+    assert "claim_link" not in resp.model_dump()
 
 
 def test_valid_paid_not_implemented():

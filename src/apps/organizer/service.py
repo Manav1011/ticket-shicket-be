@@ -21,10 +21,8 @@ from apps.user.repository import UserRepository
 from apps.ticketing.enums import OrderType, OrderStatus
 from apps.allocation.enums import AllocationType
 from apps.allocation.models import OrderModel
-from apps.ticketing.models import TicketModel
 from apps.organizer.response import B2BTransferResponse, CustomerTransferResponse
 from exceptions import BadRequestError, NotFoundError
-from sqlalchemy import update
 
 
 class OrganizerService:
@@ -538,15 +536,9 @@ class OrganizerService:
         )
 
         # 12. Update ticket ownership to reseller AND clear lock fields
-        await self.repository.session.execute(
-            update(TicketModel)
-            .where(TicketModel.id.in_(locked_ticket_ids))
-            .values(
-                owner_holder_id=reseller_holder.id,
-                lock_reference_type=None,
-                lock_reference_id=None,
-                lock_expires_at=None,
-            )
+        await self._ticketing_repo.update_ticket_ownership_batch(
+            ticket_ids=locked_ticket_ids,
+            new_owner_holder_id=reseller_holder.id,
         )
 
         # 13. Mark allocation as completed (free transfer is immediate)
@@ -731,15 +723,10 @@ class OrganizerService:
         )
 
         # 11. Update ticket ownership to customer, clear lock fields
-        await self.repository.session.execute(
-            update(TicketModel)
-            .where(TicketModel.id.in_(locked_ticket_ids))
-            .values(
-                owner_holder_id=customer_holder.id,
-                lock_reference_type=None,
-                lock_reference_id=None,
-                lock_expires_at=None,
-            )
+        await self._ticketing_repo.update_ticket_ownership_batch(
+            ticket_ids=locked_ticket_ids,
+            new_owner_holder_id=customer_holder.id,
+            claim_link_id=claim_link.id,
         )
 
         # 12. Mark allocation as completed (free transfer is immediate)
@@ -763,5 +750,4 @@ class OrganizerService:
             status="completed",
             ticket_count=len(locked_ticket_ids),
             mode=mode,
-            claim_link=claim_url,
         )

@@ -5,7 +5,7 @@ Public endpoint: GET /open/claim/{token} — no authentication required.
 import secrets
 import hashlib
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.allocation.enums import AllocationStatus, AllocationType, ClaimLinkStatus
@@ -60,14 +60,21 @@ class ClaimService:
         if claim_link.status != ClaimLinkStatus.active:
             raise BadRequestError("Claim link has already been used or revoked")
 
-        # 4. Query tickets owned by to_holder_id for THIS event_day only
+        # 4. Query tickets for this claim link only. Legacy claim links fall
+        # back to untagged tickets owned by the target holder.
         result = await self._session.scalars(
             select(TicketModel)
             .where(
-                TicketModel.owner_holder_id == claim_link.to_holder_id,
                 TicketModel.event_day_id == claim_link.event_day_id,
                 TicketModel.status == "active",
                 TicketModel.lock_reference_id.is_(None),
+            )
+            .where(
+                (TicketModel.claim_link_id == claim_link.id)
+                | (
+                    TicketModel.claim_link_id.is_(None)
+                    & (TicketModel.owner_holder_id == claim_link.to_holder_id)
+                )
             )
         )
         tickets = list(result.all())
@@ -96,8 +103,6 @@ class ClaimService:
 
         # 8. Return response with ticket count, not indexes
         return ClaimRedemptionResponse(
-            holder_id=claim_link.to_holder_id,
-            event_day_id=claim_link.event_day_id,
             ticket_count=len(indexes),
             jwt=jwt,
         )
@@ -127,8 +132,6 @@ class ClaimService:
         event_id = claim_link.event_id
 
         customer_b = await self._allocation_repo.resolve_holder(email=to_email)
-        if customer_b.id == customer_a_id:
-            raise BadRequestError("Cannot transfer to yourself")
 
         source_allocation = await self._allocation_repo.get_allocation_by_id(
             claim_link.allocation_id
@@ -204,6 +207,7 @@ class ClaimService:
         await ticketing_repo.update_ticket_ownership_batch(
             ticket_ids=locked_ticket_ids,
             new_owner_holder_id=customer_b.id,
+            claim_link_id=customer_b_claim_link.id,
         )
         await self._allocation_repo.transition_allocation_status(
             allocation.id,
@@ -235,6 +239,14 @@ class ClaimService:
         )
         claim_link.jwt_jti = new_jti
         await self._session.flush()
+
+        remaining_ids = [ticket.id for ticket in remaining_tickets]
+        if remaining_ids:
+            await self._session.execute(
+                update(TicketModel)
+                .where(TicketModel.id.in_(remaining_ids))
+                .values(claim_link_id=claim_link.id)
+            )
 
         claim_link_url = f"/claim/{customer_b_raw_token}"
         # TODO: Re-enable notifications once phone/WhatsApp integration is ready

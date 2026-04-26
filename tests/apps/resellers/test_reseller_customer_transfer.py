@@ -75,8 +75,9 @@ async def test_reseller_customer_transfer_free_mode_happy_path():
     # Mock allocation creation
     allocation_id = uuid4()
     mock_allocation = MagicMock(id=allocation_id)
+    claim_link_id = uuid4()
     allocation_repo.create_allocation_with_claim_link = AsyncMock(
-        return_value=(mock_allocation, MagicMock(id=uuid4()))
+        return_value=(mock_allocation, MagicMock(id=claim_link_id))
     )
     allocation_repo.add_tickets_to_allocation = AsyncMock()
     allocation_repo.upsert_edge = AsyncMock()
@@ -103,7 +104,12 @@ async def test_reseller_customer_transfer_free_mode_happy_path():
     assert result.status == "completed"
     assert result.ticket_count == 2
     assert result.mode == "free"
-    assert result.claim_link.startswith("/claim/")
+    assert "claim_link" not in result.model_dump()
+    ticketing_repo.update_ticket_ownership_batch.assert_awaited_once_with(
+        ticket_ids=locked_ids,
+        new_owner_holder_id=customer_holder_id,
+        claim_link_id=claim_link_id,
+    )
 
 
 @pytest.mark.asyncio

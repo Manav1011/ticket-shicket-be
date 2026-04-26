@@ -284,6 +284,7 @@ class TicketingRepository:
         self,
         ticket_ids: list[UUID],
         new_owner_holder_id: UUID,
+        claim_link_id: UUID | None = None,
     ) -> None:
         """
         Update owner_holder_id for a batch of tickets.
@@ -291,14 +292,18 @@ class TicketingRepository:
         """
         if not ticket_ids:
             return
-        
+
+        values = {
+            "owner_holder_id": new_owner_holder_id,
+            "lock_reference_type": None,
+            "lock_reference_id": None,
+            "lock_expires_at": None,
+        }
+        if claim_link_id is not None:
+            values["claim_link_id"] = claim_link_id
+
         await self._session.execute(
             update(TicketModel)
             .where(TicketModel.id.in_(ticket_ids))
-            .values(
-                owner_holder_id=new_owner_holder_id,
-                lock_reference_type=None,
-                lock_reference_id=None,
-                lock_expires_at=None,
-            )
+            .values(**values)
         )

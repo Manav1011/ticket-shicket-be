@@ -15,6 +15,7 @@ async def test_get_jwt_for_claim_token_success():
     holder_id = uuid4()
     event_day_id = uuid4()
     claim_link = MagicMock()
+    claim_link.id = uuid4()
     claim_link.status = ClaimLinkStatus.active
     claim_link.to_holder_id = holder_id
     claim_link.event_day_id = event_day_id
@@ -38,13 +39,53 @@ async def test_get_jwt_for_claim_token_success():
 
     assert response.jwt == "scan-jwt"
     assert response.ticket_count == 2
+    assert "holder_id" not in response.model_dump()
+    assert "event_day_id" not in response.model_dump()
     generate_scan_jwt.assert_called_once_with(
         jti="stored-jti",
         holder_id=holder_id,
         event_day_id=event_day_id,
         indexes=[1, 2],
     )
+    stmt = session.scalars.await_args.args[0]
+    assert "claim_link_id" in str(stmt)
     session.flush.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_get_jwt_legacy_claim_link_no_claim_link_id():
+    """Legacy claim links should still include untagged tickets owned by holder."""
+    session = AsyncMock()
+    service = ClaimService(session)
+
+    holder_id = uuid4()
+    event_day_id = uuid4()
+    claim_link = MagicMock()
+    claim_link.id = uuid4()
+    claim_link.status = ClaimLinkStatus.active
+    claim_link.to_holder_id = holder_id
+    claim_link.event_day_id = event_day_id
+    claim_link.jwt_jti = "stored-jti"
+
+    ticket = MagicMock()
+    ticket.ticket_index = 1
+
+    scalars_result = MagicMock()
+    scalars_result.all.return_value = [ticket]
+    session.scalars = AsyncMock(return_value=scalars_result)
+    service._claim_link_repo.get_by_token_hash = AsyncMock(return_value=claim_link)
+
+    with patch(
+        "src.apps.event.claim_service.generate_scan_jwt",
+        return_value="scan-jwt",
+    ):
+        response = await service.get_claim_redemption("raw-token")
+
+    assert response.ticket_count == 1
+    stmt = session.scalars.await_args.args[0]
+    stmt_text = str(stmt)
+    assert "claim_link_id" in stmt_text
+    assert "owner_holder_id" in stmt_text
 
 
 @pytest.mark.asyncio
@@ -112,6 +153,7 @@ async def test_split_claim_transfers_tickets_and_reissues_jwt():
     allocation = MagicMock()
     allocation.id = uuid4()
     customer_b_claim_link = MagicMock()
+    customer_b_claim_link.id = uuid4()
     customer_b_claim_link.jwt_jti = None
     service._allocation_repo.create_allocation_with_claim_link = AsyncMock(
         return_value=(allocation, customer_b_claim_link)
@@ -162,6 +204,11 @@ async def test_split_claim_transfers_tickets_and_reissues_jwt():
     assert kwargs["allocation_type"] == AllocationType.transfer
     assert kwargs["ticket_count"] == 2
     assert kwargs["metadata_"] == {"source": "customer_split"}
+    ticketing_repo.update_ticket_ownership_batch.assert_awaited_once_with(
+        ticket_ids=locked_ticket_ids,
+        new_owner_holder_id=customer_b_id,
+        claim_link_id=customer_b_claim_link.id,
+    )
 
     service._allocation_repo.transition_allocation_status.assert_awaited_once_with(
         allocation.id,
@@ -175,3 +222,6 @@ async def test_split_claim_transfers_tickets_and_reissues_jwt():
         jti="old-jti",
         reason="split",
     )
+    session.execute.assert_awaited_once()
+    stmt = session.execute.await_args.args[0]
+    assert "claim_link_id" in str(stmt)
