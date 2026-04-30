@@ -86,17 +86,16 @@ class OrganizerService:
         self,
         owner_user_id,
         name,
-        slug,
-        bio,
-        logo_url,
-        cover_image_url,
-        website_url,
-        instagram_url,
-        facebook_url,
-        youtube_url,
-        visibility,
+        bio=None,
+        logo_url=None,
+        cover_image_url=None,
+        website_url=None,
+        instagram_url=None,
+        facebook_url=None,
+        youtube_url=None,
+        visibility=None,
     ):
-        normalized_slug = re.sub(r"[^a-z0-9]+", "-", slug.strip().lower()).strip("-")
+        normalized_slug = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")
         if await self.repository.get_by_slug(normalized_slug):
             raise OrganizerSlugAlreadyExists
 
