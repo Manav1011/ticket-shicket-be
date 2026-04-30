@@ -6,6 +6,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import DayTicketAllocationModel, TicketModel, TicketTypeModel
+from .enums import TicketCategory
 
 
 class TicketingRepository:
@@ -23,6 +24,7 @@ class TicketingRepository:
         result = await self._session.scalars(
             select(TicketTypeModel)
             .where(TicketTypeModel.event_id == event_id)
+            .where(TicketTypeModel.category != TicketCategory.b2b)
             .order_by(TicketTypeModel.created_at.asc())
         )
         return list(result.all())

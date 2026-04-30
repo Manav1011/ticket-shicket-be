@@ -1,6 +1,8 @@
 from sqlalchemy.exc import IntegrityError
 
 from apps.event.enums import EventAccessType
+from apps.ticketing.enums import TicketCategory, TicketCategoryPublic
+from src.exceptions import BadRequestError
 
 from .exceptions import (
     CannotDecreaseQuantity,
@@ -26,6 +28,10 @@ class TicketingService:
         event = await self.event_repository.get_by_id_for_owner(event_id, owner_user_id)
         if event.event_access_type != EventAccessType.ticketed:
             raise OpenEventDoesNotSupportTickets
+
+        # Reject B2B category - B2B ticket types are auto-created internally
+        if category == TicketCategoryPublic.b2b:
+            raise BadRequestError("B2B ticket types are auto-created and cannot be created manually.")
 
         # C2: Validate price >= 0
         if price < 0:
