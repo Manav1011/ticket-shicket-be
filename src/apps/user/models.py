@@ -1,8 +1,8 @@
 from __future__ import annotations
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
@@ -52,12 +52,12 @@ class RefreshTokenModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
 
     token_hash: Mapped[str] = mapped_column(index=True, unique=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
-    expires_at: Mapped[datetime] = mapped_column(nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     @property
     def is_expired(self) -> bool:
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
 
     @property
     def is_active(self) -> bool:
