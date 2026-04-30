@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,4 +27,4 @@ class InviteModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     meta: Mapped[dict] = mapped_column(
         JSONB, default=dict, nullable=False, server_default="{}"
     )
-    expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

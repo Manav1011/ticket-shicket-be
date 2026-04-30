@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -52,7 +52,7 @@ class EventModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     online_event_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     recorded_event_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_published: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false"), nullable=False
     )
@@ -96,15 +96,15 @@ class EventDayModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     )
     day_index: Mapped[int] = mapped_column(Integer, nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
-    start_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    end_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    start_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     scan_status: Mapped[str] = mapped_column(
         Enum(ScanStatus), default=ScanStatus.not_started, server_default=text("'not_started'"), nullable=False
     )
-    scan_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    scan_paused_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    scan_ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    scan_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    scan_paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    scan_ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     next_ticket_index: Mapped[int] = mapped_column(
         Integer, default=1, server_default=text("1"), nullable=False
@@ -167,4 +167,4 @@ class EventResellerModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     permissions: Mapped[dict] = mapped_column(
         JSONB, default=dict, nullable=False, server_default="{}"
     )
-    accepted_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
