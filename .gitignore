@@ -7,3 +7,4 @@ public_key.pem
 private_key.pem
 .vscode
 .venv/
+graphify-out/
