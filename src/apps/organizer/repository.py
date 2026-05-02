@@ -9,6 +9,7 @@ from apps.superadmin.models import B2BRequestModel
 from apps.superadmin.repository import SuperAdminRepository
 
 from .models import OrganizerPageModel
+from .enums import OrganizerVisibility, OrganizerStatus
 
 
 class OrganizerRepository:
@@ -71,7 +72,10 @@ class OrganizerRepository:
     async def list_public_organizers(self) -> list[OrganizerPageModel]:
         result = await self._session.scalars(
             select(OrganizerPageModel)
-            .where(OrganizerPageModel.status == "active")
+            .where(
+                OrganizerPageModel.visibility == OrganizerVisibility.public,
+                OrganizerPageModel.status == OrganizerStatus.active,
+            )
             .order_by(OrganizerPageModel.created_at.desc())
         )
         return list(result.all())

@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID
+import uuid
 
 from fastapi.security.base import SecurityBase
 from jwt import DecodeError, ExpiredSignatureError, decode, encode
@@ -59,20 +60,22 @@ async def create_tokens(
     """
     Create access-token and refresh-token.
     Only one of user_id or guest_id should be provided based on type.
+    Both tokens share the same jti (JWT ID) for revocation tracking.
     """
     if type == "user" and user_id is None:
         raise ValueError("user_id required for user tokens")
     if type == "guest" and guest_id is None:
         raise ValueError("guest_id required for guest tokens")
 
+    jti = str(uuid.uuid4())
     sub = str(user_id) if type == "user" else str(guest_id)
 
     access_token = access.encode(
-        payload={"sub": sub, "user_type": type},
+        payload={"sub": sub, "user_type": type, "jti": jti},
         expire_period=int(settings.ACCESS_TOKEN_EXP),
     )
     refresh_token = refresh.encode(
-        payload={"sub": sub, "user_type": type},
+        payload={"sub": sub, "user_type": type, "jti": jti},
         expire_period=int(settings.REFRESH_TOKEN_EXP),
     )
     return {"access_token": access_token, "refresh_token": refresh_token}

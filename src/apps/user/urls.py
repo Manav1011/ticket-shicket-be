@@ -15,8 +15,9 @@ from .response import BaseUserResponse, UserLookupResponse
 from .service import UserService
 from .repository import UserRepository
 from auth.dependencies import get_current_user
-from auth.schemas import RefreshRequest, TokenPair, RefreshRequestWithJti
+from auth.schemas import RefreshRequest, TokenPair
 from auth.blocklist import TokenBlocklist
+from auth.jwt import refresh as refresh_jwt
 from db.session import db_session
 from db.redis import redis
 from utils.schema import BaseResponse
@@ -146,6 +147,10 @@ async def sign_in(
     """
     tokens = await service.login_user(**body.model_dump())
 
+    # Extract jti from refresh token
+    token_payload = refresh_jwt.decode(tokens["refresh_token"])
+    jti = token_payload.get("jti")
+
     # Store refresh token in DB
     user = await service.repository.get_by_email(body.email)
     token_hash = service._hash_token(tokens["refresh_token"])
@@ -153,6 +158,7 @@ async def sign_in(
         token_hash=token_hash,
         user_id=user.id,
         expires_at=datetime.utcnow() + timedelta(seconds=int(settings.REFRESH_TOKEN_EXP)),
+        jti=jti,
     )
     await service.repository.session.flush()
 
@@ -202,16 +208,12 @@ async def find_user_endpoint(
 @protected_router.post("/logout", status_code=status.HTTP_200_OK, operation_id="logout")
 async def logout(
     request: Request,
-    body: RefreshRequestWithJti,
     service: Annotated[UserService, Depends(get_user_service)],
 ):
-    """Logout endpoint. Revokes refresh token and blocklists access token."""
-    user: UserModel = request.state.user  # from auth dependency
-    await service.logout_user(
-        refresh_token=body.refresh_token,
-        access_token_jti=body.access_token_jti,
-    )
-    return BaseResponse(message="Logged out successfully")
+    """Logout endpoint. Revokes all refresh tokens sharing the jti from the access token."""
+    jti = request.state.token_payload.get("jti")
+    await service.logout_user(jti=jti)
+    return BaseResponse(data={"message": "Logged out successfully"})
 
 
 @protected_router.get("/self", status_code=status.HTTP_200_OK, operation_id="get_self")

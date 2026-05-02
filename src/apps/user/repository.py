@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 from uuid import UUID
+import uuid
 
 from sqlalchemy import func, or_, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,13 +72,14 @@ class UserRepository:
 
     # Refresh token methods
     async def create_refresh_token(
-        self, token_hash: str, user_id: UUID, expires_at: datetime
+        self, token_hash: str, user_id: UUID, expires_at: datetime, jti: str
     ) -> RefreshTokenModel:
         """Create a new refresh token record."""
         token = RefreshTokenModel(
             token_hash=token_hash,
             user_id=user_id,
             expires_at=expires_at,
+            jti=uuid.UUID(jti),
         )
         self._session.add(token)
         await self._session.flush()
@@ -106,6 +108,15 @@ class UserRepository:
         await self._session.execute(
             update(RefreshTokenModel)
             .where(RefreshTokenModel.user_id == user_id)
+            .values(revoked=True)
+        )
+        await self._session.flush()
+
+    async def revoke_by_jti(self, jti: str) -> None:
+        """Revoke all refresh tokens with a given jti."""
+        await self._session.execute(
+            update(RefreshTokenModel)
+            .where(RefreshTokenModel.jti == uuid.UUID(jti))
             .values(revoked=True)
         )
         await self._session.flush()

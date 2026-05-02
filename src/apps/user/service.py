@@ -114,22 +114,11 @@ class UserService:
         await self.repository.delete_all_user_tokens(user_id)
         await self.repository.clear_guest_conversion_links(user_id)
         await self.repository.delete(user_id)
-        await self.repository.session.commit()
         return user
 
-    async def logout_user(
-        self,
-        refresh_token: str,
-        access_token_jti: str | None = None,
-    ) -> None:
-        """Revoke refresh token and optionally blocklist access token by jti."""
-        token_hash = self._hash_token(refresh_token)
-        await self.repository.revoke_refresh_token(token_hash)
-
-        if access_token_jti:
-            await self._blocklist.add(access_token_jti, ttl=int(settings.ACCESS_TOKEN_EXP))
-
-        await self.repository.session.commit()
+    async def logout_user(self, jti: str) -> None:
+        """Revoke all refresh tokens sharing jti with the provided access token."""
+        await self.repository.revoke_by_jti(jti)
 
     async def refresh_user(self, refresh_token: str) -> dict[str, str]:
         """
@@ -157,13 +146,18 @@ class UserService:
         # Issue new tokens
         new_tokens = await create_tokens(user_id=user.id, type="user")
 
+        # Extract jti from new refresh token
+        from auth.jwt import refresh as refresh_jwt
+        new_token_payload = refresh_jwt.decode(new_tokens["refresh_token"])
+        jti = new_token_payload.get("jti")
+
         # Store new refresh token in DB
         await self.repository.create_refresh_token(
             token_hash=self._hash_token(new_tokens["refresh_token"]),
             user_id=user.id,
             expires_at=datetime.utcnow() + timedelta(seconds=int(settings.REFRESH_TOKEN_EXP)),
+            jti=jti,
         )
-        await self.repository.session.commit()
 
         return new_tokens
 

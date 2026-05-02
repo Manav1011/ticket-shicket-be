@@ -69,6 +69,7 @@ async def get_current_user(
         )
 
     request.state.user = user
+    request.state.token_payload = payload
     return user
 
 

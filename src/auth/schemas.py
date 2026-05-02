@@ -21,9 +21,3 @@ class TokenPair(BaseModel):
 class RefreshRequest(CamelCaseModel):
     """Request body for token refresh."""
     refresh_token: str
-
-
-class RefreshRequestWithJti(CamelCaseModel):
-    """Request body for logout with optional access token jti."""
-    refresh_token: str
-    access_token_jti: str | None = None
