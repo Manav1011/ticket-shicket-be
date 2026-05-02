@@ -4,7 +4,7 @@ import json
 
 from apps.event.enums import EventAccessType, LocationMode
 
-from .exceptions import EventNotFound, InvalidScanTransition, OrganizerOwnershipError, InvalidAsset
+from .exceptions import AlreadyExistsError, EventNotFound, InvalidScanTransition, OrganizerOwnershipError, InvalidAsset
 from .models import EventModel, EventMediaAssetModel
 from .response import FieldErrorResponse
 from sqlalchemy.exc import IntegrityError
@@ -341,6 +341,9 @@ class EventService:
         event = await self.repository.get_by_id_for_owner(event_id, owner_user_id)
         if not event:
             raise EventNotFound
+        existing_days = await self.repository.list_event_days(event_id)
+        if any(d.date == date for d in existing_days):
+            raise AlreadyExistsError("An event day with this date already exists.")
         day = await self.repository.create_event_day(
             event_id, date, start_time=start_time, end_time=end_time
         )
@@ -357,7 +360,9 @@ class EventService:
         day = await self.repository.get_event_day_for_owner(event_day_id, owner_user_id)
         if not day:
             raise EventNotFound
-        for field, value in payload.items():
+        allowed_fields = {"start_time", "end_time"}
+        safe_payload = {k: v for k, v in payload.items() if k in allowed_fields}
+        for field, value in safe_payload.items():
             setattr(day, field, value)
         await self.repository.session.flush()
         return day

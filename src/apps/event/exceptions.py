@@ -1,5 +1,5 @@
 import constants
-from exceptions import ForbiddenError, NotFoundError, UnprocessableEntityError
+from exceptions import AlreadyExistsError, ForbiddenError, NotFoundError, UnprocessableEntityError
 
 
 class OrganizerOwnershipError(ForbiddenError):
@@ -24,3 +24,7 @@ class InvalidAsset(UnprocessableEntityError):
 
 class ValidationError(UnprocessableEntityError):
     message = "Validation error."
+
+
+# Re-export for convenience
+AlreadyExistsError = AlreadyExistsError
