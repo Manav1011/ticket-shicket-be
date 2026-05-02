@@ -239,15 +239,15 @@ async def get_user_by_id(
     return BaseResponse(data=BaseUserResponse.model_validate(user))
 
 
-@protected_router.delete("/", status_code=status.HTTP_200_OK, operation_id="delete_user_by_id")
-async def delete_user_by_id(
-    query: Annotated[DeleteUserByIdRequest, Query()],
-    request: Request,
-    service: Annotated[UserService, Depends(get_user_service)],
-) -> BaseResponse[BaseUserResponse]:
-    current_user: UserModel = request.state.user
-    if query.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+# @protected_router.delete("/", status_code=status.HTTP_200_OK, operation_id="delete_user_by_id")
+# async def delete_user_by_id(
+#     query: Annotated[DeleteUserByIdRequest, Query()],
+#     request: Request,
+#     service: Annotated[UserService, Depends(get_user_service)],
+# ) -> BaseResponse[BaseUserResponse]:
+#     current_user: UserModel = request.state.user
+#     if query.user_id != current_user.id:
+#         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
-    deleted_user = await service.delete_user_by_id(current_user.id)
-    return BaseResponse(data=BaseUserResponse.model_validate(deleted_user))
+#     deleted_user = await service.delete_user_by_id(current_user.id)
+#     return BaseResponse(data=BaseUserResponse.model_validate(deleted_user))
