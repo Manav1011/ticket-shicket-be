@@ -30,7 +30,7 @@ class TicketingService:
             raise OpenEventDoesNotSupportTickets
 
         # Reject B2B category - B2B ticket types are auto-created internally
-        if category == TicketCategoryPublic.b2b:
+        if category == TicketCategory.b2b:
             raise BadRequestError("B2B ticket types are auto-created and cannot be created manually.")
 
         # C2: Validate price >= 0
