@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.payment_gateway.exceptions import WebhookVerificationError
@@ -95,9 +96,9 @@ class RazorpayWebhookHandler:
                 payload=raw,
                 gateway_payment_id=payment_id,
             )
-        except Exception as e:
-            # Unique constraint violation — duplicate event, ignore
-            logger.info(f"Duplicate order.paid event {razorpay_event_id} for order {order_id}: {str(e)}")
+        except IntegrityError:
+            # Unique constraint violation — duplicate event, ignore and return success
+            logger.info(f"Duplicate order.paid event {razorpay_event_id} for order {order_id}")
             return {"status": "ok"}
 
         # Validate gateway_order_id match
