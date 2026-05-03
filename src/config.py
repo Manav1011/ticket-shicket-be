@@ -87,9 +87,6 @@ class Settings(BaseSettings):
             "DATABASE_HOST",
             "DATABASE_PORT",
             "DATABASE_NAME",
-            "RAZORPAY_KEY_ID",
-            "RAZORPAY_KEY_SECRET",
-            "RAZORPAY_WEBHOOK_SECRET",
             "SENTRY_SDK_DSN",
         ]
         missing = [field for field in required_fields if not getattr(self, field)]
