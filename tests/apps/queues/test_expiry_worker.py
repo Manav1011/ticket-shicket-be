@@ -54,8 +54,8 @@ class TestExpiryWorker:
         assert call_args["gateway_type"] == "razorpay_payment_link"
 
     @pytest.mark.asyncio
-    async def test_expired_order_clears_locks_and_cancels_payment_link(self, worker):
-        """Order with razorpay_payment_link gets lock clear + cancel call."""
+    async def test_expired_order_clears_locks(self, worker):
+        """Order with razorpay_payment_link gets lock clear (cancel link commented out for now)."""
         order = {
             "id": str(uuid4()),
             "gateway_type": "razorpay_payment_link",
@@ -71,15 +71,13 @@ class TestExpiryWorker:
         with patch("apps.queues.workers.expiry.async_session") as mock_async_session:
             mock_async_session.return_value.__aenter__.return_value = mock_session
             with patch("apps.queues.workers.expiry.OrderExpiryRepository", return_value=mock_repo):
-                with patch.object(worker, "_cancel_payment_link", new_callable=AsyncMock) as mock_cancel:
-                    await worker._handle_expired_order(order)
+                await worker._handle_expired_order(order)
 
         mock_repo.clear_ticket_locks.assert_called_once()
-        mock_cancel.assert_called_once_with("plink_abc")
 
     @pytest.mark.asyncio
-    async def test_expired_order_no_cancel_for_checkout_type(self, worker):
-        """Order with razorpay_order type does NOT call payment link cancel."""
+    async def test_expired_order_clears_locks_for_checkout_type(self, worker):
+        """Order with razorpay_order type clears locks (cancel link commented out for now)."""
         order = {
             "id": str(uuid4()),
             "gateway_type": "razorpay_order",
@@ -95,11 +93,9 @@ class TestExpiryWorker:
         with patch("apps.queues.workers.expiry.async_session") as mock_async_session:
             mock_async_session.return_value.__aenter__.return_value = mock_session
             with patch("apps.queues.workers.expiry.OrderExpiryRepository", return_value=mock_repo):
-                with patch.object(worker, "_cancel_payment_link", new_callable=AsyncMock) as mock_cancel:
-                    await worker._handle_expired_order(order)
+                await worker._handle_expired_order(order)
 
         mock_repo.clear_ticket_locks.assert_called_once()
-        mock_cancel.assert_not_called()
 
 
 class TestOrderExpiryRepository:

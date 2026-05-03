@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -19,7 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
 from apps.ticketing.enums import OrderStatus, OrderType
-from .enums import AllocationStatus, AllocationType, ClaimLinkStatus, TicketHolderStatus
+from .enums import AllocationStatus, AllocationType, ClaimLinkStatus, GatewayType, TicketHolderStatus
 
 
 class TicketHolderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
@@ -99,6 +100,9 @@ class RevokedScanTokenModel(Base, UUIDPrimaryKeyMixin):
 
 class AllocationModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     __tablename__ = "allocations"
+    __table_args__ = (
+        UniqueConstraint("order_id", name="uq_allocations_order_id"),
+    )
 
     event_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("events.id", ondelete="CASCADE"), index=True, nullable=False
@@ -195,4 +199,21 @@ class OrderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
         default=OrderStatus.pending,
         server_default=text("'pending'"),
         nullable=False,
+    )
+    lock_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    gateway_type: Mapped[str | None] = mapped_column(Enum(GatewayType), nullable=True)
+    gateway_order_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    gateway_response: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    short_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    gateway_payment_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    captured_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    expired_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index(
+            "ix_orders_pending_lock_expiry",
+            "status",
+            "lock_expires_at",
+            postgresql_where=text("status = 'pending'"),
+        ),
     )

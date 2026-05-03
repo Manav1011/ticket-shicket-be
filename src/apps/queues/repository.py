@@ -34,11 +34,11 @@ class OrderExpiryRepository:
             .where(
                 OrderModel.status == OrderStatus.pending,
                 OrderModel.lock_expires_at.is_not(None),
-                OrderModel.lock_expires_at < datetime.now(timezone.utc),
+                OrderModel.lock_expires_at < datetime.utcnow(),
             )
             .values(
                 status=OrderStatus.expired,
-                expired_at=datetime.now(timezone.utc),
+                expired_at=datetime.utcnow(),
             )
             .returning(OrderModel.id, OrderModel.gateway_type, OrderModel.gateway_order_id)
         )

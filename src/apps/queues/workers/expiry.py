@@ -67,25 +67,26 @@ class ExpiryWorker:
             await session.commit()
             logger.debug(f"Unlocked {unlocked} tickets for order {order['id']}")
 
-        if order["gateway_type"] == GatewayType.RAZORPAY_PAYMENT_LINK.value:
-            if order["gateway_order_id"]:
-                asyncio.create_task(
-                    self._cancel_payment_link(order["gateway_order_id"])
-                )
+        # TODO: Cancel Razorpay payment link once payment gateway is integrated
+        # if order["gateway_type"] == GatewayType.RAZORPAY_PAYMENT_LINK.value:
+        #     if order["gateway_order_id"]:
+        #         asyncio.create_task(
+        #             self._cancel_payment_link(order["gateway_order_id"])
+        #         )
 
         logger.info(f"Expired order {order['id']} processed")
 
-    async def _cancel_payment_link(self, gateway_order_id: str):
-        """Cancel Razorpay payment link — fire and forget, retry with backoff."""
-        if not gateway_order_id:
-            return
-        try:
-            from apps.payment_gateway.services.factory import get_gateway
-
-            gateway = get_gateway("razorpay")
-            await gateway.cancel_payment_link_with_retry(gateway_order_id, max_retries=3)
-        except Exception as e:
-            logger.error(f"Failed to cancel payment link {gateway_order_id}: {e}")
+    # async def _cancel_payment_link(self, gateway_order_id: str):
+    #     """Cancel Razorpay payment link — fire and forget, retry with backoff."""
+    #     if not gateway_order_id:
+    #         return
+    #     try:
+    #         from apps.payment_gateway.services.factory import get_gateway
+    #
+    #         gateway = get_gateway("razorpay")
+    #         await gateway.cancel_payment_link_with_retry(gateway_order_id, max_retries=3)
+    #     except Exception as e:
+    #         logger.error(f"Failed to cancel payment link {gateway_order_id}: {e}")
 
 
 async def main():

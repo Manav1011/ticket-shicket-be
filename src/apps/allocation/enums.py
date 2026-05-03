@@ -23,3 +23,9 @@ class AllocationType(str, Enum):
 class ClaimLinkStatus(str, Enum):
     active = "active"
     inactive = "inactive"
+
+
+class GatewayType(str, Enum):
+    RAZORPAY_ORDER = "razorpay_order"          # Checkout flow (online purchase, V2)
+    RAZORPAY_PAYMENT_LINK = "razorpay_payment_link"  # Payment link flow (B2B)
+    STRIPE_CHECKOUT = "stripe_checkout"       # Future
