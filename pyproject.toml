@@ -36,6 +36,8 @@ dependencies = [
     "pillow>=12.2.0",
     "graphifyy>=0.4.1",
     "starlette-admin>=0.16.0",
+    "nats-py>=2.14.0",
+    "razorpay>=2.0.1",
 ]
 
 [project.optional-dependencies]
