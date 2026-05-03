@@ -119,4 +119,8 @@ class RazorpayPaymentGateway(PaymentGateway):
         )
 
     async def cancel_payment_link(self, payment_link_id: str) -> bool:
-        raise NotImplementedError("Phase 2 — coming next")
+        try:
+            self._client.payment_link.cancel(payment_link_id)
+            return True
+        except razorpay.errors.BadRequestError:
+            return False  # Already cancelled/expired
