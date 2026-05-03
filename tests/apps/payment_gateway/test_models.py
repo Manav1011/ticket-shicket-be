@@ -20,11 +20,11 @@ def test_payment_gateway_event_model_has_expected_columns():
 
 def test_payment_gateway_event_model_has_dedup_constraint():
     """Verify unique constraint on (order_id, event_type, gateway_event_id) exists."""
-    constraints = [c.name for c in PaymentGatewayEventModel.__table__.constraints]
-    assert any("dedup" in c.lower() or "uq_payment_gateway_events_dedup" in c.lower() for c in constraints)
+    constraints = [c.name for c in PaymentGatewayEventModel.__table__.constraints if c.name]
+    assert any("dedup" in c.lower() for c in constraints)
 
 
 def test_payment_gateway_event_model_has_payment_id_constraint():
     """Verify unique constraint on gateway_payment_id exists."""
-    constraints = [c.name for c in PaymentGatewayEventModel.__table__.constraints]
+    constraints = [c.name for c in PaymentGatewayEventModel.__table__.constraints if c.name]
     assert any("payment_id" in c.lower() for c in constraints)

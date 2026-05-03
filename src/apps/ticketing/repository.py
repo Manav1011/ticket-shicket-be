@@ -309,3 +309,21 @@ class TicketingRepository:
             .where(TicketModel.id.in_(ticket_ids))
             .values(**values)
         )
+
+    async def clear_locks_for_order(self, order_id: UUID) -> None:
+        """
+        Clear all ticket locks associated with an order.
+        Used when payment webhook processing is complete or failed.
+        """
+        await self._session.execute(
+            update(TicketModel)
+            .where(
+                TicketModel.lock_reference_type == "order",
+                TicketModel.lock_reference_id == order_id,
+            )
+            .values(
+                lock_reference_type=None,
+                lock_reference_id=None,
+                lock_expires_at=None,
+            )
+        )
