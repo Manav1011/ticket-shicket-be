@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     AWS_S3_REGION: Optional[str] = Field("us-east-1", alias="AWS_S3_REGION")
     AWS_S3_ENDPOINT_URL: Optional[str] = Field(None, alias="AWS_S3_ENDPOINT_URL")
 
+    # Razorpay Configuration
+    RAZORPAY_KEY_ID: Optional[str] = Field(None, alias="RAZORPAY_KEY_ID")
+    RAZORPAY_KEY_SECRET: Optional[str] = Field(None, alias="RAZORPAY_KEY_SECRET")
+    RAZORPAY_WEBHOOK_SECRET: Optional[str] = Field(None, alias="RAZORPAY_WEBHOOK_SECRET")
+
     # Sentry variables
     SENTRY_SDK_DSN: str | None = Field(None, alias="SENTRY_SDK_DSN")
 
@@ -82,6 +87,9 @@ class Settings(BaseSettings):
             "DATABASE_HOST",
             "DATABASE_PORT",
             "DATABASE_NAME",
+            "RAZORPAY_KEY_ID",
+            "RAZORPAY_KEY_SECRET",
+            "RAZORPAY_WEBHOOK_SECRET",
             "SENTRY_SDK_DSN",
         ]
         missing = [field for field in required_fields if not getattr(self, field)]
