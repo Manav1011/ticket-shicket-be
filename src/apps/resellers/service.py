@@ -314,7 +314,11 @@ class ResellerService:
             from src.utils.notifications.whatsapp import mock_send_whatsapp
             from src.utils.notifications.email import mock_send_email
 
-            message = f"Complete your ticket purchase: {payment_result.short_url}"
+            payment_link = payment_result.short_url
+            print(f"[PAID RESELLER→CUSTOMER TRANSFER] Payment link: {payment_link}")
+            print(f"[PAID RESELLER→CUSTOMER TRANSFER] Sending to phone={customer_phone}, email={customer_email}")
+
+            message = f"Complete your ticket purchase: {payment_link}"
             if customer_phone:
                 mock_send_sms(customer_phone, message, template="customer_paid_transfer")
                 mock_send_whatsapp(customer_phone, message, template="customer_paid_transfer")

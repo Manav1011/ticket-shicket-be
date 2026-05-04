@@ -34,11 +34,11 @@ class PaymentGatewayEventModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     )
 
     order_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
     )
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    gateway_event_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    gateway_event_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     payload: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
     gateway_payment_id: Mapped[str | None] = mapped_column(
-        String(128), nullable=True, unique=True, index=True
+        String(128), nullable=True
     )

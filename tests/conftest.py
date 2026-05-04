@@ -178,12 +178,46 @@ def async_test_client(test_app):
 @pytest.fixture
 async def db_session():
     """Provide a test database session with rollback after each test."""
+    from sqlalchemy import text
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.dialects.postgresql import JSONB
+    from sqlalchemy.ext.compiler import compiles
+    from sqlalchemy.types import JSON
+
+    @compiles(JSONB, "sqlite")
+    def compile_jsonb_sqlite(type_, compiler, **kw):
+        return "JSON"
+
+    # Import all models to ensure they are registered with Base
+    from db.base import Base
+    import apps.user.models
+    import apps.organizer.models
+    import apps.event.models
+    import apps.guest.models
+    import apps.ticketing.models
+    import apps.allocation.models
+    import apps.payment_gateway.models
+
+    # SQLite doesn't like ::jsonb in server_default
+    for table in Base.metadata.tables.values():
+        for col in table.columns:
+            if col.server_default and hasattr(col.server_default.arg, 'text'):
+                orig_text = col.server_default.arg.text
+                if '::jsonb' in orig_text:
+                    col.server_default.arg = text(orig_text.replace('::jsonb', ''))
+            if col.server_default and isinstance(col.server_default.arg, str):
+                 if '::jsonb' in col.server_default.arg:
+                     col.server_default.arg = col.server_default.arg.replace('::jsonb', '')
+
 
     # Use a test database URL or SQLite for testing
     test_db_url = "sqlite+aiosqlite:///:memory:"
-
     engine = create_async_engine(test_db_url, echo=False)
+    
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
     async with session_maker() as session:
