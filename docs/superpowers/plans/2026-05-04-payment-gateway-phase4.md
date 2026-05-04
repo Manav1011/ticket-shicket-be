@@ -462,6 +462,7 @@ if mode == "paid":
     from apps.payment_gateway.services.base import BuyerInfo
     from apps.payment_gateway.repositories.order import OrderPaymentRepository
     from apps.allocation.enums import GatewayType
+    from apps.allocation.repositories.user import UserRepository
     from datetime import datetime, timedelta, timezone
 
     # Determine reseller contact info for BuyerInfo
@@ -996,5 +997,13 @@ git commit -m "test: verify free flow is unaffected after Phase 4 paid flow impl
 - Amount in paise passed to `create_payment_link()` should match `int(final_amount * 100)`
 - Real SMS/WhatsApp/Email provider integration (Phase 4 uses mock services already in codebase)
 - Fix `lock_tickets_for_transfer` (ticketing/repository.py:214) to use `datetime.now(timezone.utc)` instead of deprecated `datetime.utcnow()` for setting `expires_at`
+- Expiry worker's `clear_ticket_locks` only handles `lock_reference_type == "order"` — fix to handle `"transfer"` type too (same pattern as Task 0 fix)
+- Add `UserRepository` import to `organizer/service.py` and `resellers/service.py` before implementing paid flows
+
+**Pre-execution checklist (verify before running Tasks 1-5):**
+- [ ] `tests/apps/payment_gateway/test_order_repository.py` already exists? Add tests to it instead of creating new file.
+- [ ] `UserRepository` import path: `from apps.allocation.repositories.user import UserRepository`
+- [ ] Verify OrganizerService uses `self.repository.session` (not `self._repo._session`)
+- [ ] Verify ResellerService uses `self._repo._session`
 
 Plan complete and saved to `docs/superpowers/plans/2026-05-04-payment-gateway-phase4.md`.

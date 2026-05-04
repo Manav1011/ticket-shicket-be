@@ -510,11 +510,9 @@ class OrganizerService:
 
             # 3. Create payment link via Razorpay
             # Determine reseller contact info for BuyerInfo
-            reseller_user_repo = UserRepository(self.repository.session)
-            reseller_user = await reseller_user_repo.find_by_id(reseller_id)
-            reseller_name = getattr(reseller_user, 'name', None) or 'Reseller'
-            reseller_email = getattr(reseller_user, 'email', None)
-            reseller_phone = getattr(reseller_user, 'phone', None)
+            reseller_name = getattr(reseller, 'name', None) or 'Reseller'
+            reseller_email = getattr(reseller, 'email', None)
+            reseller_phone = getattr(reseller, 'phone', None)
 
             gateway = get_gateway("razorpay")
             buyer_info = BuyerInfo(
