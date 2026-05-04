@@ -705,35 +705,27 @@ class OrganizerService:
             customer_email = email
             customer_phone = phone or ""
 
-            total_price = price or 0.0
-            # 1. Create pending order (no allocation created yet)
-            order = OrderModel(
-                event_id=event_id,
-                user_id=user_id,
-                type=OrderType.transfer,
-                subtotal_amount=total_price,
-                discount_amount=0.0,
-                final_amount=total_price,
-                status=OrderStatus.pending,
-                gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
-                lock_expires_at=datetime.utcnow() + timedelta(minutes=30),
-            )
-            self.repository.session.add(order)
-            await self.repository.session.flush()
-            await self.repository.session.refresh(order)
-
-            # 2. Lock tickets (FIFO, 30-min TTL)
-            # 4. Get organizer's holder (Moved up for availability check)
+            # Get organizer's holder first (needed for availability check)
             org_holder = await self._allocation_repo.get_holder_by_user_id(user_id)
             if not org_holder:
                 raise NotFoundError("Organizer has no ticket holder account")
 
-            # 5. Check organizer's available ticket count ≥ quantity
+            # Check organizer's available ticket count ≥ quantity
             b2b_ticket_type = await self._ticketing_repo.get_b2b_ticket_type_for_event(event_id)
             if not b2b_ticket_type:
                 raise NotFoundError("No B2B ticket type found for this event")
 
-            # Resolve customer TicketHolder (needed for payment link)
+            ticket_rows = await self._allocation_repo.list_b2b_tickets_by_holder(
+                event_id=event_id,
+                holder_id=org_holder.id,
+                b2b_ticket_type_id=b2b_ticket_type.id,
+                event_day_id=event_day_id,
+            )
+            available = sum(r["count"] for r in ticket_rows)
+            if available < quantity:
+                raise BadRequestError(f"Only {available} B2B tickets available, requested {quantity}")
+
+            # Resolve customer TicketHolder (needed for order.receiver_holder_id)
             if phone and email:
                 existing = await self._allocation_repo.get_holder_by_phone_and_email(phone, email)
                 if existing:
@@ -758,11 +750,28 @@ class OrganizerService:
                 customer_holder = await self._allocation_repo.get_holder_by_email(email)
                 if not customer_holder:
                     customer_holder = await self._allocation_repo.create_holder(email=email)
-            
-            order.sender_holder_id = org_holder.id
-            order.receiver_holder_id = customer_holder.id
-            order.transfer_type = "organizer_to_customer"
-            order.event_day_id = event_day_id
+
+            total_price = price or 0.0
+
+            # Create pending order with all fields for webhook handler
+            order = OrderModel(
+                event_id=event_id,
+                user_id=user_id,
+                type=OrderType.transfer,
+                subtotal_amount=total_price,
+                discount_amount=0.0,
+                final_amount=total_price,
+                status=OrderStatus.pending,
+                gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
+                lock_expires_at=datetime.utcnow() + timedelta(minutes=30),
+                sender_holder_id=org_holder.id,
+                receiver_holder_id=customer_holder.id,
+                transfer_type="organizer_to_customer",
+                event_day_id=event_day_id,
+            )
+            self.repository.session.add(order)
+            await self.repository.session.flush()
+            await self.repository.session.refresh(order)
 
             locked_ticket_ids = await self._ticketing_repo.lock_tickets_for_transfer(
                 owner_holder_id=org_holder.id,

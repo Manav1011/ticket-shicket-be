@@ -93,12 +93,43 @@ class RazorpayPaymentGateway(PaymentGateway):
             internal_order_id = notes.get("internal_order_id")
             receipt = order_entity.receipt
 
+        elif event_type == "payment_link.paid":
+            from apps.payment_gateway.schemas.razorpay import PaymentLinkPayload
+            parsed = PaymentLinkPayload.model_validate(raw)
+            gateway_order_id = parsed.payload.payment_link.entity.id
+            # internal_order_id is in payload.order.entity.notes
+            notes = raw.get("payload", {}).get("order", {}).get("entity", {}).get("notes", {})
+            internal_order_id = notes.get("internal_order_id")
+            receipt = None
+
         elif event_type in ("payment_link.expired", "payment_link.cancelled"):
             from apps.payment_gateway.schemas.razorpay import PaymentLinkPayload
             parsed = PaymentLinkPayload.model_validate(raw)
             gateway_order_id = parsed.payload.payment_link.entity.id
             internal_order_id = None
             receipt = None
+
+        elif event_type == "payment.authorized":
+            # Payment authorized but not captured yet — ignore in parser, handle in handler
+            raw = json.loads(body)
+            return WebhookEvent(
+                event=event_type,
+                gateway_order_id=None,
+                internal_order_id=None,
+                receipt=None,
+                raw_payload=raw,
+            )
+
+        elif event_type == "payment.captured":
+            # Payment captured — could be from direct payment, not our link flow
+            raw = json.loads(body)
+            return WebhookEvent(
+                event=event_type,
+                gateway_order_id=None,
+                internal_order_id=None,
+                receipt=None,
+                raw_payload=raw,
+            )
 
         elif event_type == "payment.failed":
             from apps.payment_gateway.schemas.razorpay import PaymentFailedPayload

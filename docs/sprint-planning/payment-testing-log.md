@@ -506,7 +506,80 @@ curl -s "http://0.0.0.0:8080/api/resellers/events/c252eec3-726f-4352-8b3f-7ea0a5
 
 ## Step 9: Transfer B2B Tickets to Reseller (PAID - Razorpay)
 
-<!-- To be filled — requires webhook Phase 4 fix to be verified -->
+### Transfer 10 B2B Tickets to Reseller (PAID - ₹50)
+
+```bash
+ORG_TOKEN=$(cat /tmp/token_organizer)
+EVENT_ID="c252eec3-726f-4352-8b3f-7ea0a5e5bef2"
+DAY1_ID="efdac189-417b-488c-82a2-52765667f238"
+RESELLER_ID="09397718-94d9-4abc-8536-1b30e763f39b"
+
+curl -s -X POST "http://0.0.0.0:8080/api/organizers/b2b/events/${EVENT_ID}/transfers/reseller" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ORG_TOKEN" \
+  -d '{
+    "resellerId": "'$RESELLER_ID'",
+    "quantity": 10,
+    "eventDayId": "'$DAY1_ID'",
+    "mode": "paid",
+    "price": 50
+  }'
+```
+
+**Response:**
+```json
+{
+    "status": "SUCCESS",
+    "code": 200,
+    "data": {
+        "transferId": "8a3c0a82-f2d1-435c-838a-58aa558c9a83",
+        "status": "pending_payment",
+        "ticketCount": 10,
+        "resellerId": "09397718-94d9-4abc-8536-1b30e763f39b",
+        "mode": "paid",
+        "paymentUrl": "https://rzp.io/rzp/GzBhowq1"
+    }
+}
+```
+
+### Payment Webhook Events (4 events fired, only 1 processed)
+
+Razorpay fired 4 events for the single payment:
+
+| Event | Status | Action |
+|-------|--------|--------|
+| `payment.authorized` | 200 OK | **Ignored** — intermediate event |
+| `payment.captured` | 200 OK | **Ignored** — intermediate event |
+| `order.paid` | 200 OK | **Ignored** — gateway_type routing: `RAZORPAY_PAYMENT_LINK` order ignores `order.paid` |
+| `payment_link.paid` | 200 OK | **Processed** ✅ — correct event for payment link |
+
+### DB Verification
+
+**Order:**
+```bash
+uv run python scripts/db_query_engine.py "SELECT id, status, gateway_type, final_amount, gateway_payment_id, captured_at FROM orders WHERE id = '8a3c0a82-f2d1-435c-838a-58aa558c9a83'"
+```
+```
+id                                   | status | gateway_type          | final_amount | gateway_payment_id   | captured_at
+-------------------------------------+--------+----------------------+--------------+--------------------+--------------------------
+8a3c0a82-f2d1-435c-838a-58aa558c9a83 | paid   | RAZORPAY_PAYMENT_LINK | 50           | pay_SlPWCPWKoRRlwO | 2026-05-04 19:58:03.053438
+```
+
+**Allocation:**
+```bash
+uv run python scripts/db_query_engine.py "SELECT id, status, from_holder_id, to_holder_id, ticket_count FROM allocations WHERE order_id = '8a3c0a82-f2d1-435c-838a-58aa558c9a83'"
+```
+```
+id                                   | status    | from_holder_id                       | to_holder_id                         | ticket_count
+-------------------------------------+-----------+--------------------------------------+--------------------------------------+-------------
+573ec5fe-b453-4402-a3c7-e9e1cc92caec | completed | ce4b68b4-49d1-4cee-8234-107c573c13d6 | 062b0d95-b019-48cc-bdea-811e32d75bcd | 10
+```
+
+**Ticket ownership:**
+- Reseller (062b0d95): 15 tickets total (5 free + 10 paid)
+- Organizer (ce4b68b4): 5 tickets remaining
+
+✅ Step 9 complete — PAID B2B transfer to reseller working via Razorpay payment link
 
 ---
 

@@ -22,8 +22,10 @@ def test_create_b2b_transfer_request_paid_mode():
         quantity=3,
         event_day_id=None,
         mode="paid",
+        price=100.0,
     )
     assert req.mode == "paid"
+    assert req.price == 100.0
 
 
 def test_b2b_transfer_response_schema():

@@ -8,6 +8,7 @@ from apps.payment_gateway.handlers.razorpay import RazorpayWebhookHandler
 from apps.payment_gateway.schemas.base import WebhookEvent
 from apps.allocation.models import OrderModel
 from apps.ticketing.enums import OrderStatus
+from apps.allocation.enums import GatewayType
 
 
 def _make_order_paid_event(order_id: str, amount: int, gateway_order_id: str = None):
@@ -56,12 +57,27 @@ async def test_handle_order_paid_amount_mismatch_marks_order_failed():
         final_amount=400.00,
         gateway_order_id=event.gateway_order_id,
         gateway_response={},
+        gateway_type=GatewayType.RAZORPAY_ORDER,
     )
-    
     mock_session = AsyncMock()
-    mock_session.execute.return_value = MagicMock(
-        scalar_one_or_none=MagicMock(return_value=order_mock)
-    )
+
+    def execute_side_effect(*args, **kwargs):
+        # Track calls: first 2 execute calls return order_mock (find + handle_order_paid lookup)
+        # 3rd execute call is pre-check for gateway_payment_id → return None (proceed to amount check)
+        call_count = execute_side_effect.call_count if hasattr(execute_side_effect, 'call_count') else 0
+        execute_side_effect.call_count = call_count + 1
+
+        result = MagicMock()
+        if call_count < 2:
+            result.scalar_one_or_none = MagicMock(return_value=order_mock)
+        elif call_count == 2:
+            # pre-check for duplicate payment — returns None (no prior payment)
+            result.scalar_one_or_none = MagicMock(return_value=None)
+        else:
+            result.scalar_one_or_none = MagicMock(return_value=None)
+        return result
+
+    mock_session.execute.side_effect = execute_side_effect
 
     handler = RazorpayWebhookHandler(mock_session)
     handler._gateway = MagicMock()
@@ -102,6 +118,7 @@ async def test_handle_order_paid_idempotency_order_already_paid():
         status=OrderStatus.paid,
         final_amount=500.00,
         gateway_order_id=event.gateway_order_id,
+        gateway_type=GatewayType.RAZORPAY_ORDER,
     )
     mock_session = AsyncMock()
     mock_session.execute.return_value = MagicMock(
@@ -136,6 +153,7 @@ async def test_handle_order_paid_gateway_order_id_mismatch():
         status=OrderStatus.pending,
         final_amount=500.00,
         gateway_order_id="razorpay_completely_different_id",
+        gateway_type=GatewayType.RAZORPAY_ORDER,
     )
     mock_session = AsyncMock()
     mock_session.execute.return_value = MagicMock(
@@ -147,12 +165,14 @@ async def test_handle_order_paid_gateway_order_id_mismatch():
     handler._gateway.parse_webhook_event.return_value = event
     handler._gateway.verify_webhook_signature.return_value = True
     handler._event_repo = AsyncMock()
+    handler._ticketing_repo = AsyncMock()
 
     result = await handler.handle(b"{}", {})
 
     assert result == {"status": "ok"}
-    # Should not have proceeded to update
-    assert mock_session.execute.call_count == 1
+    # _find_order_for_event + handle_order_paid lookup + gateway_order_id mismatch check
+    # No allocation/update attempted since validation failed early
+    handler._ticketing_repo.clear_locks_for_order.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -171,11 +191,25 @@ async def test_handle_order_paid_duplicate_event_ignored():
         status=OrderStatus.pending,
         final_amount=500.00,
         gateway_order_id=event.gateway_order_id,
+        gateway_type=GatewayType.RAZORPAY_ORDER,
     )
     mock_session = AsyncMock()
-    mock_session.execute.return_value = MagicMock(
-        scalar_one_or_none=MagicMock(return_value=order_mock)
-    )
+
+    def execute_side_effect(*args, **kwargs):
+        call_count = getattr(execute_side_effect, 'call_count', 0)
+        execute_side_effect.call_count = call_count + 1
+        result = MagicMock()
+        if call_count < 2:
+            # First 2 calls: _find_order_for_event + handle_order_paid lookup → order
+            result.scalar_one_or_none = MagicMock(return_value=order_mock)
+        elif call_count == 2:
+            # Pre-check for gateway_payment_id → returns None (proceed)
+            result.scalar_one_or_none = MagicMock(return_value=None)
+        else:
+            result.scalar_one_or_none = MagicMock(return_value=None)
+        return result
+
+    mock_session.execute.side_effect = execute_side_effect
 
     handler = RazorpayWebhookHandler(mock_session)
     handler._gateway = MagicMock()
@@ -189,8 +223,8 @@ async def test_handle_order_paid_duplicate_event_ignored():
     result = await handler.handle(b"{}", {})
 
     assert result == {"status": "ok"}
-    # Should not have proceeded to update order
-    assert mock_session.execute.call_count == 1
+    # Duplicate event: IntegrityError caught, rollback done, order not modified
+    handler._ticketing_repo.clear_locks_for_order.assert_not_called()
 
 
 @pytest.mark.asyncio

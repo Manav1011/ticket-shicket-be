@@ -1,7 +1,7 @@
 """Razorpay webhook handler implementation."""
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -9,11 +9,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.payment_gateway.exceptions import WebhookVerificationError
+from apps.payment_gateway.models import PaymentGatewayEventModel
 from apps.payment_gateway.repositories.event import PaymentGatewayEventRepository
 from apps.payment_gateway.schemas.base import WebhookEvent
 from apps.payment_gateway.services.factory import get_gateway
 from apps.allocation.models import OrderModel, TicketHolderModel
-from apps.allocation.enums import AllocationStatus, AllocationType
+from apps.allocation.enums import AllocationStatus, AllocationType, GatewayType
 from apps.allocation.repository import AllocationRepository
 from apps.ticketing.enums import OrderStatus
 from apps.ticketing.models import TicketModel
@@ -36,38 +37,100 @@ class RazorpayWebhookHandler:
     async def handle(self, body: bytes, headers: dict) -> dict:
         """
         Verify signature, parse event, route to handler. Fully async.
+        Routings based on gateway_type:
+        - RAZORPAY_ORDER: only process order.paid
+        - RAZORPAY_PAYMENT_LINK: only process payment_link.paid
         """
         if not self._gateway.verify_webhook_signature(body, headers):
             raise WebhookVerificationError("Webhook signature verification failed")
 
         event = self._gateway.parse_webhook_event(body, headers)
+        order = await self._find_order_for_event(event)
+        gateway_type = order.gateway_type if order else None
 
         if event.event == "order.paid":
+            if gateway_type == GatewayType.RAZORPAY_PAYMENT_LINK:
+                logger.info("Ignoring order.paid for RAZORPAY_PAYMENT_LINK order")
+                return {"status": "ok"}
             return await self.handle_order_paid(event)
+
+        elif event.event == "payment.authorized":
+            logger.info("Ignoring payment.authorized (handled by order.paid or payment_link.paid)")
+            return {"status": "ok"}
+
+        elif event.event == "payment.captured":
+            logger.info("Ignoring payment.captured (handled by order.paid or payment_link.paid)")
+            return {"status": "ok"}
+
+        elif event.event == "payment_link.paid":
+            if gateway_type == GatewayType.RAZORPAY_ORDER:
+                logger.info("Ignoring payment_link.paid for RAZORPAY_ORDER order")
+                return {"status": "ok"}
+            return await self.handle_order_paid(event)
+
         elif event.event == "payment.failed":
             return await self.handle_payment_failed(event)
+
         elif event.event == "payment_link.expired":
             return await self.handle_payment_link_expired(event)
+
         elif event.event == "payment_link.cancelled":
             return await self.handle_payment_link_cancelled(event)
+
         else:
             logger.info(f"Ignoring unhandled webhook event: {event.event}")
             return {"status": "ok"}
 
+    async def _find_order_for_event(self, event: WebhookEvent) -> OrderModel | None:
+        """
+        Find order from webhook event for routing decision.
+        Tries internal_order_id/receipt first, then gateway_order_id.
+        """
+        order_id = None
+        if event.internal_order_id or event.receipt:
+            try:
+                order_id = UUID(event.internal_order_id) if event.internal_order_id else UUID(event.receipt)
+            except (ValueError, TypeError):
+                pass
+
+        if order_id:
+            result = await self.session.execute(select(OrderModel).where(OrderModel.id == order_id))
+            return result.scalar_one_or_none()
+
+        if event.gateway_order_id:
+            result = await self.session.execute(
+                select(OrderModel).where(OrderModel.gateway_order_id == event.gateway_order_id)
+            )
+            return result.scalar_one_or_none()
+
+        return None
+
     async def handle_order_paid(self, event: WebhookEvent) -> dict:
         """Handle order.paid — 4-layer idempotent flow."""
-        # Layer 1: Find order by internal_order_id or receipt
         internal_order_id = event.internal_order_id
         receipt = event.receipt
+        gateway_order_id = event.gateway_order_id
 
-        if not internal_order_id and not receipt:
-            logger.warning("Cannot find order: no internal_order_id or receipt in webhook")
-            return {"status": "ok"}
+        # Find order — try internal_order_id/receipt first, fall back to gateway_order_id
+        order_id = None
+        if internal_order_id or receipt:
+            try:
+                order_id = UUID(internal_order_id) if internal_order_id else UUID(receipt)
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid order ID: internal_order_id={internal_order_id}, receipt={receipt}")
+                return {"status": "ok"}
 
-        try:
-            order_id = UUID(internal_order_id) if internal_order_id else UUID(receipt)
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid order ID: internal_order_id={internal_order_id}, receipt={receipt}")
+        if not order_id and gateway_order_id:
+            # Fall back to gateway_order_id lookup for payment_link.paid
+            result = await self.session.execute(
+                select(OrderModel).where(OrderModel.gateway_order_id == gateway_order_id)
+            )
+            order = result.scalar_one_or_none()
+            if order:
+                order_id = order.id
+
+        if not order_id:
+            logger.warning("Cannot find order: no internal_order_id, receipt, or gateway_order_id")
             return {"status": "ok"}
 
         result = await self.session.execute(
@@ -95,6 +158,16 @@ class RazorpayWebhookHandler:
                 logger.error(f"No payment ID in webhook: {raw}")
                 return {"status": "ok"}
 
+            # Pre-check: has this payment_id already been recorded?
+            existing = await self.session.execute(
+                select(PaymentGatewayEventModel).where(
+                    PaymentGatewayEventModel.gateway_payment_id == payment_id
+                )
+            )
+            if existing.scalar_one_or_none():
+                logger.info(f"Duplicate payment {payment_id} — ignoring")
+                return {"status": "ok"}
+
             await self._event_repo.create(
                 order_id=order.id,
                 event_type="order.paid",
@@ -103,21 +176,25 @@ class RazorpayWebhookHandler:
                 gateway_payment_id=payment_id,
             )
         except IntegrityError:
-            # Unique constraint violation — duplicate event, ignore and return success
-            logger.info(f"Duplicate order.paid event {razorpay_event_id} for order {order_id}")
+            # Race condition: another thread inserted between pre-check and create
+            # Rollback to reset poisoned session state
+            await self.session.rollback()
+            logger.info(f"Duplicate payment {payment_id} (race)")
             return {"status": "ok"}
 
-        # Validate gateway_order_id match
-        webhook_order_id = raw.get("payload", {}).get("order", {}).get("entity", {}).get("id")
-        if not webhook_order_id or order.gateway_order_id != webhook_order_id:
-            logger.error(f"gateway_order_id mismatch: {order.gateway_order_id} vs {webhook_order_id}")
-            return {"status": "ok"}
-
-        # Validate payment.order_id matches webhook order id
-        payment_order_id = raw.get("payload", {}).get("payment", {}).get("entity", {}).get("order_id")
-        if payment_order_id != webhook_order_id:
-            logger.error(f"payment.order_id ({payment_order_id}) != order.id ({webhook_order_id})")
-            return {"status": "ok"}
+        # Validate gateway_order_id match — gateway-type-specific
+        if order.gateway_type == GatewayType.RAZORPAY_PAYMENT_LINK:
+            # For payment links: order.gateway_order_id is plink_xxx, validate against event.gateway_order_id
+            if event.gateway_order_id and order.gateway_order_id != event.gateway_order_id:
+                logger.error(f"gateway_order_id mismatch for payment_link: {order.gateway_order_id} vs {event.gateway_order_id}")
+                return {"status": "ok"}
+        elif order.gateway_type == GatewayType.RAZORPAY_ORDER:
+            # For checkout orders: order.gateway_order_id == payload.order.entity.id (same Razorpay order ID)
+            webhook_order_id = raw.get("payload", {}).get("order", {}).get("entity", {}).get("id")
+            if webhook_order_id and order.gateway_order_id != webhook_order_id:
+                logger.error(f"gateway_order_id mismatch for order: {order.gateway_order_id} vs {webhook_order_id}")
+                return {"status": "ok"}
+        # gateway_type is NULL → skip validation, proceed (legacy orders)
 
         # Validate amount
         payment_amount = raw.get("payload", {}).get("payment", {}).get("entity", {}).get("amount")
@@ -148,7 +225,7 @@ class RazorpayWebhookHandler:
             .where(OrderModel.id == order.id, OrderModel.status == OrderStatus.pending)
             .values(
                 status=OrderStatus.paid,
-                captured_at=datetime.now(timezone.utc),
+                captured_at=datetime.utcnow(),
                 gateway_payment_id=payment_id,
                 gateway_response=raw,
             )
@@ -318,7 +395,7 @@ class RazorpayWebhookHandler:
             .where(OrderModel.id == order.id, OrderModel.status == OrderStatus.pending)
             .values(
                 status=OrderStatus.expired,
-                expired_at=datetime.now(timezone.utc),
+                expired_at=datetime.utcnow(),
             )
         )
         if updated.rowcount == 0:
@@ -349,7 +426,7 @@ class RazorpayWebhookHandler:
             .where(OrderModel.id == order.id, OrderModel.status == OrderStatus.pending)
             .values(
                 status=OrderStatus.expired,
-                expired_at=datetime.now(timezone.utc),
+                expired_at=datetime.utcnow(),
                 failure_reason="payment_link_cancelled",
             )
         )

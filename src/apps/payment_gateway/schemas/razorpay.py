@@ -58,19 +58,19 @@ class OrderFailedPaymentPayload(BaseModel):
 
 class OrderPaidPayload(BaseModel):
     event: str
-    id: str
+    id: str | None = None
     payload: OrderPaidOrderPayload
 
 
 class PaymentFailedPayload(BaseModel):
     event: str
-    id: str
+    id: str | None = None
     payload: OrderFailedPaymentPayload
 
 
 class PaymentLinkPayload(BaseModel):
     event: str
-    id: str
+    id: str | None = None
     payload: PaymentLinkPayloadWrapper
 
 

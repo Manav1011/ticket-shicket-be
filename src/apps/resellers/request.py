@@ -16,3 +16,12 @@ class CreateResellerCustomerTransferRequest(CamelCaseModel):
         if not self.phone and not self.email:
             raise ValueError('Either phone or email must be provided')
         return self
+
+    @model_validator(mode='after')
+    def validate_paid_mode_price(self):
+        if self.mode == TransferMode.PAID:
+            if self.price is None:
+                raise ValueError('price is required when mode=PAID')
+            if self.price <= 0:
+                raise ValueError('price must be greater than 0 when mode=PAID')
+        return self
