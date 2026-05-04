@@ -2,6 +2,7 @@ import re
 import uuid
 import hashlib
 from uuid import UUID
+from datetime import datetime, timedelta, timezone
 
 from .exceptions import OrganizerNotFound, OrganizerSlugAlreadyExists
 from .models import OrganizerPageModel
@@ -12,7 +13,10 @@ from apps.superadmin.enums import B2BRequestStatus
 
 
 from apps.ticketing.repository import TicketingRepository
-from apps.allocation.enums import AllocationStatus
+from apps.payment_gateway.services.factory import get_gateway
+from apps.payment_gateway.services.base import BuyerInfo
+from apps.payment_gateway.repositories.order import OrderPaymentRepository
+from apps.allocation.enums import AllocationStatus, TransferMode, GatewayType
 from apps.allocation.repository import AllocationRepository
 from apps.allocation.service import AllocationService
 from apps.event.repository import EventRepository
@@ -392,7 +396,7 @@ class OrganizerService:
         reseller_id: uuid.UUID,
         quantity: int,
         event_day_id: uuid.UUID | None,
-        mode: str = "free",
+        mode: TransferMode = TransferMode.FREE,
     ) -> "B2BTransferResponse":
         """
         [Organizer] Transfer B2B tickets to a reseller (free mode).
@@ -413,16 +417,6 @@ class OrganizerService:
 
         All in one DB transaction — rollback on any failure.
         """
-
-        if mode == "paid":
-            return B2BTransferResponse(
-                transfer_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
-                status="not_implemented",
-                ticket_count=0,
-                reseller_id=reseller_id,
-                mode="paid",
-                message="Paid transfer coming soon",
-            )
 
         if user_id == reseller_id:
             from exceptions import BadRequestError
@@ -484,6 +478,93 @@ class OrganizerService:
         if available < quantity:
             from exceptions import BadRequestError
             raise BadRequestError(f"Only {available} B2B tickets available, requested {quantity}")
+
+        if mode == TransferMode.PAID:
+            # 1. Create pending order (no allocation created yet)
+            order = OrderModel(
+                event_id=event_id,
+                user_id=user_id,
+                type=OrderType.transfer,
+                subtotal_amount=0.0,  # TODO (Phase 5): derive from ticket type price
+                discount_amount=0.0,
+                final_amount=0.0,  # TODO (Phase 5): derive from ticket type price
+                status=OrderStatus.pending,
+                payment_gateway="razorpay",
+                gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
+                lock_expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
+            )
+            self.repository.session.add(order)
+            await self.repository.session.flush()
+            await self.repository.session.refresh(order)
+
+            # 2. Lock tickets (FIFO, 30-min TTL)
+            locked_ticket_ids = await self._ticketing_repo.lock_tickets_for_transfer(
+                owner_holder_id=org_holder.id,
+                event_id=event_id,
+                ticket_type_id=b2b_ticket_type.id,
+                event_day_id=event_day_id,
+                quantity=quantity,
+                order_id=order.id,
+                lock_ttl_minutes=30,
+            )
+
+            # 3. Create payment link via Razorpay
+            # Determine reseller contact info for BuyerInfo
+            reseller_user_repo = UserRepository(self.repository.session)
+            reseller_user = await reseller_user_repo.find_by_id(reseller_id)
+            reseller_name = getattr(reseller_user, 'name', None) or 'Reseller'
+            reseller_email = getattr(reseller_user, 'email', None)
+            reseller_phone = getattr(reseller_user, 'phone', None)
+
+            gateway = get_gateway("razorpay")
+            buyer_info = BuyerInfo(
+                name=reseller_name,
+                email=reseller_email,
+                phone=reseller_phone or "",
+            )
+            payment_result = await gateway.create_payment_link(
+                order_id=order.id,
+                amount=int(0.0 * 100),  # TODO (Phase 5): use actual ticket price in paise
+                currency="INR",
+                buyer=buyer_info,
+                description=f"B2B Transfer - {event.name}",
+                event_id=event_id,
+                flow_type="b2b_transfer",
+                transfer_type="organizer_to_reseller",
+                buyer_holder_id=reseller_holder.id,
+            )
+
+            # 4. Update order with gateway details
+            order_payment_repo = OrderPaymentRepository(self.repository.session)
+            await order_payment_repo.update_pending_order_on_payment_link_created(
+                order_id=order.id,
+                gateway_order_id=payment_result.gateway_order_id,
+                gateway_response=payment_result.gateway_response,
+                short_url=payment_result.short_url,
+            )
+
+            # 5. Send payment link via our notification channels
+            from src.utils.notifications.sms import mock_send_sms
+            from src.utils.notifications.whatsapp import mock_send_whatsapp
+            from src.utils.notifications.email import mock_send_email
+
+            message = f"Complete your B2B ticket purchase: {payment_result.short_url}"
+            if reseller_phone:
+                mock_send_sms(reseller_phone, message, template="b2b_paid_transfer")
+                mock_send_whatsapp(reseller_phone, message, template="b2b_paid_transfer")
+            if reseller_email:
+                mock_send_email(reseller_email, "Complete Your B2B Ticket Purchase", message)
+
+            # NO allocation created here — webhook handles that on payment
+
+            return B2BTransferResponse(
+                transfer_id=order.id,
+                status="pending_payment",
+                ticket_count=len(locked_ticket_ids),
+                reseller_id=reseller_id,
+                mode=TransferMode.PAID,
+                payment_url=payment_result.short_url,
+            )
 
         # 7. Create the transfer order FIRST (to get its ID for locking)
         order = OrderModel(
@@ -552,7 +633,7 @@ class OrganizerService:
             status="completed",
             ticket_count=len(locked_ticket_ids),
             reseller_id=reseller_id,
-            mode=mode,
+            mode=TransferMode.FREE,
         )
 
     async def create_customer_transfer(
