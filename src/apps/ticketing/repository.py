@@ -318,7 +318,7 @@ class TicketingRepository:
         await self._session.execute(
             update(TicketModel)
             .where(
-                TicketModel.lock_reference_type == "order",
+                TicketModel.lock_reference_type.in_(["order", "transfer"]),
                 TicketModel.lock_reference_id == order_id,
             )
             .values(
