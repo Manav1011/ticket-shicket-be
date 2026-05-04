@@ -491,13 +491,16 @@ class OrganizerService:
                 discount_amount=0.0,
                 final_amount=total_price,
                 status=OrderStatus.pending,
-                payment_gateway="razorpay",
                 gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
-                lock_expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
+                lock_expires_at=datetime.utcnow() + timedelta(minutes=30),
             )
             self.repository.session.add(order)
             await self.repository.session.flush()
             await self.repository.session.refresh(order)
+            order.sender_holder_id = org_holder.id
+            order.receiver_holder_id = reseller_holder.id
+            order.transfer_type = "organizer_to_reseller"
+            order.event_day_id = event_day_id
 
             # 2. Lock tickets (FIFO, 30-min TTL)
             locked_ticket_ids = await self._ticketing_repo.lock_tickets_for_transfer(
@@ -712,9 +715,8 @@ class OrganizerService:
                 discount_amount=0.0,
                 final_amount=total_price,
                 status=OrderStatus.pending,
-                payment_gateway="razorpay",
                 gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
-                lock_expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
+                lock_expires_at=datetime.utcnow() + timedelta(minutes=30),
             )
             self.repository.session.add(order)
             await self.repository.session.flush()
@@ -756,6 +758,11 @@ class OrganizerService:
                 customer_holder = await self._allocation_repo.get_holder_by_email(email)
                 if not customer_holder:
                     customer_holder = await self._allocation_repo.create_holder(email=email)
+            
+            order.sender_holder_id = org_holder.id
+            order.receiver_holder_id = customer_holder.id
+            order.transfer_type = "organizer_to_customer"
+            order.event_day_id = event_day_id
 
             locked_ticket_ids = await self._ticketing_repo.lock_tickets_for_transfer(
                 owner_holder_id=org_holder.id,

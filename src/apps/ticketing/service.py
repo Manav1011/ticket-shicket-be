@@ -73,6 +73,10 @@ class TicketingService:
         if not ticket_type:
             raise TicketTypeNotFound
 
+        # B2B ticket types cannot be allocated via this endpoint — use organizer B2B transfer instead
+        if ticket_type.category == TicketCategory.b2b:
+            raise InvalidAllocation("B2B ticket types cannot be allocated via this endpoint. Use B2B transfer.")
+
         # C1: Verify day belongs to this event
         day = await self.event_day_repository.get_event_day_for_owner(
             event_day_id, owner_user_id

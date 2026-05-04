@@ -69,7 +69,7 @@ async def test_create_payment_link_calls_with_correct_notes(mock_get_client):
     )
 
     call_kwargs = mock_client.payment_link.create.call_args.kwargs
-    payload = call_kwargs["payload"]
+    payload = call_kwargs["data"]
     assert payload["amount"] == 100000
     assert payload["currency"] == "INR"
     assert payload["description"] == "Test transfer"

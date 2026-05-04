@@ -56,7 +56,7 @@ class RazorpayPaymentGateway(PaymentGateway):
             },
         }
 
-        response = self._client.payment_link.create(payload=payload)
+        response = self._client.payment_link.create(data=payload)
         gateway_order_id = response.get("id")
         short_url = response.get("short_url")
 

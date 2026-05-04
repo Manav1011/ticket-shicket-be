@@ -182,6 +182,16 @@ class OrderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    sender_holder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ticket_holders.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    receiver_holder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ticket_holders.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    transfer_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    event_day_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("event_days.id", ondelete="CASCADE"), nullable=True
+    )
     type: Mapped[str] = mapped_column(
         Enum(OrderType), nullable=False
     )  # PURCHASE / TRANSFER
