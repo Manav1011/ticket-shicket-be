@@ -665,7 +665,11 @@ class OrganizerService:
         13. Send notifications (mock SMS/WhatsApp/Email)
 
         Flow (paid mode):
-        - Returns stub: status="not_implemented", mode="paid"
+        1. Create PENDING order (status=pending, 30-min TTL)
+        2. Lock tickets (FIFO, 30-min TTL)
+        3. Create Razorpay payment link (transfer_type=organizer_to_customer)
+        4. Send notification with payment link
+        5. Return CustomerTransferResponse with payment_url (Allocation deferred to webhook)
 
         Returns:
             CustomerTransferResponse with transfer_id, status, ticket_count, mode, claim_link
