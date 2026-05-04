@@ -62,7 +62,7 @@ class OrderExpiryRepository:
             update(TicketModel)
             .where(
                 TicketModel.lock_reference_id == order_id,
-                TicketModel.lock_reference_type == "order",
+                TicketModel.lock_reference_type.in_(["order", "transfer"]),
             )
             .values(
                 lock_reference_type=None,

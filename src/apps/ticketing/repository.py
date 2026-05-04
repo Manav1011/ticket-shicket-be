@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -211,7 +211,7 @@ class TicketingRepository:
         Raises ValueError if fewer than `quantity` tickets could be locked,
         with message: "Only {N} tickets available, requested {quantity}"
         """
-        expires_at = datetime.utcnow() + timedelta(minutes=lock_ttl_minutes)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=lock_ttl_minutes)
 
         # Subquery: select ticket IDs ordered by ticket_index, limited by quantity
         # Uses FOR UPDATE to prevent concurrent lock acquisition

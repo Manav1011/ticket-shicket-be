@@ -432,7 +432,7 @@ async def test_create_b2b_transfer_paid_mode_uses_price_for_amount():
 
                 with patch("apps.organizer.service.EventRepository") as mock_event_repo_cls:
                     mock_event_repo = MagicMock()
-                    mock_event_repo.get_by_id_for_owner = AsyncMock(return_value=MagicMock(name="Test Event"))
+                    mock_event_repo.get_by_id_for_owner = AsyncMock(return_value=MagicMock(title="Test Event"))
                     mock_event_repo.get_reseller_for_event = AsyncMock(return_value=MagicMock(status="accepted"))
                     mock_event_id = uuid4()
                     mock_event_repo.get_event_day_by_id = AsyncMock(return_value=MagicMock(event_id=mock_event_id))
@@ -508,7 +508,7 @@ async def test_create_customer_transfer_paid_mode_uses_price_for_amount():
             with patch("apps.organizer.service.EventRepository") as mock_event_repo_cls:
                 mock_event_repo = MagicMock()
                 target_event_id = uuid4()
-                mock_event_repo.get_by_id_for_owner = AsyncMock(return_value=MagicMock(name="Test Event"))
+                mock_event_repo.get_by_id_for_owner = AsyncMock(return_value=MagicMock(title="Test Event"))
                 mock_event_repo.get_event_day_by_id = AsyncMock(return_value=MagicMock(event_id=target_event_id))
                 mock_event_repo_cls.return_value = mock_event_repo
 
