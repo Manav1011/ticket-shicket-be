@@ -29,3 +29,8 @@ class GatewayType(str, Enum):
     RAZORPAY_ORDER = "razorpay_order"          # Checkout flow (online purchase, V2)
     RAZORPAY_PAYMENT_LINK = "razorpay_payment_link"  # Payment link flow (B2B)
     STRIPE_CHECKOUT = "stripe_checkout"       # Future
+
+
+class TransferMode(str, Enum):
+    FREE = "free"
+    PAID = "paid"
