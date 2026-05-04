@@ -66,6 +66,7 @@ class CreateB2BTransferRequest(CamelCaseModel):
     quantity: int = Field(gt=0)
     event_day_id: UUID | None = None  # optional if event has only 1 day
     mode: TransferMode = TransferMode.FREE
+    price: float | None = None  # Flat order price in rupees. Required when mode=PAID.
 
 
 class CreateCustomerTransferRequest(CamelCaseModel):
@@ -74,6 +75,7 @@ class CreateCustomerTransferRequest(CamelCaseModel):
     quantity: int = Field(gt=0)
     event_day_id: UUID  # required for customer transfers (claim link is per-day)
     mode: TransferMode = TransferMode.FREE
+    price: float | None = None  # Flat order price in rupees. Required when mode=PAID.
 
     @model_validator(mode='after')
     def must_have_phone_or_email(self):
