@@ -11,12 +11,16 @@ from apps.resellers.response import (
     ResellerAllocationItem,
     ResellerAllocationsResponse,
 )
-from apps.allocation.enums import AllocationType, AllocationStatus
+from apps.allocation.enums import AllocationType, AllocationStatus, TransferMode
 from apps.allocation.models import OrderModel
 from apps.allocation.repository import AllocationRepository
 from apps.ticketing.enums import OrderType, OrderStatus
 from apps.ticketing.repository import TicketingRepository
 from apps.organizer.response import CustomerTransferResponse
+from apps.payment_gateway.services.factory import get_gateway
+from apps.payment_gateway.services.base import BuyerInfo
+from apps.payment_gateway.repositories.order import OrderPaymentRepository
+from apps.allocation.enums import GatewayType
 from exceptions import ForbiddenError, NotFoundError, BadRequestError
 
 
@@ -148,7 +152,7 @@ class ResellerService:
         email: str | None,
         quantity: int,
         event_day_id: uuid_lib.UUID,
-        mode: str = "free",
+        mode: TransferMode = TransferMode.FREE,
     ) -> "CustomerTransferResponse":
         """
         [Reseller] Transfer B2B tickets to a customer (free mode).
@@ -170,7 +174,11 @@ class ResellerService:
         13. Send notifications (mock SMS/WhatsApp/Email)
 
         Flow (paid mode):
-        - Returns stub: status="not_implemented", mode="paid"
+        1. Create PENDING order (status=pending, 30-min TTL)
+        2. Lock tickets (FIFO, 30-min TTL)
+        3. Create Razorpay payment link (transfer_type=reseller_to_customer)
+        4. Send notification with payment link
+        5. Return CustomerTransferResponse with payment_url (Allocation deferred to webhook)
 
         Returns:
             CustomerTransferResponse with transfer_id, status, ticket_count, mode, claim_link
@@ -179,15 +187,6 @@ class ResellerService:
         from src.utils.notifications.sms import mock_send_sms
         from src.utils.notifications.whatsapp import mock_send_whatsapp
         from src.utils.notifications.email import mock_send_email
-
-        if mode == "paid":
-            return CustomerTransferResponse(
-                transfer_id=uuid_lib.UUID("00000000-0000-0000-0000-000000000000"),
-                status="not_implemented",
-                ticket_count=0,
-                mode="paid",
-                message="Paid customer transfer coming soon",
-            )
 
         if not phone and not email:
             raise BadRequestError("Either phone or email must be provided")
@@ -203,6 +202,133 @@ class ResellerService:
         event_day = await event_repo.get_event_day_by_id(event_day_id)
         if not event_day or event_day.event_id != event_id:
             raise NotFoundError("Event day not found or does not belong to this event")
+
+        # Fetch event for description
+        event = await event_repo.get_by_id(event_id)
+        if not event:
+            raise NotFoundError("Event not found")
+
+        if mode == TransferMode.PAID:
+            from datetime import datetime, timedelta, timezone
+
+            # Build buyer info from customer contact (customer may not have a user account)
+            customer_name = phone or "Customer"
+            customer_email = email
+            customer_phone = phone or ""
+
+            # 1. Create pending order (no allocation created yet)
+            order = OrderModel(
+                event_id=event_id,
+                user_id=user_id,
+                type=OrderType.transfer,
+                subtotal_amount=0.0,  # TODO (Phase 5): derive from ticket type price
+                discount_amount=0.0,
+                final_amount=0.0,  # TODO (Phase 5): derive from ticket type price
+                status=OrderStatus.pending,
+                payment_gateway="razorpay",
+                gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
+                lock_expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
+            )
+            self._repo._session.add(order)
+            await self._repo._session.flush()
+            await self._repo._session.refresh(order)
+
+            # 4. Get reseller's holder
+            reseller_holder = await self._repo.get_my_holder_for_event(user_id)
+            if not reseller_holder:
+                raise NotFoundError("Reseller has no ticket holder account")
+
+            # 5. Check reseller's available ticket count ≥ quantity
+            b2b_ticket_type = await self._ticketing_repo.get_b2b_ticket_type_for_event(event_id)
+            if not b2b_ticket_type:
+                raise NotFoundError("No B2B ticket type found for this event")
+
+            # Resolve customer TicketHolder (needed for payment link)
+            if phone and email:
+                existing = await self._allocation_repo.get_holder_by_phone_and_email(phone, email)
+                if existing:
+                    customer_holder = existing
+                else:
+                    by_phone = await self._allocation_repo.get_holder_by_phone(phone)
+                    if by_phone:
+                        customer_holder = by_phone
+                    else:
+                        by_email = await self._allocation_repo.get_holder_by_email(email)
+                        if by_email:
+                            customer_holder = by_email
+                        else:
+                            customer_holder = await self._allocation_repo.create_holder(
+                                phone=phone, email=email
+                            )
+            elif phone:
+                customer_holder = await self._allocation_repo.get_holder_by_phone(phone)
+                if not customer_holder:
+                    customer_holder = await self._allocation_repo.create_holder(phone=phone)
+            else:
+                customer_holder = await self._allocation_repo.get_holder_by_email(email)
+                if not customer_holder:
+                    customer_holder = await self._allocation_repo.create_holder(email=email)
+
+            # 2. Lock tickets (FIFO, 30-min TTL)
+            locked_ticket_ids = await self._ticketing_repo.lock_tickets_for_transfer(
+                owner_holder_id=reseller_holder.id,
+                event_id=event_id,
+                ticket_type_id=b2b_ticket_type.id,
+                event_day_id=event_day_id,
+                quantity=quantity,
+                order_id=order.id,
+                lock_ttl_minutes=30,
+            )
+
+            # 3. Create payment link via Razorpay
+            gateway = get_gateway("razorpay")
+            buyer_info = BuyerInfo(
+                name=customer_name,
+                email=customer_email,
+                phone=customer_phone,
+            )
+            payment_result = await gateway.create_payment_link(
+                order_id=order.id,
+                amount=int(0.0 * 100),  # TODO (Phase 5): use actual ticket price in paise
+                currency="INR",
+                buyer=buyer_info,
+                description=f"Ticket Purchase - {event.title}",
+                event_id=event_id,
+                flow_type="b2b_transfer",
+                transfer_type="reseller_to_customer",
+                buyer_holder_id=customer_holder.id,
+            )
+
+            # 4. Update order with gateway details
+            order_payment_repo = OrderPaymentRepository(self._repo._session)
+            await order_payment_repo.update_pending_order_on_payment_link_created(
+                order_id=order.id,
+                gateway_order_id=payment_result.gateway_order_id,
+                gateway_response=payment_result.gateway_response,
+                short_url=payment_result.short_url,
+            )
+
+            # 5. Send payment link via our notification channels
+            from src.utils.notifications.sms import mock_send_sms
+            from src.utils.notifications.whatsapp import mock_send_whatsapp
+            from src.utils.notifications.email import mock_send_email
+
+            message = f"Complete your ticket purchase: {payment_result.short_url}"
+            if customer_phone:
+                mock_send_sms(customer_phone, message, template="customer_paid_transfer")
+                mock_send_whatsapp(customer_phone, message, template="customer_paid_transfer")
+            if customer_email:
+                mock_send_email(customer_email, "Complete Your Ticket Purchase", message)
+
+            # NO allocation created here — webhook handles that on payment
+
+            return CustomerTransferResponse(
+                transfer_id=order.id,
+                status="pending_payment",
+                ticket_count=len(locked_ticket_ids),
+                mode=TransferMode.PAID,
+                payment_url=payment_result.short_url,
+            )
 
         # 3. Resolve customer TicketHolder
         # Priority order when both phone+email provided:
@@ -334,5 +460,5 @@ class ResellerService:
             transfer_id=order.id,
             status="completed",
             ticket_count=len(locked_ticket_ids),
-            mode=mode,
+            mode=TransferMode.FREE,
         )
