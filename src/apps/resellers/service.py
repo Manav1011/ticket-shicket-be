@@ -147,14 +147,15 @@ class ResellerService:
 
     async def create_reseller_customer_transfer(
         self,
-        user_id: uuid_lib.UUID,
-        event_id: uuid_lib.UUID,
+        user_id: UUID,
+        event_id: UUID,
         phone: str | None,
         email: str | None,
         quantity: int,
-        event_day_id: uuid_lib.UUID,
+        event_day_id: UUID,
         mode: TransferMode = TransferMode.FREE,
-    ) -> "CustomerTransferResponse":
+        price: float | None = None,
+    ) -> CustomerTransferResponse:
         """
         [Reseller] Transfer B2B tickets to a customer (free mode).
         Customer receives a claim link; their ticket ownership is transferred immediately.
@@ -215,14 +216,15 @@ class ResellerService:
             customer_email = email
             customer_phone = phone or ""
 
+            total_price = price or 0.0
             # 1. Create pending order (no allocation created yet)
             order = OrderModel(
                 event_id=event_id,
                 user_id=user_id,
                 type=OrderType.transfer,
-                subtotal_amount=0.0,  # TODO (Phase 5): derive from ticket type price
+                subtotal_amount=total_price,
                 discount_amount=0.0,
-                final_amount=0.0,  # TODO (Phase 5): derive from ticket type price
+                final_amount=total_price,
                 status=OrderStatus.pending,
                 payment_gateway="razorpay",
                 gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
@@ -288,10 +290,10 @@ class ResellerService:
             )
             payment_result = await gateway.create_payment_link(
                 order_id=order.id,
-                amount=int(0.0 * 100),  # TODO (Phase 5): use actual ticket price in paise
+                amount=int(total_price * 100),
                 currency="INR",
                 buyer=buyer_info,
-                description=f"Ticket Purchase - {event.title}",
+                description=f"Ticket Transfer - {event.title}",
                 event_id=event_id,
                 flow_type="b2b_transfer",
                 transfer_type="reseller_to_customer",
