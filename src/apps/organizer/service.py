@@ -391,13 +391,14 @@ class OrganizerService:
 
     async def create_b2b_transfer(
         self,
-        user_id: uuid.UUID,
-        event_id: uuid.UUID,
-        reseller_id: uuid.UUID,
+        user_id: UUID,
+        event_id: UUID,
+        reseller_id: UUID,
         quantity: int,
-        event_day_id: uuid.UUID | None,
+        event_day_id: UUID | None = None,
         mode: TransferMode = TransferMode.FREE,
-    ) -> "B2BTransferResponse":
+        price: float | None = None,
+    ) -> B2BTransferResponse:
         """
         [Organizer] Transfer B2B tickets to a reseller (free mode).
 
@@ -480,14 +481,15 @@ class OrganizerService:
             raise BadRequestError(f"Only {available} B2B tickets available, requested {quantity}")
 
         if mode == TransferMode.PAID:
+            total_price = price or 0.0
             # 1. Create pending order (no allocation created yet)
             order = OrderModel(
                 event_id=event_id,
                 user_id=user_id,
                 type=OrderType.transfer,
-                subtotal_amount=0.0,  # TODO (Phase 5): derive from ticket type price
+                subtotal_amount=total_price,
                 discount_amount=0.0,
-                final_amount=0.0,  # TODO (Phase 5): derive from ticket type price
+                final_amount=total_price,
                 status=OrderStatus.pending,
                 payment_gateway="razorpay",
                 gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
@@ -522,7 +524,7 @@ class OrganizerService:
             )
             payment_result = await gateway.create_payment_link(
                 order_id=order.id,
-                amount=int(0.0 * 100),  # TODO (Phase 5): use actual ticket price in paise
+                amount=int(total_price * 100),
                 currency="INR",
                 buyer=buyer_info,
                 description=f"B2B Transfer - {event.name}",
@@ -636,14 +638,15 @@ class OrganizerService:
 
     async def create_customer_transfer(
         self,
-        user_id: uuid.UUID,
-        event_id: uuid.UUID,
+        user_id: UUID,
+        event_id: UUID,
         phone: str | None,
         email: str | None,
         quantity: int,
-        event_day_id: uuid.UUID,
+        event_day_id: UUID,
         mode: TransferMode = TransferMode.FREE,
-    ) -> "CustomerTransferResponse":
+        price: float | None = None,
+    ) -> CustomerTransferResponse:
         """
         [Organizer] Transfer B2B tickets to a customer (free mode).
         Customer receives a claim link; their ticket ownership is transferred immediately.
@@ -695,14 +698,15 @@ class OrganizerService:
             customer_email = email
             customer_phone = phone or ""
 
+            total_price = price or 0.0
             # 1. Create pending order (no allocation created yet)
             order = OrderModel(
                 event_id=event_id,
                 user_id=user_id,
                 type=OrderType.transfer,
-                subtotal_amount=0.0,  # TODO (Phase 5): derive from ticket type price
+                subtotal_amount=total_price,
                 discount_amount=0.0,
-                final_amount=0.0,  # TODO (Phase 5): derive from ticket type price
+                final_amount=total_price,
                 status=OrderStatus.pending,
                 payment_gateway="razorpay",
                 gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
@@ -768,10 +772,10 @@ class OrganizerService:
             )
             payment_result = await gateway.create_payment_link(
                 order_id=order.id,
-                amount=int(0.0 * 100),  # TODO (Phase 5): use actual ticket price in paise
+                amount=int(total_price * 100),
                 currency="INR",
                 buyer=buyer_info,
-                description=f"Ticket Purchase - {event.name}",
+                description=f"Ticket Transfer - {event.name}",
                 event_id=event_id,
                 flow_type="b2b_transfer",
                 transfer_type="organizer_to_customer",
