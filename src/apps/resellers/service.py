@@ -1,6 +1,7 @@
 from uuid import UUID
 import hashlib
 import uuid as uuid_lib
+from datetime import datetime, timedelta, timezone
 
 from apps.resellers.repository import ResellerRepository
 from apps.resellers.response import (
@@ -209,8 +210,6 @@ class ResellerService:
             raise NotFoundError("Event not found")
 
         if mode == TransferMode.PAID:
-            from datetime import datetime, timedelta, timezone
-
             # Build buyer info from customer contact (customer may not have a user account)
             customer_name = phone or "Customer"
             customer_email = email
