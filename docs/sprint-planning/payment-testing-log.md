@@ -506,51 +506,7 @@ curl -s "http://0.0.0.0:8080/api/resellers/events/c252eec3-726f-4352-8b3f-7ea0a5
 
 ## Step 9: Transfer B2B Tickets to Reseller (PAID - Razorpay)
 
-### Transfer 3 B2B Tickets to Reseller (PAID)
-
-```bash
-curl -s -X POST "http://0.0.0.0:8080/api/organizers/b2b/events/c252eec3-726f-4352-8b3f-7ea0a5e5bef2/transfers/reseller" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $ORG_TOKEN" \
-  -d '{
-    "resellerId": "09397718-94d9-4abc-8536-1b30e763f39b",
-    "quantity": 3,
-    "eventDayId": "efdac189-417b-488c-82a2-52765667f238",
-    "mode": "paid",
-    "price": 500
-  }'
-```
-
-**Response:**
-```json
-{
-    "status": "SUCCESS",
-    "code": 200,
-    "data": {
-        "transferId": "d4651c24-d6d4-408e-afe9-793a316846ae",
-        "status": "pending_payment",
-        "ticketCount": 3,
-        "resellerId": "09397718-94d9-4abc-8536-1b30e763f39b",
-        "mode": "paid",
-        "paymentUrl": "https://rzp.io/rzp/PzMRHVZ"
-    }
-}
-```
-
-### DB Verification
-
-```bash
-uv run python scripts/db_query_engine.py "SELECT id, status, gateway_type, gateway_order_id, final_amount FROM orders WHERE id = 'd4651c24-d6d4-408e-afe9-793a316846ae'"
-```
-
-**Response:**
-```
-id                                   | status  | gateway_type          | gateway_order_id     | final_amount
--------------------------------------+---------+-----------------------+----------------------+-------------
-d4651c24-d6d4-408e-afe9-793a316846ae | pending | RAZORPAY_PAYMENT_LINK | plink_SlHsyCvwWsWUXg | 500
-```
-
-✅ Payment link created: https://rzp.io/rzp/PzMRHVZ — awaiting payment
+<!-- To be filled — requires webhook Phase 4 fix to be verified -->
 
 ---
 
