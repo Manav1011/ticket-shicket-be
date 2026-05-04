@@ -11,7 +11,7 @@ from utils.schema import BaseResponse
 from .repository import ResellerRepository
 from .response import ResellerEventsResponse, ResellerTicketsResponse, ResellerAllocationsResponse
 from .service import ResellerService
-from apps.organizer.request import CreateCustomerTransferRequest
+from apps.resellers.request import CreateResellerCustomerTransferRequest
 from apps.organizer.response import CustomerTransferResponse
 
 router = APIRouter(
@@ -60,7 +60,7 @@ async def get_my_reseller_allocations(
 async def create_reseller_customer_transfer_endpoint(
     event_id: UUID,
     request: Request,
-    body: Annotated[CreateCustomerTransferRequest, Body()],
+    body: Annotated[CreateResellerCustomerTransferRequest, Body()],
     service: Annotated[ResellerService, Depends(get_reseller_service)],
 ) -> BaseResponse[CustomerTransferResponse]:
     """
@@ -76,5 +76,6 @@ async def create_reseller_customer_transfer_endpoint(
         quantity=body.quantity,
         event_day_id=body.event_day_id,
         mode=body.mode,
+        price=body.price,
     )
     return BaseResponse(data=result)

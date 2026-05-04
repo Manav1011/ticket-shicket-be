@@ -297,6 +297,7 @@ async def create_b2b_transfer_endpoint(
         quantity=body.quantity,
         event_day_id=body.event_day_id,
         mode=body.mode,
+        price=body.price,
     )
     return BaseResponse(data=result)
 
@@ -321,6 +322,7 @@ async def create_customer_transfer_endpoint(
         quantity=body.quantity,
         event_day_id=body.event_day_id,
         mode=body.mode,
+        price=body.price,
     )
     return BaseResponse(data=result)
 
