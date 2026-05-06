@@ -81,12 +81,14 @@ class ResellerRepository:
         event_id: UUID,
         holder_id: UUID,
         b2b_ticket_type_id: UUID,
+        event_day_id: UUID | None = None,
     ) -> list[dict]:
         """
         List B2B ticket counts owned by holder, grouped by event_day.
+        Optionally filter by event_day_id.
         Optimized: COUNT + GROUP BY, no lock filtering (reseller owns these).
         """
-        result = await self._session.execute(
+        query = (
             select(
                 TicketModel.event_day_id,
                 func.count(TicketModel.id).label("count"),
@@ -96,8 +98,11 @@ class ResellerRepository:
                 TicketModel.owner_holder_id == holder_id,
                 TicketModel.ticket_type_id == b2b_ticket_type_id,
             )
-            .group_by(TicketModel.event_day_id)
         )
+        if event_day_id is not None:
+            query = query.where(TicketModel.event_day_id == event_day_id)
+        query = query.group_by(TicketModel.event_day_id)
+        result = await self._session.execute(query)
         return [
             {"event_day_id": row[0], "count": row[1]}
             for row in result.all()

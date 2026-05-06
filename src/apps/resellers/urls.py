@@ -34,17 +34,18 @@ async def list_my_reseller_events(
     return await service.list_my_events(request.state.user.id)
 
 
-@router.get("/events/{event_id}/tickets")
+@router.get("/b2b/events/{event_id}/tickets")
 async def get_my_reseller_tickets(
     event_id: UUID,
     request: Request,
     service: Annotated[ResellerService, Depends(get_reseller_service)],
+    event_day_id: UUID | None = None,
 ) -> ResellerTicketsResponse:
     """Get my tickets for an event I resell."""
-    return await service.get_my_tickets(event_id, request.state.user.id)
+    return await service.get_my_tickets(event_id, request.state.user.id, event_day_id=event_day_id)
 
 
-@router.get("/events/{event_id}/my-allocations")
+@router.get("/b2b/events/{event_id}/my-allocations")
 async def get_my_reseller_allocations(
     event_id: UUID,
     request: Request,

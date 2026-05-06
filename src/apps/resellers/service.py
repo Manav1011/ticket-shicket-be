@@ -51,6 +51,7 @@ class ResellerService:
         self,
         event_id: UUID,
         user_id: UUID,
+        event_day_id: UUID | None = None,
     ) -> ResellerTicketsResponse:
         """Get my tickets for an event I resell."""
         # Check reseller association
@@ -83,6 +84,7 @@ class ResellerService:
             event_id=event_id,
             holder_id=holder.id,
             b2b_ticket_type_id=b2b_type.id,
+            event_day_id=event_day_id,
         )
 
         tickets = [ResellerTicketItem(event_day_id=r["event_day_id"], count=r["count"]) for r in rows]
