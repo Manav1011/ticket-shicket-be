@@ -182,6 +182,7 @@ class AllocationRepository:
         token_hash: str,
         created_by_holder_id: UUID,
         metadata_: dict | None = None,
+        jwt_jti: str | None = None,
     ) -> tuple[AllocationModel, ClaimLinkModel]:
         """
         Create an allocation and its associated claim link in a single transaction.
@@ -208,6 +209,7 @@ class AllocationRepository:
             from_holder_id=from_holder_id,
             to_holder_id=to_holder_id,
             created_by_holder_id=created_by_holder_id,
+            jwt_jti=jwt_jti,
         )
 
         return allocation, claim_link
@@ -382,6 +384,7 @@ class ClaimLinkRepository:
         from_holder_id: UUID | None,
         to_holder_id: UUID,
         created_by_holder_id: UUID,
+        jwt_jti: str | None = None,
     ) -> ClaimLinkModel:
         """Create a new claim link scoped to a specific event_day."""
         link = ClaimLinkModel(
@@ -393,6 +396,7 @@ class ClaimLinkRepository:
             to_holder_id=to_holder_id,
             status=ClaimLinkStatus.active,
             created_by_holder_id=created_by_holder_id,
+            jwt_jti=jwt_jti,
         )
         self._session.add(link)
         await self._session.flush()

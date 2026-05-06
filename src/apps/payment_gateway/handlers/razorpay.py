@@ -1,6 +1,7 @@
 """Razorpay webhook handler implementation."""
 import hashlib
 import logging
+import secrets
 from datetime import datetime
 from uuid import UUID
 
@@ -278,6 +279,7 @@ class RazorpayWebhookHandler:
                     ticket_count=len(locked_ticket_ids),
                     token_hash=token_hash,
                     created_by_holder_id=order.sender_holder_id,
+                    jwt_jti=secrets.token_hex(8),
                     metadata_={
                         "source": "razorpay_webhook_paid_transfer",
                         "transfer_type": transfer_type,
@@ -296,6 +298,8 @@ class RazorpayWebhookHandler:
 
                 claim_url = f"/claim/{raw_token}"
                 message = f"You received {len(locked_ticket_ids)} ticket(s). Claim at: {claim_url}"
+
+                print(f"\n[PAID CUSTOMER TRANSFER WEBHOOK] Claim URL: http://0.0.0.0:8080/api/open{claim_url}\n")
 
                 if receiver_holder.phone:
                     mock_send_sms(receiver_holder.phone, message, template="customer_transfer")
@@ -320,6 +324,7 @@ class RazorpayWebhookHandler:
             await self._ticketing_repo.update_ticket_ownership_batch(
                 ticket_ids=locked_ticket_ids,
                 new_owner_holder_id=order.receiver_holder_id,
+                claim_link_id=claim_link.id,
             )
 
             # Mark completed

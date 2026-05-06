@@ -1,4 +1,5 @@
 import re
+import secrets
 import uuid
 import hashlib
 from uuid import UUID
@@ -930,6 +931,7 @@ class OrganizerService:
             ticket_count=len(locked_ticket_ids),
             token_hash=token_hash,
             created_by_holder_id=org_holder.id,
+            jwt_jti=secrets.token_hex(8),
             metadata_={"source": "organizer_customer_free", "mode": mode},
         )
 
@@ -961,6 +963,8 @@ class OrganizerService:
         # 13. Send notifications (mock — real integration replaces these later)
         claim_url = f"/claim/{raw_token}"
         message = f"You received {len(locked_ticket_ids)} ticket(s). Claim at: {claim_url}"
+
+        print(f"\n[CUSTOMER TRANSFER] Claim URL: http://0.0.0.0:8080/api/open{claim_url}\n")
 
         mock_send_sms(phone or "", message, template="customer_transfer")
         mock_send_whatsapp(phone or "", message, template="customer_transfer")

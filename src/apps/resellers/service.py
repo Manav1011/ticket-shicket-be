@@ -1,5 +1,6 @@
 from uuid import UUID
 import hashlib
+import secrets
 import uuid as uuid_lib
 from datetime import datetime, timedelta, timezone
 
@@ -438,6 +439,7 @@ class ResellerService:
             ticket_count=len(locked_ticket_ids),
             token_hash=token_hash,
             created_by_holder_id=reseller_holder.id,
+            jwt_jti=secrets.token_hex(8),
             metadata_={"source": "reseller_customer_free", "mode": mode},
         )
 
@@ -469,6 +471,8 @@ class ResellerService:
         # 13. Send notifications (mock — real integration replaces these later)
         claim_url = f"/claim/{raw_token}"
         message = f"You received {len(locked_ticket_ids)} ticket(s). Claim at: {claim_url}"
+
+        print(f"\n[RESELLER TO CUSTOMER FREE TRANSFER] Claim URL: http://0.0.0.0:8080/api/open{claim_url}\n")
 
         mock_send_sms(phone or "", message, template="customer_transfer")
         mock_send_whatsapp(phone or "", message, template="customer_transfer")

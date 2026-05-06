@@ -155,9 +155,13 @@ async def test_split_claim_transfers_tickets_and_reissues_jwt():
     customer_b_claim_link = MagicMock()
     customer_b_claim_link.id = uuid4()
     customer_b_claim_link.jwt_jti = None
-    service._allocation_repo.create_allocation_with_claim_link = AsyncMock(
-        return_value=(allocation, customer_b_claim_link)
-    )
+
+    async def mock_create_allocation_with_claim_link(**kwargs):
+        customer_b_claim_link.jwt_jti = kwargs.get("jwt_jti")
+        return (allocation, customer_b_claim_link)
+
+    mock_method = AsyncMock(side_effect=mock_create_allocation_with_claim_link)
+    service._allocation_repo.create_allocation_with_claim_link = mock_method
     service._allocation_repo.add_tickets_to_allocation = AsyncMock()
     service._allocation_repo.upsert_edge = AsyncMock()
     service._allocation_repo.transition_allocation_status = AsyncMock(return_value=True)
