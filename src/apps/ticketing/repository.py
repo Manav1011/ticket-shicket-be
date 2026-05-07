@@ -250,6 +250,64 @@ class TicketingRepository:
 
         return locked_ids
 
+    async def lock_tickets_for_purchase(
+        self,
+        event_id: UUID,
+        event_day_id: UUID,
+        ticket_type_id: UUID,
+        quantity: int,
+        order_id: UUID,
+        lock_ttl_minutes: int = 30,
+    ) -> list[UUID]:
+        """
+        Atomically lock `quantity` tickets from the pool for a purchase order.
+        Uses FIFO (ticket_index ASC).
+
+        Pool tickets: owner_holder_id IS NULL and lock_reference_id IS NULL.
+        Sets lock_reference_type='order', lock_reference_id=order_id,
+        and lock_expires_at=now+lock_ttl_minutes.
+
+        Returns locked ticket IDs.
+        Raises ValueError if fewer than `quantity` tickets could be locked,
+        with message: "Only {N} tickets available, requested {quantity}"
+        """
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=lock_ttl_minutes)
+
+        # Select pool tickets ordered by ticket_index, limited by quantity
+        subq = (
+            select(TicketModel.id)
+            .where(
+                TicketModel.event_id == event_id,
+                TicketModel.event_day_id == event_day_id,
+                TicketModel.ticket_type_id == ticket_type_id,
+                TicketModel.owner_holder_id.is_(None),
+                TicketModel.lock_reference_id.is_(None),
+            )
+            .order_by(TicketModel.ticket_index.asc())
+            .limit(quantity)
+            .with_for_update()
+        )
+
+        # Lock the selected tickets atomically
+        result = await self._session.execute(
+            update(TicketModel)
+            .where(TicketModel.id.in_(subq))
+            .values(
+                lock_reference_type="order",
+                lock_reference_id=order_id,
+                lock_expires_at=expires_at,
+            )
+            .returning(TicketModel.id)
+        )
+        locked_ids = list(result.scalars().all())
+
+        if len(locked_ids) < quantity:
+            raise ValueError(
+                f"Only {len(locked_ids)} tickets available, requested {quantity}"
+            )
+
+        return locked_ids
+
     async def select_tickets_for_transfer(
         self,
         owner_holder_id: UUID,
