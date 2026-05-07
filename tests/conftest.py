@@ -180,13 +180,17 @@ async def db_session():
     """Provide a test database session with rollback after each test."""
     from sqlalchemy import text
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-    from sqlalchemy.dialects.postgresql import JSONB
+    from sqlalchemy.dialects.postgresql import JSONB, UUID
     from sqlalchemy.ext.compiler import compiles
     from sqlalchemy.types import JSON
 
     @compiles(JSONB, "sqlite")
     def compile_jsonb_sqlite(type_, compiler, **kw):
         return "JSON"
+
+    @compiles(UUID, "sqlite")
+    def compile_uuid_sqlite(type_, compiler, **kw):
+        return "CHAR(32)"
 
     # Import all models to ensure they are registered with Base
     from db.base import Base

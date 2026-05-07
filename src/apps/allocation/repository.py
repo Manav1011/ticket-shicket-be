@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.ticketing.models import TicketModel, TicketTypeModel
 from .enums import AllocationStatus, AllocationType, ClaimLinkStatus
-from .models import AllocationEdgeModel, AllocationModel, AllocationTicketModel, TicketHolderModel, ClaimLinkModel, RevokedScanTokenModel
+from .models import AllocationEdgeModel, AllocationModel, AllocationTicketModel, TicketHolderModel, ClaimLinkModel, RevokedScanTokenModel, CouponModel
 
 
 class AllocationRepository:
@@ -504,3 +504,30 @@ class RevokedScanTokenRepository:
             )
         )
         return list(result.all())
+
+
+class CouponRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    @property
+    def session(self) -> AsyncSession:
+        return self._session
+
+    async def get_by_code(self, code: str) -> Optional[CouponModel]:
+        """Get an active coupon by its code. Returns None if not found or inactive."""
+        return await self._session.scalar(
+            select(CouponModel).where(
+                CouponModel.code == code.upper(),
+                CouponModel.is_active == True,
+            )
+        )
+
+    async def increment_used_count(self, coupon_id: UUID) -> None:
+        """Atomically increment the used_count for a coupon."""
+        await self._session.execute(
+            update(CouponModel)
+            .where(CouponModel.id == coupon_id)
+            .values(used_count=CouponModel.used_count + 1)
+        )
+        await self._session.flush()
