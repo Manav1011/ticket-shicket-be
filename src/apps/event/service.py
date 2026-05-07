@@ -47,7 +47,7 @@ class PurchaseService:
         if not coupon.is_active:
             return 0.0
 
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         if not (coupon.valid_from <= now <= coupon.valid_until):
             return 0.0
 
@@ -70,7 +70,6 @@ class PurchaseService:
         self,
         code: str,
         subtotal: float,
-        user_id: UUID,
     ) -> CouponModel:
         """
         Validate coupon code and return coupon if valid.

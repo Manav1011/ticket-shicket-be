@@ -22,8 +22,8 @@ async def sample_coupon(db_session):
         usage_limit=100,
         per_user_limit=5,
         used_count=0,
-        valid_from=datetime.now(timezone.utc) - timedelta(days=1),
-        valid_until=datetime.now(timezone.utc) + timedelta(days=30),
+        valid_from=datetime.utcnow() - timedelta(days=1),
+        valid_until=datetime.utcnow() + timedelta(days=30),
         is_active=True,
     )
     db_session.add(coupon)
@@ -36,8 +36,8 @@ def flat_coupon():
         id=uuid4(), code="FLAT100", type=CouponType.FLAT, value=100,
         max_discount=None, min_order_amount=0, usage_limit=100,
         per_user_limit=10, used_count=0,
-        valid_from=datetime.now(timezone.utc) - timedelta(days=1),
-        valid_until=datetime.now(timezone.utc) + timedelta(days=30),
+        valid_from=datetime.utcnow() - timedelta(days=1),
+        valid_until=datetime.utcnow() + timedelta(days=30),
         is_active=True,
     )
 
@@ -47,8 +47,8 @@ def percentage_coupon():
         id=uuid4(), code="SAVE20", type=CouponType.PERCENTAGE, value=20,
         max_discount=500, min_order_amount=0, usage_limit=100,
         per_user_limit=10, used_count=0,
-        valid_from=datetime.now(timezone.utc) - timedelta(days=1),
-        valid_until=datetime.now(timezone.utc) + timedelta(days=30),
+        valid_from=datetime.utcnow() - timedelta(days=1),
+        valid_until=datetime.utcnow() + timedelta(days=30),
         is_active=True,
     )
 
@@ -69,8 +69,8 @@ def test_calculate_discount_returns_zero_for_inactive():
     coupon = CouponModel(
         id=uuid4(), code="INACTIVE", type=CouponType.FLAT, value=100,
         is_active=False,
-        valid_from=datetime.now(timezone.utc) - timedelta(days=1),
-        valid_until=datetime.now(timezone.utc) + timedelta(days=30),
+        valid_from=datetime.utcnow() - timedelta(days=1),
+        valid_until=datetime.utcnow() + timedelta(days=30),
         min_order_amount=0, usage_limit=100, per_user_limit=10, used_count=0,
     )
     result = PurchaseService.calculate_discount(coupon, subtotal=500.0)
@@ -80,8 +80,8 @@ def test_calculate_discount_returns_zero_for_expired():
     coupon = CouponModel(
         id=uuid4(), code="EXPIRED", type=CouponType.FLAT, value=100,
         is_active=True,
-        valid_from=datetime.now(timezone.utc) - timedelta(days=30),
-        valid_until=datetime.now(timezone.utc) - timedelta(days=1),
+        valid_from=datetime.utcnow() - timedelta(days=30),
+        valid_until=datetime.utcnow() - timedelta(days=1),
         min_order_amount=0, usage_limit=100, per_user_limit=10, used_count=0,
     )
     result = PurchaseService.calculate_discount(coupon, subtotal=500.0)
@@ -91,8 +91,8 @@ def test_calculate_discount_returns_zero_for_usage_exceeded():
     coupon = CouponModel(
         id=uuid4(), code="LIMITED", type=CouponType.FLAT, value=100,
         is_active=True,
-        valid_from=datetime.now(timezone.utc) - timedelta(days=1),
-        valid_until=datetime.now(timezone.utc) + timedelta(days=30),
+        valid_from=datetime.utcnow() - timedelta(days=1),
+        valid_until=datetime.utcnow() + timedelta(days=30),
         usage_limit=10, used_count=10,
         min_order_amount=0, per_user_limit=10,
     )
@@ -103,8 +103,8 @@ def test_calculate_discount_returns_zero_below_min_order():
     coupon = CouponModel(
         id=uuid4(), code="MINORDER", type=CouponType.FLAT, value=100,
         is_active=True,
-        valid_from=datetime.now(timezone.utc) - timedelta(days=1),
-        valid_until=datetime.now(timezone.utc) + timedelta(days=30),
+        valid_from=datetime.utcnow() - timedelta(days=1),
+        valid_until=datetime.utcnow() + timedelta(days=30),
         min_order_amount=1000, usage_limit=100, per_user_limit=10, used_count=0,
     )
     result = PurchaseService.calculate_discount(coupon, subtotal=500.0)
@@ -114,8 +114,8 @@ def test_calculate_discount_caps_at_subtotal():
     coupon = CouponModel(
         id=uuid4(), code="BIGFLAT", type=CouponType.FLAT, value=1000,
         is_active=True,
-        valid_from=datetime.now(timezone.utc) - timedelta(days=1),
-        valid_until=datetime.now(timezone.utc) + timedelta(days=30),
+        valid_from=datetime.utcnow() - timedelta(days=1),
+        valid_until=datetime.utcnow() + timedelta(days=30),
         min_order_amount=0, usage_limit=100, per_user_limit=10, used_count=0,
     )
     result = PurchaseService.calculate_discount(coupon, subtotal=500.0)
@@ -126,7 +126,7 @@ async def test_validate_coupon_raises_for_invalid_code(coupon_repo):
     from exceptions import BadRequestError
     service = PurchaseService(coupon_repo)
     with pytest.raises(BadRequestError) as exc_info:
-        await service.validate_coupon("DOES_NOT_EXIST", subtotal=1000.0, user_id=uuid4())
+        await service.validate_coupon("DOES_NOT_EXIST", subtotal=1000.0)
     assert "Invalid coupon code" in str(exc_info.value)
 
 @pytest.mark.asyncio
@@ -138,5 +138,5 @@ async def test_validate_coupon_raises_for_usage_exceeded(coupon_repo, sample_cou
 
     service = PurchaseService(coupon_repo)
     with pytest.raises(BadRequestError) as exc_info:
-        await service.validate_coupon(sample_coupon.code, subtotal=1000.0, user_id=uuid4())
+        await service.validate_coupon(sample_coupon.code, subtotal=1000.0)
     assert "usage limit" in str(exc_info.value)

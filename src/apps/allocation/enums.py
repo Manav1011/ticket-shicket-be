@@ -37,5 +37,5 @@ class TransferMode(str, Enum):
 
 
 class CouponType(str, Enum):
-    FLAT = "flat"
-    PERCENTAGE = "percentage"
+    FLAT = "FLAT"
+    PERCENTAGE = "PERCENTAGE"
