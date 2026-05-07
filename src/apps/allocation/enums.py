@@ -34,3 +34,8 @@ class GatewayType(str, Enum):
 class TransferMode(str, Enum):
     FREE = "free"
     PAID = "paid"
+
+
+class CouponType(str, Enum):
+    FLAT = "flat"
+    PERCENTAGE = "percentage"
