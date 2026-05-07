@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
@@ -20,7 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
 from apps.ticketing.enums import OrderStatus, OrderType
-from .enums import AllocationStatus, AllocationType, ClaimLinkStatus, GatewayType, TicketHolderStatus
+from .enums import AllocationStatus, AllocationType, ClaimLinkStatus, CouponType, GatewayType, TicketHolderStatus
 
 
 class TicketHolderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
@@ -226,4 +227,56 @@ class OrderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
             "lock_expires_at",
             postgresql_where=text("status = 'pending'"),
         ),
+    )
+
+
+class CouponModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
+    __tablename__ = "coupons"
+
+    code: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True
+    )
+    type: Mapped[str] = mapped_column(
+        Enum(CouponType), nullable=False
+    )
+    value: Mapped[float] = mapped_column(
+        Numeric(), nullable=False
+    )
+    max_discount: Mapped[float | None] = mapped_column(
+        Numeric(), nullable=True
+    )
+    min_order_amount: Mapped[float] = mapped_column(
+        Numeric(), nullable=False, server_default="0"
+    )
+    usage_limit: Mapped[int] = mapped_column(
+        Integer(), nullable=False
+    )
+    per_user_limit: Mapped[int] = mapped_column(
+        Integer(), nullable=False, server_default="1"
+    )
+    used_count: Mapped[int] = mapped_column(
+        Integer(), nullable=False, server_default="0"
+    )
+    valid_from: Mapped[datetime] = mapped_column(
+        DateTime(), nullable=False
+    )
+    valid_until: Mapped[datetime] = mapped_column(
+        DateTime(), nullable=False
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, server_default="true"
+    )
+
+
+class OrderCouponModel(Base, TimeStampMixin):
+    __tablename__ = "order_coupons"
+
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("orders.id", ondelete="CASCADE"), primary_key=True
+    )
+    coupon_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("coupons.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    discount_applied: Mapped[float] = mapped_column(
+        Numeric(), nullable=False
     )
