@@ -22,6 +22,7 @@ Online purchase differs in two key ways:
 
 **In Scope:**
 - `POST /api/purchase/orders` — Create purchase order with Razorpay checkout
+- `POST /api/purchase/orders/preview` — Preview price breakdown before ordering
 - `GET /api/purchase/orders/{order_id}/status` — Poll order payment status
 - Razorpay `client.order.create()` integration
 - Coupon code validation and discount application
@@ -399,6 +400,69 @@ Frontend displays QR code with jwt
 
 ---
 
+### 3.3 Preview Order Price
+
+**Endpoint:** `POST /api/purchase/orders/preview`
+
+**Auth Required:** Yes (Bearer token)
+
+**Purpose:** Validate inputs and return the price breakdown (subtotal, discount, final_amount) without locking tickets or creating an order. Allows the frontend to show the user the final amount before committing to payment.
+
+**Request:**
+```json
+{
+  "event_id": "uuid",
+  "event_day_id": "uuid",
+  "ticket_type_id": "uuid",
+  "quantity": 3,
+  "coupon_code": "SAVE20"  // optional
+}
+```
+
+**Validation rules:** (same as Create Purchase Order — ticket availability, coupon validity)
+- Does NOT lock tickets or create an order
+- Returns error if any validation fails
+
+**Response (200 OK):**
+
+*With valid coupon:*
+```json
+{
+  "success": true,
+  "data": {
+    "subtotal_amount": "1497.00",
+    "discount_amount": "299.40",
+    "final_amount": "1197.60",
+    "coupon_applied": {
+      "code": "SAVE20",
+      "type": "PERCENTAGE",
+      "value": 20,
+      "max_discount": null
+    }
+  }
+}
+```
+
+*Without coupon or invalid coupon:*
+```json
+{
+  "success": true,
+  "data": {
+    "subtotal_amount": "1497.00",
+    "discount_amount": "0.00",
+    "final_amount": "1497.00",
+    "coupon_applied": null
+  }
+}
+```
+
+**Error cases:**
+- 400: Invalid ticket type, quantity exceeds availability, coupon invalid/expired/limit reached, min_order_amount not met
+- 401: Not authenticated
+- 404: Event, event day, or ticket type not found
+
+---
+
 ## 4. Coupon System
 
 ### 4.1 Coupon Model — New Migration Required
@@ -602,19 +666,21 @@ On `order.paid` webhook: `clear_locks_for_order(order.id)` called after ownershi
 
 ## 7. New Files Structure
 
+> **Note:** Online purchase endpoints live as a separate router in the **events app** (`src/apps/event/`), not a standalone purchase app. This keeps related event functionality together and avoids a separate app just for one feature.
+
 ```
-src/apps/purchase/
-├── __init__.py
-├── enums.py               # OrderStatus (reuse ticketing.enums), PurchaseStatus
-├── models.py              # CouponModel, OrderCouponModel (if not already in allocation/models)
-├── repository.py          # PurchaseRepository, CouponRepository
-├── service.py             # PurchaseService (create_order, poll_status)
-├── request.py             # CreateOrderRequest, OrderStatusResponse
-├── response.py            # CreateOrderResponse, OrderStatusResponse
-├── urls.py                # POST /purchase/orders, GET /purchase/orders/{id}/status
-├── razorpay_client.py      # Wrapper around razorpay.Client for checkout orders
-├── webhook_handler.py     # handle_order_paid, handle_payment_failed
-└── notifications.py       # send_claim_link_notifications
+src/apps/event/
+├── service.py                 # Add: PurchaseService (create_order, preview_order, poll_status)
+├── repository.py             # Add: PurchaseRepository, CouponRepository
+├── urls.py                   # Add: purchase_router (POST /orders, POST /orders/preview, GET /orders/{id}/status)
+├── request.py                # Add: CreateOrderRequest, PreviewOrderRequest, OrderStatusRequest
+└── response.py               # Add: CreateOrderResponse, PreviewOrderResponse, OrderStatusResponse
+
+src/apps/allocation/
+└── models.py                  # Add: CouponModel, OrderCouponModel
+
+src/migrations/versions/
+└── xxxx_add_coupons.py       # New migration for coupons + order_coupons tables
 ```
 
 ---
@@ -623,6 +689,7 @@ src/apps/purchase/
 
 - Unit tests for coupon validation and discount calculation
 - Unit tests for `create_order` service method
+- Unit tests for `preview_order` service method
 - Unit tests for `poll_status` service method
 - Integration tests for full purchase flow:
   - Create order → verify pending → webhook fires → verify paid → poll returns jwt
@@ -642,3 +709,38 @@ src/apps/purchase/
 - Payment retry mechanism
 - Organizer-managed coupon creation (coupon codes come from external/offline campaigns)
 - Per-user coupon limit enforcement (v1: assume high or unlimited per-user limits; full tracking via `order_coupons` JOIN is TODO)
+
+---
+
+## 10. Implementation Phases
+
+**Phase 1 — Coupon Infrastructure** ✅ DONE
+- Create `coupons` + `order_coupons` migration
+- Add `CouponModel` + `OrderCouponModel` to `allocation/models.py`
+- Add `CouponRepository` (get_by_code, increment_used_count)
+- Implement `PurchaseService.calculate_discount()` + `PurchaseService.validate_coupon()` in event service layer
+
+**Phase 2 — Gateway Implementation** ✅ DONE
+- Implement `RazorpayPaymentGateway.create_checkout_order()` (stub → actual Razorpay `client.order.create()` call)
+
+**Phase 3 — Ticket Locking** ✅ DONE
+- Add `lock_tickets_for_purchase()` to `TicketingRepository` — FIFO from pool (`owner_holder_id=None`), `lock_reference_type='order'`
+
+**Phase 4 — Purchase Endpoints (Events App)** ✅ DONE
+- Integrate into `src/apps/event/` (not a separate app)
+- Add `PurchaseService` with `preview_order`, `create_order`, `poll_order_status`
+- `POST /api/events/purchase/preview` — price breakdown, no side effects
+- `POST /api/events/purchase/create` — validate → lock → create order → call gateway → return razorpay order details
+- `GET /api/events/purchase/orders/{order_id}/status` — poll, return jwt + claim_url when paid (with ownership check)
+- `ClaimLinkModel.token` column added for claim URL reconstruction
+
+**Phase 5 — Webhook Handler Extension**
+- Add `RAZORPAY_ORDER` branch inside `handle_order_paid()` — simpler than B2B (no split logic, single allocation, single claim link)
+- Add `payment.failed` handling for `RAZORPAY_ORDER` (mark failed + clear locks)
+- Notifications to buyer (email/WhatsApp/SMS) via existing mock utilities
+
+**Phase 6 — Testing**
+- Unit tests for coupon logic, create/preview/poll service methods
+- Integration: full happy path, idempotency, lock expiry
+
+**Dependencies:** Phase 1 and 2 are independent. Phase 3–5 must run sequentially (each builds on the previous).
