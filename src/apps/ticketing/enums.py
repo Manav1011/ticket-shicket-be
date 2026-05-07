@@ -42,8 +42,3 @@ class OrderStatus(str, Enum):
     paid = "paid"
     failed = "failed"
     expired = "expired"
-
-
-class CouponType(str, Enum):
-    flat = "FLAT"
-    percentage = "PERCENTAGE"

@@ -56,6 +56,9 @@ class ClaimLinkModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     token_hash: Mapped[str] = mapped_column(
         String(64), unique=True, nullable=False, index=True
     )
+    token: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )
     event_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True
     )
