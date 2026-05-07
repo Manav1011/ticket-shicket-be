@@ -111,3 +111,19 @@ class EventFilterParams(CamelCaseModel):
         if v is not None and v not in ("open", "ticketed"):
             raise ValueError("event_access_type must be open or ticketed")
         return v
+
+
+class PreviewOrderRequest(CamelCaseModel):
+    event_id: UUID
+    event_day_id: UUID
+    ticket_type_id: UUID
+    quantity: int = Field(ge=1)
+    coupon_code: str | None = None
+
+
+class CreateOrderRequest(CamelCaseModel):
+    event_id: UUID
+    event_day_id: UUID
+    ticket_type_id: UUID
+    quantity: int = Field(ge=1)
+    coupon_code: str | None = None
