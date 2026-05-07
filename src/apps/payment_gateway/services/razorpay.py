@@ -67,7 +67,25 @@ class RazorpayPaymentGateway(PaymentGateway):
         )
 
     async def create_checkout_order(self, order_id, amount: int, currency: str, event_id) -> CheckoutOrderResult:
-        raise NotImplementedError("Phase 2 — online checkout not implemented in V1")
+        """Create a Razorpay checkout order for online ticket purchase."""
+        response = self._client.order.create(data={
+            "amount": amount,
+            "currency": currency,
+            "receipt": str(order_id),
+            "payment_capture": 1,
+            "notes": {
+                "internal_order_id": str(order_id),
+                "event_id": str(event_id),
+                "flow_type": "online_purchase",
+            },
+        })
+        return CheckoutOrderResult(
+            gateway_order_id=response["id"],
+            amount=amount,
+            currency=currency,
+            key_id=settings.RAZORPAY_KEY_ID,
+            gateway_response=response,
+        )
 
     def verify_webhook_signature(self, body: bytes, headers: dict) -> bool:
         received_sig = headers.get("x-razorpay-signature")
