@@ -235,3 +235,38 @@ class SplitClaimResponse(CamelCaseModel):
     remaining_ticket_count: int
     new_jwt: str
     message: str
+
+
+class CouponAppliedResponse(CamelCaseModel):
+    code: str
+    type: str
+    value: float
+    max_discount: float | None
+
+
+class PreviewOrderResponse(CamelCaseModel):
+    subtotal_amount: str
+    discount_amount: str
+    final_amount: str
+    coupon_applied: CouponAppliedResponse | None = None
+
+
+class CreateOrderResponse(CamelCaseModel):
+    order_id: UUID
+    razorpay_order_id: str
+    razorpay_key_id: str
+    amount: int
+    currency: str
+    subtotal_amount: str
+    discount_amount: str
+    final_amount: str
+    status: str
+
+
+class PollStatusResponse(CamelCaseModel):
+    order_id: UUID
+    status: str
+    ticket_count: int
+    jwt: str | None = None
+    claim_url: str | None = None
+    failure_reason: str | None = None
