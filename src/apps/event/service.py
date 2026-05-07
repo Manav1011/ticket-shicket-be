@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 import json
 
@@ -13,6 +13,9 @@ from src.utils.file_validation import FileValidator, FileValidationError
 from .repository import EventRepository
 from apps.organizer.repository import OrganizerRepository
 from apps.ticketing.repository import TicketingRepository
+from apps.allocation.enums import CouponType
+from apps.allocation.models import CouponModel
+from apps.allocation.repository import CouponRepository
 
 
 def _serialize_for_json(obj):
@@ -27,6 +30,66 @@ def _serialize_for_json(obj):
         return [_serialize_for_json(item) for item in obj]
     else:
         return obj
+
+
+class PurchaseService:
+    """Service for online ticket purchase flow — includes coupon validation and discount calculation."""
+
+    def __init__(self, coupon_repository: CouponRepository) -> None:
+        self._coupon_repo = coupon_repository
+
+    @staticmethod
+    def calculate_discount(coupon: CouponModel, subtotal: float) -> float:
+        """
+        Apply coupon to subtotal and return discount amount.
+        Returns 0 if coupon is invalid or cannot be applied.
+        """
+        if not coupon.is_active:
+            return 0.0
+
+        now = datetime.now(timezone.utc)
+        if not (coupon.valid_from <= now <= coupon.valid_until):
+            return 0.0
+
+        if coupon.used_count >= coupon.usage_limit:
+            return 0.0
+
+        if subtotal < float(coupon.min_order_amount):
+            return 0.0
+
+        if coupon.type == CouponType.FLAT:
+            discount = float(coupon.value)
+        else:  # PERCENTAGE
+            discount = subtotal * (float(coupon.value) / 100)
+            if coupon.max_discount is not None:
+                discount = min(discount, float(coupon.max_discount))
+
+        return min(discount, subtotal)
+
+    async def validate_coupon(
+        self,
+        code: str,
+        subtotal: float,
+        user_id: UUID,
+    ) -> CouponModel:
+        """
+        Validate coupon code and return coupon if valid.
+        Raises BadRequestError if invalid.
+        """
+        coupon = await self._coupon_repo.get_by_code(code)
+        if not coupon:
+            from exceptions import BadRequestError
+            raise BadRequestError("Invalid coupon code")
+
+        discount = self.calculate_discount(coupon, subtotal)
+        if discount == 0.0:
+            if coupon.used_count >= coupon.usage_limit:
+                from exceptions import BadRequestError
+                raise BadRequestError("Coupon usage limit reached")
+            from exceptions import BadRequestError
+            raise BadRequestError("Coupon cannot be applied to this order")
+
+        return coupon
 
 
 class EventService:
