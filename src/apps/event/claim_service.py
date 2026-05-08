@@ -178,6 +178,7 @@ class ClaimService:
             token_hash=customer_b_token_hash,
             created_by_holder_id=customer_a_id,
             jwt_jti=customer_b_jti,
+            token=customer_b_raw_token,
             metadata_={"source": "customer_split"},
         )
 

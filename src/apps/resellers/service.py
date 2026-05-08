@@ -442,6 +442,7 @@ class ResellerService:
             token_hash=token_hash,
             created_by_holder_id=reseller_holder.id,
             jwt_jti=secrets.token_hex(8),
+            token=raw_token,
             metadata_={"source": "reseller_customer_free", "mode": mode},
         )
 

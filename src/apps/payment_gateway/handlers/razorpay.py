@@ -368,6 +368,7 @@ class RazorpayWebhookHandler:
                     token_hash=token_hash,
                     created_by_holder_id=order.sender_holder_id,
                     jwt_jti=secrets.token_hex(8),
+                    token=raw_token,
                     metadata_={
                         "source": "razorpay_webhook_paid_transfer",
                         "transfer_type": transfer_type,

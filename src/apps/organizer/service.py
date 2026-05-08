@@ -932,6 +932,7 @@ class OrganizerService:
             token_hash=token_hash,
             created_by_holder_id=org_holder.id,
             jwt_jti=secrets.token_hex(8),
+            token=raw_token,
             metadata_={"source": "organizer_customer_free", "mode": mode},
         )
 
