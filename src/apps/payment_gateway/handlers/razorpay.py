@@ -235,6 +235,94 @@ class RazorpayWebhookHandler:
             logger.info(f"Order {order_id} already processed by another thread")
             return {"status": "ok"}
 
+        # Retrieve locked tickets and branch based on gateway type
+        if order.gateway_type == GatewayType.RAZORPAY_ORDER:
+            # Online purchase: tickets locked with lock_reference_type='order'
+            locked_tickets_result = await self.session.execute(
+                select(TicketModel).where(
+                    TicketModel.lock_reference_type == 'order',
+                    TicketModel.lock_reference_id == order.id,
+                )
+            )
+            locked_ticket_ids = [t.id for t in locked_tickets_result.scalars().all()]
+
+            if not locked_ticket_ids:
+                logger.warning(f"No locked tickets found for order {order.id} after payment")
+                await self._ticketing_repo.clear_locks_for_order(order.id)
+                logger.info(f"Order {order_id} marked paid, payment {payment_id}")
+                return {"status": "ok"}
+
+            # Create allocation + claim link for buyer
+            raw_token = generate_claim_link_token(length=8)
+            token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+            allocation, claim_link = await self._allocation_repo.create_allocation_with_claim_link(
+                event_id=order.event_id,
+                event_day_id=order.event_day_id,
+                from_holder_id=None,  # From pool (no previous owner)
+                to_holder_id=order.receiver_holder_id,  # Buyer
+                order_id=order.id,
+                allocation_type=AllocationType.purchase,
+                ticket_count=len(locked_ticket_ids),
+                token_hash=token_hash,
+                created_by_holder_id=order.receiver_holder_id,
+                jwt_jti=secrets.token_hex(8),
+                token=raw_token,
+                metadata_={"source": "online_purchase"},
+            )
+
+            # Transfer ownership to buyer
+            await self._ticketing_repo.update_ticket_ownership_batch(
+                ticket_ids=locked_ticket_ids,
+                new_owner_holder_id=order.receiver_holder_id,
+                claim_link_id=claim_link.id,
+            )
+
+            # Add tickets to allocation
+            await self._allocation_repo.add_tickets_to_allocation(allocation.id, locked_ticket_ids)
+
+            # Upsert edge (pool → buyer)
+            await self._allocation_repo.upsert_edge(
+                event_id=order.event_id,
+                from_holder_id=None,  # pool
+                to_holder_id=order.receiver_holder_id,
+                ticket_count=len(locked_ticket_ids),
+            )
+
+            # Mark allocation completed
+            await self._allocation_repo.transition_allocation_status(
+                allocation.id,
+                AllocationStatus.pending,
+                AllocationStatus.completed,
+            )
+
+            # Send claim link notifications to buyer
+            from utils.notifications.sms import mock_send_sms
+            from utils.notifications.whatsapp import mock_send_whatsapp
+            from utils.notifications.email import mock_send_email
+
+            holder_result = await self.session.execute(
+                select(TicketHolderModel).where(TicketHolderModel.id == order.receiver_holder_id)
+            )
+            receiver_holder = holder_result.scalar_one_or_none()
+
+            claim_url = f"/claim/{raw_token}"
+            message = f"You purchased {len(locked_ticket_ids)} ticket(s). Claim at: {claim_url}"
+
+            print(f"\n[PAID ONLINE PURCHASE WEBHOOK] Claim URL: http://0.0.0.0:8080/api/open{claim_url}\n")
+
+            if receiver_holder and receiver_holder.phone:
+                mock_send_sms(receiver_holder.phone, message, template="online_purchase")
+                mock_send_whatsapp(receiver_holder.phone, message, template="online_purchase")
+            if receiver_holder and receiver_holder.email:
+                mock_send_email(receiver_holder.email, "Your ticket purchase is complete!", message)
+
+            logger.info(f"Sent claim link to buyer for online purchase order {order.id}")
+
+            await self._ticketing_repo.clear_locks_for_order(order.id)
+            logger.info(f"Order {order_id} marked paid, payment {payment_id}")
+            return {"status": "ok"}
+
         # Phase 4: Create B2B allocation + transfer tickets to buyer
         # Retrieve the locked tickets (locked during paid transfer creation in organizer service)
         # Tickets have lock_reference_type='transfer' and lock_reference_id=order.id
@@ -306,7 +394,7 @@ class RazorpayWebhookHandler:
                     mock_send_whatsapp(receiver_holder.phone, message, template="customer_transfer")
                 if receiver_holder.email:
                     mock_send_email(receiver_holder.email, "You received tickets!", message)
-                
+
                 logger.info(f"Sent claim link to customer for order {order.id}")
 
             # Add tickets to allocation
