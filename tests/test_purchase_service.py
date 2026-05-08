@@ -318,3 +318,39 @@ async def test_poll_order_status_pending(purchase_service, db_session, test_user
     result = await purchase_service.poll_order_status(order_id, test_user.id)
     assert result["status"] == "pending"
     assert result["claim_url"] is None
+
+
+@pytest.mark.asyncio
+async def test_poll_order_status_forbidden_for_other_user(purchase_service, db_session, test_user, published_event_setup):
+    """poll_order_status returns ForbiddenError when order belongs to a different user."""
+    from apps.allocation.models import OrderModel
+    from apps.ticketing.enums import OrderStatus
+    from exceptions import ForbiddenError
+
+    order_id = uuid4()
+    order = OrderModel(
+        id=order_id,
+        event_id=published_event_setup["event"].id,
+        user_id=uuid4(),  # different user owns this order
+        event_day_id=published_event_setup["day"].id,
+        type=OrderType.purchase,
+        subtotal_amount=499.0,
+        discount_amount=0.0,
+        final_amount=499.0,
+        status=OrderStatus.pending,
+        gateway_type=GatewayType.RAZORPAY_ORDER,
+    )
+    db_session.add(order)
+    await db_session.flush()
+
+    with pytest.raises(ForbiddenError):
+        await purchase_service.poll_order_status(order_id, test_user.id)
+
+
+@pytest.mark.asyncio
+async def test_poll_order_status_not_found(purchase_service, db_session, test_user):
+    """poll_order_status raises NotFoundError for non-existent order."""
+    from exceptions import NotFoundError
+
+    with pytest.raises(NotFoundError):
+        await purchase_service.poll_order_status(uuid4(), test_user.id)
