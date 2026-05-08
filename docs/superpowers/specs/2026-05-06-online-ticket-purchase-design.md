@@ -734,10 +734,11 @@ src/migrations/versions/
 - `GET /api/events/purchase/orders/{order_id}/status` — poll, return jwt + claim_url when paid (with ownership check)
 - `ClaimLinkModel.token` column added for claim URL reconstruction
 
-**Phase 5 — Webhook Handler Extension**
+**Phase 5 — Webhook Handler Extension** ✅ DONE
 - Add `RAZORPAY_ORDER` branch inside `handle_order_paid()` — simpler than B2B (no split logic, single allocation, single claim link)
 - Add `payment.failed` handling for `RAZORPAY_ORDER` (mark failed + clear locks)
 - Notifications to buyer (email/WhatsApp/SMS) via existing mock utilities
+- `ClaimLinkRepository.create()` and `create_allocation_with_claim_link()` now accept optional `token` param to store raw claim token
 
 **Phase 6 — Testing**
 - Unit tests for coupon logic, create/preview/poll service methods
