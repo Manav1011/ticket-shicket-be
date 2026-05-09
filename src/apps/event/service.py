@@ -1,6 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from uuid import UUID
+import hashlib
 import json
+import secrets
 
 from apps.event.enums import EventAccessType, LocationMode
 
@@ -16,10 +18,14 @@ from apps.ticketing.repository import TicketingRepository
 from apps.allocation.repository import CouponRepository, AllocationRepository
 from apps.allocation.models import CouponModel, OrderModel, OrderCouponModel, ClaimLinkModel
 from src.config import settings
-from apps.allocation.enums import CouponType, GatewayType
+from apps.allocation.enums import CouponType, GatewayType, AllocationType, AllocationStatus
 from apps.ticketing.enums import OrderType, OrderStatus, TicketCategory
 from apps.payment_gateway.services.factory import get_gateway
 from exceptions import BadRequestError
+from utils.claim_link_utils import generate_claim_link_token
+from utils.notifications.sms import mock_send_sms
+from utils.notifications.whatsapp import mock_send_whatsapp
+from utils.notifications.email import mock_send_email
 
 
 def _serialize_for_json(obj):
@@ -209,6 +215,13 @@ class PurchaseService:
 
         final_amount = subtotal - discount
 
+        # Check pool availability before locking
+        available_count = await self._count_available_pool_tickets(
+            event_id, event_day_id, ticket_type_id
+        )
+        if quantity > available_count:
+            raise BadRequestError(f"Only {available_count} tickets available, requested {quantity}")
+
         # Lock tickets BEFORE creating order (prevents over-selling)
         locked_ticket_ids = await ticketing_repo.lock_tickets_for_purchase(
             event_id=event_id,
@@ -238,19 +251,91 @@ class PurchaseService:
             )
             self.repository.session.add(order)
 
-            # Save coupon application
+            # Save coupon application via relationship so flush inserts order first.
             if coupon_record and discount > 0:
-                order_coupon = OrderCouponModel(
-                    order_id=order_id,
+                order.coupon_application = OrderCouponModel(
                     coupon_id=coupon_record.id,
                     discount_applied=discount,
                 )
-                self.repository.session.add(order_coupon)
 
+            # Ensure order is persisted before zero-amount block (allocations FK)
             await self.repository.session.flush()
+            await self.repository.session.refresh(order)
 
-            # Call Razorpay to create checkout order
-            gateway = await get_gateway("razorpay")
+            # Zero-amount order: coupon fully covers cost — skip Razorpay, mark paid immediately
+            if final_amount == 0:
+                order.status = OrderStatus.paid
+                order.captured_at = datetime.utcnow()
+
+                raw_token = generate_claim_link_token(length=8)
+                token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+                allocation, claim_link = await allocation_repo.create_allocation_with_claim_link(
+                    event_id=order.event_id,
+                    event_day_id=order.event_day_id,
+                    from_holder_id=None,
+                    to_holder_id=order.receiver_holder_id,
+                    order_id=order.id,
+                    allocation_type=AllocationType.purchase,
+                    ticket_count=len(locked_ticket_ids),
+                    token_hash=token_hash,
+                    created_by_holder_id=order.receiver_holder_id,
+                    jwt_jti=secrets.token_hex(8),
+                    token=raw_token,
+                    metadata_={"source": "online_purchase_free"},
+                )
+
+                await ticketing_repo.update_ticket_ownership_batch(
+                    ticket_ids=locked_ticket_ids,
+                    new_owner_holder_id=order.receiver_holder_id,
+                    claim_link_id=claim_link.id,
+                )
+
+                await allocation_repo.add_tickets_to_allocation(allocation.id, locked_ticket_ids)
+
+                await allocation_repo.upsert_edge(
+                    event_id=order.event_id,
+                    from_holder_id=None,
+                    to_holder_id=order.receiver_holder_id,
+                    ticket_count=len(locked_ticket_ids),
+                )
+
+                await allocation_repo.transition_allocation_status(
+                    allocation.id,
+                    AllocationStatus.pending,
+                    AllocationStatus.completed,
+                )
+
+                claim_url = f"/claim/{raw_token}"
+                message = f"You purchased {len(locked_ticket_ids)} ticket(s). Claim at: {claim_url}"
+
+                print(f"\n[FREE ONLINE PURCHASE] Claim URL: http://0.0.0.0:8080/api/open{claim_url}\n")
+
+                if buyer_holder.phone:
+                    mock_send_sms(buyer_holder.phone, message, template="online_purchase")
+                    mock_send_whatsapp(buyer_holder.phone, message, template="online_purchase")
+                if buyer_holder.email:
+                    mock_send_email(buyer_holder.email, "Your ticket purchase is complete!", message)
+
+                await ticketing_repo.clear_locks_for_order(order_id)
+
+                return {
+                    "order_id": order_id,
+                    "amount": 0,
+                    "razorpay_order_id": None,
+                    "razorpay_key_id": None,
+                    "currency": "INR",
+                    "subtotal_amount": f"{subtotal:.2f}",
+                    "discount_amount": f"{discount:.2f}",
+                    "final_amount": f"{final_amount:.2f}",
+                    "status": "paid",
+                    "is_free": True,
+                    "claim_token": raw_token,
+                }
+
+            # Normal flow: amount > 0, call Razorpay
+            await self.repository.session.flush()
+            gateway = get_gateway("razorpay")
             razorpay_result = await gateway.create_checkout_order(
                 order_id=order_id,
                 amount=int(final_amount * 100),  # paise
@@ -273,11 +358,15 @@ class PurchaseService:
                 "discount_amount": f"{discount:.2f}",
                 "final_amount": f"{final_amount:.2f}",
                 "status": "pending",
+                "is_free": False,
             }
 
         except Exception as e:
-            # Clear locks before re-raising — order creation failed
-            await ticketing_repo.clear_locks_for_order(order_id)
+            # Only clear locks for Razorpay path — zero-amount path already clears
+            # locks at line 314 before returning. If we get here in zero-amount path,
+            # something failed and the transaction will rollback anyway.
+            if final_amount != 0:
+                await ticketing_repo.clear_locks_for_order(order_id)
             raise e
 
     async def poll_order_status(self, order_id: UUID, user_id: UUID) -> dict:
@@ -306,7 +395,7 @@ class PurchaseService:
             "status": order.status.value if hasattr(order.status, 'value') else order.status,
             "ticket_count": 0,
             "jwt": None,
-            "claim_url": None,
+            "claim_token": None,
             "failure_reason": None,
         }
 
@@ -323,7 +412,7 @@ class PurchaseService:
                 claim_link, allocation = row
                 response["ticket_count"] = allocation.ticket_count
                 # V2 Checkout: V2 FE handles claim via /claim/:token
-                response["claim_url"] = f"{settings.FRONTEND_URL}/claim/{claim_link.token}"
+                response["claim_token"] = claim_link.token
 
                 # Generate a temporary JWT for immediate redemption in the same browser session.
                 # This is a short-lived access token for the claim flow (not a scan JWT).

@@ -253,14 +253,16 @@ class PreviewOrderResponse(CamelCaseModel):
 
 class CreateOrderResponse(CamelCaseModel):
     order_id: UUID
-    razorpay_order_id: str
-    razorpay_key_id: str
+    razorpay_order_id: str | None
+    razorpay_key_id: str | None
     amount: int
     currency: str
     subtotal_amount: str
     discount_amount: str
     final_amount: str
     status: str
+    is_free: bool = False
+    claim_token: str | None = None
 
 
 class PollStatusResponse(CamelCaseModel):
@@ -268,5 +270,5 @@ class PollStatusResponse(CamelCaseModel):
     status: str
     ticket_count: int
     jwt: str | None = None
-    claim_url: str | None = None
+    claim_token: str | None = None
     failure_reason: str | None = None

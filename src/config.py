@@ -55,6 +55,8 @@ class Settings(BaseSettings):
 
     REDIS_URL: Optional[str] = Field(None, alias="REDIS_URL")
 
+    FRONTEND_URL: Optional[str] = Field("http://localhost:3000", alias="FRONTEND_URL")
+
     # S3 Configuration
     AWS_ACCESS_KEY_ID: Optional[str] = Field("test", alias="AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = Field("test", alias="AWS_SECRET_ACCESS_KEY")

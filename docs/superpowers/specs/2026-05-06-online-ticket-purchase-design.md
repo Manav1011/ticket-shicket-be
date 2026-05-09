@@ -1,6 +1,6 @@
 # Online Ticket Purchase — Technical Specification
 
-> **Status:** Draft — Pending Review
+> **Status:** Implemented ✅ — All phases complete
 
 ---
 
@@ -193,6 +193,30 @@ elif order.gateway_type == GatewayType.RAZORPAY_ORDER:
     # Send claim link notifications to buyer
     await send_claim_link_notifications(order, claim_link, raw_token)
 ```
+
+### 2.6 Zero-Amount Orders (Coupon-Fully-Covered)
+
+When a coupon fully covers the order (`final_amount == 0`), Razorpay is skipped entirely — it requires minimum 1 paise. The flow mirrors B2B free transfers:
+
+1. Tickets are still locked (30-min TTL, standard flow)
+2. Order is created with `status = paid` and `captured_at = now` — no Razorpay call
+3. Post-payment steps run inline: allocation + claim link created, ownership transferred, notifications sent, locks cleared
+4. Response returns `status: "paid"`, `is_free: true`, and the `claim_url` directly
+
+```python
+# In create_order, after final_amount calculation:
+if final_amount == 0:
+    order.status = OrderStatus.paid
+    order.captured_at = datetime.utcnow()
+    # ... create allocation + claim link, transfer ownership, send notifications
+    return {
+        "status": "paid",
+        "is_free": True,
+        "claim_url": f"/claim/{raw_token}",
+    }
+```
+
+The frontend checks `is_free: true` to skip the Razorpay checkout modal and instead show a success screen immediately.
 
 ### 2.5 Data Flow
 

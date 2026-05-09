@@ -17,7 +17,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
 from apps.ticketing.enums import OrderStatus, OrderType
@@ -222,6 +222,12 @@ class OrderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     gateway_payment_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     captured_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     expired_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    coupon_application: Mapped["OrderCouponModel | None"] = relationship(
+        back_populates="order",
+        cascade="all, delete-orphan",
+        uselist=False,
+        lazy="selectin",
+    )
 
     __table_args__ = (
         Index(
@@ -282,4 +288,11 @@ class OrderCouponModel(Base, TimeStampMixin):
     )
     discount_applied: Mapped[float] = mapped_column(
         Numeric(), nullable=False
+    )
+    order: Mapped["OrderModel"] = relationship(
+        back_populates="coupon_application",
+        lazy="selectin",
+    )
+    coupon: Mapped["CouponModel"] = relationship(
+        lazy="selectin",
     )
