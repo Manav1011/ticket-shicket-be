@@ -4230,7 +4230,7 @@ The Payment Gateway module integrates **Razorpay** as the first payment provider
 | Gateway Type | Used For | Flow |
 |---|---|---|
 | `RAZORPAY_PAYMENT_LINK` | B2B paid transfers | Organizer/Reseller sends payment link to buyer via SMS/WhatsApp/Email |
-| `RAZORPAY_ORDER` | Online checkout (V1 out of scope) | Customer pays via Razorpay checkout modal |
+| `RAZORPAY_ORDER` | Online checkout (Module 9) | Customer pays via Razorpay checkout modal (Orders API) |
 
 ### 1.2 Gateway-Agnostic Design
 
@@ -4647,6 +4647,388 @@ Notification services: `mock_send_sms()`, `mock_send_whatsapp()`, `mock_send_ema
 - Reseller → Customer (free + paid)
 
 `get_claim_redemption` simplified to just read `claim_link.jwt_jti` directly (no lazy backfill).
+
+---
+
+# Module 9: Online Ticket Purchase
+
+## 1. Overview
+
+The Online Ticket Purchase module enables logged-in customers to buy tickets directly from an event page via Razorpay Checkout (Orders API). Tickets are locked at order creation, then transferred to the buyer after payment confirmation via webhook.
+
+### 1.1 How This Differs From B2B Transfers
+
+| Aspect | B2B Transfer (Payment Link) | Online Purchase (Checkout) |
+|--------|-----------------------------|----------------------------|
+| Gateway type | `RAZORPAY_PAYMENT_LINK` | `RAZORPAY_ORDER` |
+| Razorpay API | `payment_link.create()` | `client.order.create()` |
+| Buyer experience | Receives payment link via SMS/WhatsApp | Opens Razorpay modal on our site |
+| Source of truth | Webhook only | Webhook only |
+| Frontend polling | No | Yes — `GET /orders/{id}/status` |
+| Coupon support | No | Yes |
+| Buyer must be | Reseller/Customer TicketHolder | Logged-in User → TicketHolder |
+
+### 1.2 Purchase Flow Summary
+
+```mermaid
+graph LR
+    A[Customer] -->|Select tickets| B[Preview Order]
+    B -->|Confirm| C[Create Order<br/>Lock tickets]
+    C -->|amount > 0| D[Razorpay Checkout<br/>client.order.create()]
+    C -->|amount == 0| E[Skip Razorpay<br/>Mark paid immediately]
+    D -->|Wait for payment| F[Poll status API]
+    E --> G[Create allocation<br/>claim link]
+    F -->|Webhook fires| G
+    G --> H[Frontend polls<br/>Gets JWT + claim_token]
+    H --> I[Tickets owned by buyer<br/>Claim link usable]
+```
+
+---
+
+## 2. Data Flow
+
+### 2.1 Create Order (amount > 0 — paid order)
+
+```
+Customer selects ticket type + quantity + event_day
+         │
+         ▼
+POST /api/events/purchase/create
+{ event_id, event_day_id, ticket_type_id, quantity, coupon_code? }
+         │
+         ▼
+Validate: event published, tickets available, user logged-in
+         │
+         ▼
+Resolve user's TicketHolder (via resolve_holder)
+         │
+         ▼
+Validate coupon (if provided) → calculate discount
+subtotal = quantity × ticket_type.price
+discount = apply_coupon(coupon_code, subtotal)
+final_amount = subtotal - discount
+         │
+         ▼
+Lock tickets from pool (FIFO, 30-min TTL, lock_reference_type='order')
+         │
+         ▼
+Create OrderModel:
+  - status = pending
+  - type = PURCHASE
+  - gateway_type = RAZORPAY_ORDER
+  - subtotal_amount, discount_amount, final_amount
+  - lock_expires_at = now + 30 min
+         │
+         ▼
+Call razorpay.client.order.create({
+  amount: final_amount × 100,  // paise
+  currency: "INR",
+  receipt: order.id,
+  payment_capture: 1,
+  notes: { internal_order_id, event_id, flow_type: "online_purchase" }
+})
+         │
+         ▼
+Return { razorpay_order_id, razorpay_key_id, order_id, amount, status }
+         │
+         ▼
+[FRONTEND] Opens Razorpay modal with order_id + key_id
+         │
+         ▼
+[POLLING] GET /api/events/purchase/orders/{order_id}/status
+  → Returns { status: "pending" } until webhook fires
+```
+
+### 2.2 Create Order (amount == 0 — zero-amount/free order)
+
+Same as above, but:
+- Razorpay call is skipped entirely
+- Order created with `status = paid` and `captured_at = now`
+- Allocation + claim link created inline (same as webhook post-processing)
+- Response: `status: "paid", is_free: true, claim_token: "<raw_token>"`
+
+### 2.3 Webhook Handler (order.paid)
+
+```
+[WEBHOOK] Razorpay sends order.paid
+         │
+         ▼
+handle_order_paid (RAZORPAY_ORDER branch):
+  1. Find order by gateway_order_id
+  2. L1: skip if not pending
+  3. Validate amount, currency, payment status
+  4. L4: Insert PaymentGatewayEvent (unique constraint dedup)
+  5. L3: Atomic UPDATE status=paid WHERE status=pending
+  6. Create Allocation (type=PURCHASE)
+  7. Create ClaimLink + ClaimLinkToken (raw token stored)
+  8. Transfer ticket ownership to buyer (owner_holder_id, claim_link_id)
+  9. Clear ticket locks (clear_locks_for_order)
+  10. Send notifications (email/WhatsApp/SMS)
+         │
+         ▼
+[POLLING] Next status call → { status: "paid", ticket_count, jwt, claim_token }
+```
+
+---
+
+## 3. Key Endpoints
+
+### 3.1 Preview Order Price
+
+**Endpoint:** `POST /api/events/purchase/preview`
+
+**Auth Required:** Yes (Bearer token)
+
+Validates inputs and returns price breakdown without locking tickets or creating an order.
+
+**Request:**
+```json
+{
+  "event_id": "uuid",
+  "event_day_id": "uuid",
+  "ticket_type_id": "uuid",
+  "quantity": 2,
+  "coupon_code": "FULL100"  // optional
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "subtotalAmount": "998.00",
+    "discountAmount": "998.00",
+    "finalAmount": "0.00",
+    "couponApplied": {
+      "code": "FULL100",
+      "type": "PERCENTAGE",
+      "value": 100.0,
+      "maxDiscount": null
+    }
+  }
+}
+```
+
+### 3.2 Create Order
+
+**Endpoint:** `POST /api/events/purchase/create`
+
+**Auth Required:** Yes (Bearer token)
+
+Locks tickets and creates Razorpay checkout order (or creates paid order directly if zero-amount).
+
+**Request:**
+```json
+{
+  "event_id": "uuid",
+  "event_day_id": "uuid",
+  "ticket_type_id": "uuid",
+  "quantity": 2,
+  "coupon_code": "FULL100"  // optional
+}
+```
+
+**Response (200) — Paid:**
+```json
+{
+  "success": true,
+  "data": {
+    "orderId": "uuid",
+    "razorpayOrderId": "order_SnOVhZ5EtyAc7J",
+    "razorpayKeyId": "rzp_test_SjfBxgIfB43kM2",
+    "amount": 99800,
+    "currency": "INR",
+    "subtotalAmount": "998.00",
+    "discountAmount": "0.00",
+    "finalAmount": "998.00",
+    "status": "pending",
+    "isFree": false,
+    "claimToken": null
+  }
+}
+```
+
+**Response (200) — Zero-Amount:**
+```json
+{
+  "success": true,
+  "data": {
+    "orderId": "uuid",
+    "razorpayOrderId": null,
+    "razorpayKeyId": null,
+    "amount": 0,
+    "currency": "INR",
+    "subtotalAmount": "998.00",
+    "discountAmount": "998.00",
+    "finalAmount": "0.00",
+    "status": "paid",
+    "isFree": true,
+    "claimToken": "z40bb9fs"
+  }
+}
+```
+
+**Error (400):**
+```json
+{
+  "status": "Error",
+  "code": 400,
+  "message": "Only 6 tickets available, requested 100"
+}
+```
+
+### 3.3 Poll Order Status
+
+**Endpoint:** `GET /api/events/purchase/orders/{order_id}/status`
+
+**Auth Required:** Yes (Bearer token)
+
+**Response (200) — Pending:**
+```json
+{
+  "success": true,
+  "data": {
+    "orderId": "uuid",
+    "status": "pending",
+    "ticketCount": 0,
+    "jwt": null,
+    "claimToken": null,
+    "failureReason": null
+  }
+}
+```
+
+**Response (200) — Paid:**
+```json
+{
+  "success": true,
+  "data": {
+    "orderId": "uuid",
+    "status": "paid",
+    "ticketCount": 2,
+    "jwt": "eyJ...",
+    "claimToken": "l09zic0l",
+    "failureReason": null
+  }
+}
+```
+
+### 3.4 Redeem Claim Link (Public — No Auth)
+
+**Endpoint:** `GET /api/open/claim/{token}`
+
+**Auth Required:** No
+
+Returns scan JWT for ticket holder. Token is the raw claim token returned in `claim_token` field of poll response.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "ticketCount": 2,
+    "jwt": "eyJ..."
+  }
+}
+```
+
+---
+
+## 4. Coupon System
+
+### 4.1 Coupon Validation
+
+`validate_coupon(code, subtotal)` checks:
+- Coupon exists and is active
+- Date range: `valid_from ≤ now ≤ valid_until`
+- Usage limit not exceeded (`used_count < usage_limit`)
+- `min_order_amount ≤ subtotal`
+
+### 4.2 Discount Calculation
+
+`calculate_discount(coupon, subtotal)`:
+- **FLAT:** `discount = coupon.value` (capped at subtotal)
+- **PERCENTAGE:** `discount = subtotal × (coupon.value / 100)`, capped at `max_discount` if set
+
+### 4.3 Zero-Amount Orders
+
+When `final_amount == 0` (coupon fully covers cost):
+- Razorpay is skipped — requires minimum 1 paise
+- Order created with `status = paid`, `captured_at = now`
+- Allocation + claim link created inline (same logic as webhook)
+- `is_free: true` in response tells frontend to skip Razorpay modal
+
+---
+
+## 5. Error Handling
+
+| Scenario | HTTP Status | Error Message |
+|----------|-------------|----------------|
+| Tickets unavailable | 400 | `"Only N tickets available, requested M"` |
+| Invalid coupon code | 400 | `"Invalid coupon code"` |
+| Coupon expired/limit reached | 400 | `"Coupon cannot be applied"` |
+| Event not published | 400 | `"Event is not available for purchase"` |
+| B2B ticket type | 400 | `"Cannot purchase B2B ticket type directly"` |
+| Order not found | 404 | `"Order {id} not found"` |
+| Order belongs to other user | 403 | `"You do not have access to this order"` |
+
+---
+
+## 6. Webhook Events Handled
+
+| Event | Action |
+|-------|--------|
+| `order.paid` | Create allocation + claim link + transfer ownership + clear locks |
+| `payment.authorized` | Ignored — wait for captured |
+| `payment.captured` | Ignored for `RAZORPAY_ORDER` (order.paid is authoritative) |
+| `payment.failed` | Mark order failed + clear ticket locks |
+
+Webhook idempotency: 4-layer protection (L1 skip if not pending, amount/currency validation, L4 unique constraint on `payment_gateway_events`, L3 atomic UPDATE).
+
+---
+
+## 7. Key Files
+
+**Purchase Service:**
+- `src/apps/event/service.py` — `PurchaseService`: `preview_order()`, `create_order()`, `poll_order_status()`, `validate_coupon()`, `calculate_discount()`, `_count_available_pool_tickets()`
+
+**Purchase Endpoints:**
+- `src/apps/event/urls.py` — `POST /purchase/preview`, `POST /purchase/create`, `GET /purchase/orders/{order_id}/status`
+
+**Purchase Request/Response:**
+- `src/apps/event/request.py` — `CreateOrderRequest`, `PreviewOrderRequest`
+- `src/apps/event/response.py` — `CreateOrderResponse`, `PollStatusResponse`, `PreviewOrderResponse`, `CouponAppliedResponse`
+
+**Ticket Locking:**
+- `src/apps/ticketing/repository.py` — `lock_tickets_for_purchase()`: locks pool tickets (owner_holder_id=None) FIFO by ticket_index, 30-min TTL
+
+**Webhook Handler:**
+- `src/apps/payment_gateway/handlers/razorpay.py` — `RAZORPAY_ORDER` branch in `handle_order_paid()`, `handle_payment_failed()`
+
+**Gateway Implementation:**
+- `src/apps/payment_gateway/services/razorpay.py` — `RazorpayPaymentGateway.create_checkout_order()`: calls `client.order.create()`
+
+**Coupon Models:**
+- `src/apps/allocation/models.py` — `CouponModel`, `OrderCouponModel`, `OrderModel.coupon_application` (ORM relationship), `OrderCouponModel.order` (back_populates)
+
+---
+
+## 8. Graph Nodes (Community Membership)
+
+| Node | Community | Role |
+|------|-----------|------|
+| `PurchaseService` | Community 3 | Core purchase service — `preview_order()`, `create_order()`, `poll_order_status()` |
+| `OrderCouponModel` | Community 3 | Links orders to coupons with discount applied |
+| `CouponType` | Community 3 | Enum for FLAT / PERCENTAGE coupon types |
+| `lock_tickets_for_purchase()` | Community 4 | Pool ticket locking for online purchase |
+| `clear_locks_for_order()` | Community 4 | Clears both 'order' and 'transfer' locks |
+| `create_checkout_order()` | Community 10 | Razorpay Orders API integration |
+| `razorpay_webhook()` | Community 5 | Webhook entry point for all Razorpay events |
+| `RazorpayWebhookHandler` | Community 5 | Routes webhooks to appropriate handler methods |
+| `handle_order_paid()` | Community 5 | 4-layer idempotent order.paid processing |
+| `CouponModel` | Community 52 | Migration: `38799b1a5f96_add_coupons.py` |
+| `generate_claim_link_token()` | Community 68 | 8-char alphanumeric token for claim links |
 
 ---
 
