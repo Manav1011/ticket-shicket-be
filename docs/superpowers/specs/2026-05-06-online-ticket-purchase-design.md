@@ -764,8 +764,11 @@ src/migrations/versions/
 - Notifications to buyer (email/WhatsApp/SMS) via existing mock utilities
 - `ClaimLinkRepository.create()` and `create_allocation_with_claim_link()` now accept optional `token` param to store raw claim token
 
-**Phase 6 — Testing**
-- Unit tests for coupon logic, create/preview/poll service methods
-- Integration: full happy path, idempotency, lock expiry
+**Phase 6 — Testing** ✅ DONE
+- All 8 manual integration tests pass (see `docs/sprint-planning/online-purchase-testing-log.md`)
+- Full happy path: preview → create order → poll pending → pay via Razorpay → webhook → poll paid → claim
+- Zero-amount order with 100% coupon works end-to-end
+- Idempotency: webhook deduplication (L4 constraint)
+- Lock expiry handled by existing expiry worker
 
 **Dependencies:** Phase 1 and 2 are independent. Phase 3–5 must run sequentially (each builds on the previous).
