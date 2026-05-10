@@ -193,6 +193,7 @@ class OrderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
         ForeignKey("ticket_holders.id", ondelete="SET NULL"), nullable=True, index=True
     )
     transfer_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    gateway_flow_type: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     event_day_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("event_days.id", ondelete="CASCADE"), nullable=True
     )
