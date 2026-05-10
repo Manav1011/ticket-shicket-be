@@ -11,6 +11,7 @@ from src.utils.s3_client import get_s3_client
 from src.utils.file_validation import FileValidator, FileValidationError
 from apps.superadmin.service import SuperAdminService
 from apps.superadmin.enums import B2BRequestStatus
+from apps.superadmin.exceptions import SuperAdminError
 
 
 from apps.ticketing.repository import TicketingRepository
@@ -279,16 +280,28 @@ class OrganizerService:
     ):
         """
         [Organizer] Confirm payment for an approved paid B2B request.
-        Verifies user owns the organizer page that owns this event, then triggers allocation.
+        NOTE: With Razorpay payment links, payment is confirmed automatically via webhook.
+        This endpoint is now a no-op for backwards compatibility.
+        If the B2B request is still in approved_paid, it means payment hasn't happened yet
+        and the organizer should use the payment link they received.
         """
         # Verify the B2B request belongs to this event
         b2b_req = await self.repository.get_b2b_request_by_id(request_id)
         if not b2b_req or b2b_req.event_id != event_id:
             raise ForbiddenError("B2B request does not belong to this event")
 
-        return await self._super_admin_service.process_paid_b2b_allocation(
-            request_id=request_id,
-        )
+        # If already approved via webhook, return success (no-op)
+        if b2b_req.status == B2BRequestStatus.approved_free:
+            return b2b_req
+
+        # If still pending payment, return an error pointing to the payment link
+        if b2b_req.status == B2BRequestStatus.approved_paid:
+            raise SuperAdminError(
+                "Payment has not been completed yet. Please use the payment link "
+                "sent to your registered email/phone to complete the payment."
+            )
+
+        raise SuperAdminError(f"B2B request is in unexpected status: {b2b_req.status}")
 
     # --- B2B My Tickets & Allocations ---
 
