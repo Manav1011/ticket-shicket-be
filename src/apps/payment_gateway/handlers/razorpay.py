@@ -20,6 +20,8 @@ from apps.allocation.repository import AllocationRepository
 from apps.ticketing.enums import OrderStatus
 from apps.ticketing.models import TicketModel
 from apps.ticketing.repository import TicketingRepository
+from apps.superadmin.models import B2BRequestModel
+from apps.superadmin.enums import B2BRequestStatus
 from utils.claim_link_utils import generate_claim_link_token
 
 logger = logging.getLogger(__name__)
@@ -322,6 +324,34 @@ class RazorpayWebhookHandler:
             await self._ticketing_repo.clear_locks_for_order(order.id)
             logger.info(f"Order {order_id} marked paid, payment {payment_id}")
             return {"status": "ok"}
+
+        # Phase 3b: B2B Request paid — look up B2B request, then process allocation
+        if order.gateway_flow_type == "b2b_request":
+            logger.info(f"Routing B2B request payment for order {order.id}")
+
+            # Look up the B2B request that references this order
+            b2b_req_result = await self.session.execute(
+                select(B2BRequestModel).where(B2BRequestModel.order_id == order.id)
+            )
+            b2b_request = b2b_req_result.scalar_one_or_none()
+            if not b2b_request:
+                logger.error(f"No B2B request found for order {order.id}")
+                return {"status": "ok"}
+
+            from apps.superadmin.service import SuperAdminService
+            svc = SuperAdminService(self.session)
+            await svc.process_paid_b2b_allocation(request_id=b2b_request.id)
+
+            # Mark order as paid
+            await self.session.execute(
+                update(OrderModel)
+                .where(OrderModel.id == order.id, OrderModel.status == OrderStatus.pending)
+                .values(status=OrderStatus.paid, captured_at=datetime.utcnow())
+            )
+
+            await self.session.flush()
+            logger.info(f"B2B request {b2b_request.id} allocation complete for order {order.id}")
+            return {"status": "ok", "b2b_request_id": str(b2b_request.id)}
 
         # Phase 4: Create B2B allocation + transfer tickets to buyer
         # Retrieve the locked tickets (locked during paid transfer creation in organizer service)
