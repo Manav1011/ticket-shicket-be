@@ -408,7 +408,7 @@ class SuperAdminService:
         # Update B2B request with allocation_id
         updated = await self._repo.update_b2b_request_status(
             request_id=b2b_request.id,
-            new_status=B2BRequestStatus.approved_free,
+            new_status=B2BRequestStatus.payment_done,
             admin_id=admin_id,
             allocation_id=allocation.id,
         )

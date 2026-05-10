@@ -290,8 +290,8 @@ class OrganizerService:
         if not b2b_req or b2b_req.event_id != event_id:
             raise ForbiddenError("B2B request does not belong to this event")
 
-        # If already approved via webhook, return success (no-op)
-        if b2b_req.status == B2BRequestStatus.approved_free:
+        # If already completed via webhook (payment_done or approved_free), return success (no-op)
+        if b2b_req.status in (B2BRequestStatus.payment_done, B2BRequestStatus.approved_free):
             return b2b_req
 
         # If still pending payment, return an error pointing to the payment link

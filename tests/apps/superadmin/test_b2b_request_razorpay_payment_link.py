@@ -100,9 +100,11 @@ class TestApproveB2bRequestPaidCreatesPaymentLink:
 class TestConfirmB2bPaymentNoOp:
     """Test that confirm_b2b_payment handles all cases correctly."""
 
-    async def test_confirm_b2b_payment_already_paid_is_noop(self, db_session, test_user, test_event):
+    async def test_confirm_b2b_payment_already_paid_is_noop(
+        self, db_session, test_user, test_event
+    ):
         """
-        When B2B request is already approved_free (paid via webhook),
+        When B2B request is already payment_done (paid via webhook),
         confirm_b2b_payment returns success without calling allocation.
         """
         from apps.ticketing.repository import TicketingRepository
@@ -125,14 +127,14 @@ class TestConfirmB2bPaymentNoOp:
         ticketing_repo = TicketingRepository(db_session)
         b2b_type = await ticketing_repo.get_or_create_b2b_ticket_type(event_day_id=day.id)
 
-        # Create B2B request in approved_free status
+        # Create B2B request in payment_done status (paid via webhook)
         b2b_request = B2BRequestModel(
             requesting_user_id=test_user.id,
             event_id=test_event.id,
             event_day_id=day.id,
             ticket_type_id=b2b_type.id,
             quantity=10,
-            status=B2BRequestStatus.approved_free,
+            status=B2BRequestStatus.payment_done,
         )
         db_session.add(b2b_request)
         await db_session.flush()
@@ -145,7 +147,7 @@ class TestConfirmB2bPaymentNoOp:
             user_id=test_user.id,
         )
 
-        assert result.status == B2BRequestStatus.approved_free
+        assert result.status == B2BRequestStatus.payment_done
 
     async def test_confirm_b2b_payment_pending_payment_raises_error(
         self, db_session, test_user, test_event
