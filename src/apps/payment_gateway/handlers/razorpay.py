@@ -527,6 +527,21 @@ class RazorpayWebhookHandler:
 
         await self._ticketing_repo.clear_locks_for_order(order.id)
         await self._gateway.cancel_payment_link(gateway_order_id)
+
+        # B2B Request — also update the B2B request to expired
+        if order.gateway_flow_type == "b2b_request":
+            b2b_req_result = await self.session.execute(
+                select(B2BRequestModel).where(B2BRequestModel.order_id == order.id)
+            )
+            b2b_req = b2b_req_result.scalar_one_or_none()
+            if b2b_req and b2b_req.status == B2BRequestStatus.approved_paid:
+                await self.session.execute(
+                    update(B2BRequestModel)
+                    .where(B2BRequestModel.id == b2b_req.id)
+                    .values(status=B2BRequestStatus.expired.value)
+                )
+                await self.session.flush()
+
         logger.info(f"Order {order.id} expired — payment link cancelled")
         return {"status": "ok"}
 
@@ -558,5 +573,20 @@ class RazorpayWebhookHandler:
             return {"status": "ok"}
 
         await self._ticketing_repo.clear_locks_for_order(order.id)
+
+        # B2B Request — also update the B2B request to expired
+        if order.gateway_flow_type == "b2b_request":
+            b2b_req_result = await self.session.execute(
+                select(B2BRequestModel).where(B2BRequestModel.order_id == order.id)
+            )
+            b2b_req = b2b_req_result.scalar_one_or_none()
+            if b2b_req and b2b_req.status == B2BRequestStatus.approved_paid:
+                await self.session.execute(
+                    update(B2BRequestModel)
+                    .where(B2BRequestModel.id == b2b_req.id)
+                    .values(status=B2BRequestStatus.expired.value)
+                )
+                await self.session.flush()
+
         logger.info(f"Order {order.id} expired — payment link cancelled by organizer")
         return {"status": "ok"}
