@@ -187,7 +187,7 @@ class SuperAdminService:
         await self._session.refresh(b2b_request)
         return b2b_request
 
-    async def approve_b2b_request_paid(
+    async def   approve_b2b_request_paid(
         self,
         admin_id: uuid.UUID,
         request_id: uuid.UUID,
@@ -275,6 +275,7 @@ class SuperAdminService:
         # Send payment link via notification channels
         payment_link = payment_result.short_url
         message = f"Complete your B2B ticket purchase: {payment_link}"
+        print(f"Mock sending payment link to organizer {organizer_name} ({organizer_email}, {organizer_phone}): {message}")
         mock_send_sms(organizer_phone, message, template="b2b_paid_request")
         mock_send_whatsapp(organizer_phone, message, template="b2b_paid_request")
         mock_send_email(organizer_email, "Complete Your B2B Ticket Purchase", message)
@@ -407,7 +408,7 @@ class SuperAdminService:
         # Update B2B request with allocation_id
         updated = await self._repo.update_b2b_request_status(
             request_id=b2b_request.id,
-            new_status=B2BRequestStatus.approved_paid,
+            new_status=B2BRequestStatus.approved_free,
             admin_id=admin_id,
             allocation_id=allocation.id,
         )
