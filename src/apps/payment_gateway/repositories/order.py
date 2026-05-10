@@ -19,11 +19,12 @@ class OrderPaymentRepository:
         gateway_order_id: str,
         gateway_response: dict,
         short_url: str,
+        gateway_flow_type: str | None = None,
     ) -> None:
         """
         Update order with Razorpay payment link details after link is created.
-        Sets gateway_order_id, gateway_response, short_url.
-        Called when a paid transfer flow creates a payment link.
+        Sets gateway_order_id, gateway_response, short_url, and gateway_flow_type.
+        Called when a paid transfer or B2B request flow creates a payment link.
         """
         await self._session.execute(
             update(OrderModel)
@@ -32,6 +33,7 @@ class OrderPaymentRepository:
                 gateway_order_id=gateway_order_id,
                 gateway_response=gateway_response,
                 short_url=short_url,
+                gateway_flow_type=gateway_flow_type,
             )
         )
         await self._session.flush()
