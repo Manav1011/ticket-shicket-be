@@ -226,6 +226,7 @@ class SuperAdminService:
             status=OrderStatus.pending,
             gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
             gateway_flow_type="b2b_request",
+            event_day_id=b2b_request.event_day_id,
             lock_expires_at=datetime.utcnow() + timedelta(minutes=30),
         )
         self._session.add(order)
