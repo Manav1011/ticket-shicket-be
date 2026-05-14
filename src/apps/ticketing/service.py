@@ -98,15 +98,14 @@ class TicketingService:
                 raise DuplicateAllocation
             raise
 
+        start_index = await self.event_day_repository.increment_next_ticket_index(event_day_id, quantity)
         await self.repository.bulk_create_tickets(
             event_id,
             event_day_id,
             ticket_type_id,
-            start_index=day.next_ticket_index,
+            start_index=start_index,
             quantity=quantity,
         )
-        day.next_ticket_index += quantity
-        await self.repository.session.flush()
         return allocation
 
     async def update_allocation_quantity(
@@ -143,17 +142,19 @@ class TicketingService:
 
         # C4: Calculate quantity increase and bulk-create new tickets
         quantity_increase = new_quantity - allocation.quantity
+        start_index = await self.event_day_repository.increment_next_ticket_index(
+            allocation.event_day_id, quantity_increase
+        )
         await self.repository.bulk_create_tickets(
             event_id,
             allocation.event_day_id,
             allocation.ticket_type_id,
-            start_index=day.next_ticket_index,
+            start_index=start_index,
             quantity=quantity_increase,
         )
 
         # C4: Update allocation and day state
         allocation.quantity = new_quantity
-        day.next_ticket_index += quantity_increase
         await self.repository.session.flush()
         await self.repository.session.refresh(allocation)
         return allocation
