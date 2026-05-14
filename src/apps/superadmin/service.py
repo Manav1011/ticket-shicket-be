@@ -116,12 +116,10 @@ class SuperAdminService:
             event_day_id=b2b_request.event_day_id,
         )
 
-        # Get event day to find next_ticket_index
-        day = await self._event_repo.get_event_day_by_id(b2b_request.event_day_id)
-        if not day:
-            raise SuperAdminError(f"Event day {b2b_request.event_day_id} not found")
-
-        start_index = day.next_ticket_index
+        # Atomically get next_ticket_index and increment in one DB operation
+        start_index = await self._event_repo.increment_next_ticket_index(
+            b2b_request.event_day_id, b2b_request.quantity
+        )
 
         # Create tickets on-the-fly (B2B tickets don't exist in pool)
         tickets = await self._ticketing_repo.bulk_create_tickets(
@@ -132,9 +130,6 @@ class SuperAdminService:
             quantity=b2b_request.quantity,
         )
         ticket_ids = [t.id for t in tickets]
-
-        # Update day next_ticket_index
-        day.next_ticket_index += b2b_request.quantity
 
         # Create allocation (from_holder_id=NULL means pool)
         allocation = await self._allocation_repo.create_allocation(
@@ -350,12 +345,10 @@ class SuperAdminService:
             event_day_id=b2b_request.event_day_id,
         )
 
-        # Get event day to find next_ticket_index
-        day = await self._event_repo.get_event_day_by_id(b2b_request.event_day_id)
-        if not day:
-            raise SuperAdminError(f"Event day {b2b_request.event_day_id} not found")
-
-        start_index = day.next_ticket_index
+        # Atomically get next_ticket_index and increment in one DB operation
+        start_index = await self._event_repo.increment_next_ticket_index(
+            b2b_request.event_day_id, b2b_request.quantity
+        )
 
         # Create tickets on-the-fly (B2B tickets don't exist in pool)
         tickets = await self._ticketing_repo.bulk_create_tickets(
@@ -366,9 +359,6 @@ class SuperAdminService:
             quantity=b2b_request.quantity,
         )
         ticket_ids = [t.id for t in tickets]
-
-        # Update day next_ticket_index
-        day.next_ticket_index += b2b_request.quantity
 
         # Create allocation (from_holder_id=NULL means pool)
         allocation = await self._allocation_repo.create_allocation(
