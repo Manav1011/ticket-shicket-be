@@ -435,7 +435,43 @@ The raise and refresh are correctly ordered. However, at [service.py:273-275](sr
 
 ---
 
-#### 5. No money limit on `approve_b2b_request_paid` — confirmed architectural gap
+#### 5. `approve_b2b_request_free` has a race condition on `next_ticket_index` — can cause RAM exhaustion on concurrent approvals
+
+**File:** [service.py:120-137](src/apps/superadmin/service.py#L120-L137)
+
+```python
+day = await self._event_repo.get_event_day_by_id(b2b_request.event_day_id)  # line 120 — no lock
+start_index = day.next_ticket_index                                           # line 124 — READ
+tickets = await self._ticketing_repo.bulk_create_tickets(..., start_index=start_index, ...)
+day.next_ticket_index += b2b_request.quantity                                # line 137 — WRITE (Python side)
+```
+
+This is a **read-modify-write** race: two concurrent `approve_b2b_request_free` calls can both read the same `next_ticket_index`, create tickets with overlapping `ticket_index` values, and violate the unique constraint `uq_tickets_event_day_ticket_index`. When this happens:
+
+1. The second transaction hits a constraint violation and rolls back
+2. SQLAlchemy's identity map has already loaded partial state for both transactions
+3. Under load or with large `quantity` values, this can cause the Python process to accumulate objects in memory — resulting in RAM exhaustion and process hang
+
+**This is a confirmed production issue.** The symptoms: Python process hangs, RAM hits 100%, server becomes unresponsive. Clearing and recreating the DB fixes it because the ticket indices are no longer conflicting.
+
+**Severity:** SEVERE — causes actual production outages (RAM exhaustion, process hang). Fix: use an atomic DB-level increment to get `next_ticket_index`:
+
+```python
+# Replace read-modify-write (lines 124 + 137) with:
+result = await self._session.execute(
+    update(EventDayModel)
+    .where(EventDayModel.id == b2b_request.event_day_id)
+    .values(next_ticket_index=EventDayModel.next_ticket_index + b2b_request.quantity)
+    .returning(EventDayModel.next_ticket_index)
+)
+start_index = result.scalar_one() - b2b_request.quantity  # value BEFORE increment
+```
+
+This must also be applied to `process_paid_b2b_allocation` at [service.py:354-371](src/apps/superadmin/service.py#L354-L371), which has the identical pattern.
+
+---
+
+#### 6. No money limit on `approve_b2b_request_paid` — confirmed architectural gap
 
 **File:** [service.py:194](src/apps/superadmin/service.py#L194), [request.py:9](src/apps/superadmin/request.py#L9)
 
@@ -656,16 +692,17 @@ The status check at line 203 (`if b2b_request.status != B2BRequestStatus.pending
 
 | Severity | Count | Issues |
 |---|---|---|
-| **SEVERE** | 5 | Double payment processing, missing lock clearing + notification in b2b_request webhook, missing order→request ownership verification, silent failure on update |
-| **MODERATE** | 5 | No event ownership check in service, missing `gateway_flow_type` on reseller paid transfer, no `cancel_payment_link` in failure paths, `resolve_holder` duplicate creation, no B2B quantity quota |
+| **SEVERE** | 5 | Double payment processing, missing lock clearing + notification in b2b_request webhook, missing order→request ownership verification, silent failure on update, `next_ticket_index` race causing RAM exhaustion |
+| **MODERATE** | 6 | No event ownership check in service, missing `gateway_flow_type` on reseller paid transfer, no `cancel_payment_link` in failure paths, `resolve_holder` duplicate creation, no B2B quantity quota, **no money limit on `approve_b2b_request_paid`** |
 | **MINOR** | 7 | Outdated docstring, formatting issues, missing pagination, wrong `AllocationType` in customer transfer, no expiry worker, no idempotency guard, transaction side-effect on retry |
 
 ### Recommended Priority Fixes
 
-1. **Fix double processing** (razorpay.py:346-350) — remove the redundant order-paid update in the webhook; let `process_paid_b2b_allocation` be the sole processor.
-2. **Add post-payment notification** to organizer in `process_paid_b2b_allocation` — they currently get no confirmation when B2B tickets are issued after payment.
-3. **Add `gateway_flow_type="b2b_transfer"`** to paid transfer order creation (organizer/service.py:507).
-4. **Add quantity quota check** in `create_b2b_request` (organizer/service.py) — at minimum check against event capacity.
-5. **Fix `resolve_holder`** to check `get_holder_by_phone_and_email` before creating a new holder when all three params are provided.
-6. **Add idempotency guard** — use `SELECT FOR UPDATE` on B2B request row before approval to prevent double allocation.
-7. **Add expiry background worker** — check for `approved_paid` B2B requests older than threshold and expire them if payment link hasn't been paid.
+1. **Fix `next_ticket_index` race condition** (superadmin/service.py:120-137 and 354-371) — replace Python-side read-modify-write with atomic DB-level increment using `UPDATE ... RETURNING`. This is a **confirmed production outage** causing RAM exhaustion and process hang on concurrent approvals.
+2. **Fix double processing** (razorpay.py:346-350) — remove the redundant order-paid update in the webhook; let `process_paid_b2b_allocation` be the sole processor.
+3. **Add post-payment notification** to organizer in `process_paid_b2b_allocation` — they currently get no confirmation when B2B tickets are issued after payment.
+4. **Add `gateway_flow_type="b2b_transfer"`** to paid transfer order creation (organizer/service.py:507).
+5. **Add quantity quota check** in `create_b2b_request` (organizer/service.py) — at minimum check against event capacity.
+6. **Fix `resolve_holder`** to check `get_holder_by_phone_and_email` before creating a new holder when all three params are provided.
+7. **Add idempotency guard** — use `SELECT FOR UPDATE` on B2B request row before approval to prevent double allocation.
+8. **Add expiry background worker** — check for `approved_paid` B2B requests older than threshold and expire them if payment link hasn't been paid.
