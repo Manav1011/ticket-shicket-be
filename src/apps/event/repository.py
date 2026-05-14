@@ -91,6 +91,21 @@ class EventRepository:
             select(EventDayModel).where(EventDayModel.id == event_day_id)
         )
 
+    async def increment_next_ticket_index(self, event_day_id: UUID, quantity: int) -> int:
+        """
+        Atomically increment next_ticket_index and return the start index (value BEFORE increment).
+        This prevents the read-modify-write race condition that occurs when multiple
+        ticket-creation operations run concurrently.
+        """
+        result = await self._session.execute(
+            update(EventDayModel)
+            .where(EventDayModel.id == event_day_id)
+            .values(next_ticket_index=EventDayModel.next_ticket_index + quantity)
+            .returning(EventDayModel.next_ticket_index)
+        )
+        # Return value BEFORE increment = start_index for new tickets
+        return result.scalar_one() - quantity
+
     async def list_event_days(self, event_id: UUID) -> list[EventDayModel]:
         result = await self._session.scalars(
             select(EventDayModel)
