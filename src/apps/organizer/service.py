@@ -38,6 +38,7 @@ class OrganizerService:
         self._ticketing_repo = TicketingRepository(repository.session)
         self._allocation_repo = AllocationRepository(repository.session)
         self._allocation_service = AllocationService(repository.session)
+        self._event_repo = EventRepository(repository.session)
 
     async def list_organizers(self, owner_user_id):
         return await self.repository.list_by_owner(owner_user_id)
@@ -253,6 +254,13 @@ class OrganizerService:
         quantity: int,
     ):
         """[Organizer] Submit a B2B ticket request. System auto-derives B2B ticket type."""
+        # Verify user owns the event (authorization check at service layer)
+        event = await self._event_repo.get_event_by_id(event_id)
+        if not event:
+            raise NotFoundError(f"Event {event_id} not found")
+        if event.organizer_id != user_id:
+            raise ForbiddenError(f"User {user_id} is not the organizer of event {event_id}")
+
         # Auto-derive B2B ticket type for this event day
         b2b_ticket_type = await self._ticketing_repo.get_or_create_b2b_ticket_type(
             event_day_id=event_day_id,
