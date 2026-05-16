@@ -1,4 +1,36 @@
-from pydantic import BaseModel
+import re
 from uuid import UUID
+from pydantic import Field, field_validator, model_validator
+from utils.schema import CamelCaseModel
+from apps.allocation.enums import TransferMode
+from constants.regex import PHONE_REGEX
 
-# Placeholder - no request bodies needed for initial GET endpoints
+class CreateResellerCustomerTransferRequest(CamelCaseModel):
+    phone: str | None = None
+    email: str | None = None
+    quantity: int = Field(gt=0)
+    event_day_id: UUID
+    mode: TransferMode = TransferMode.FREE
+    price: float | None = None  # Flat order price in rupees. Required when mode=PAID.
+
+    @model_validator(mode='after')
+    def must_have_phone_or_email(self):
+        if not self.phone and not self.email:
+            raise ValueError('Either phone or email must be provided')
+        return self
+
+    @model_validator(mode='after')
+    def validate_paid_mode_price(self):
+        if self.mode == TransferMode.PAID:
+            if self.price is None:
+                raise ValueError('price is required when mode=PAID')
+            if self.price <= 0:
+                raise ValueError('price must be greater than 0 when mode=PAID')
+        return self
+
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v):
+        if v and not re.match(PHONE_REGEX, v):
+            raise ValueError('Invalid phone format. Must be a valid Indian mobile number.')
+        return v

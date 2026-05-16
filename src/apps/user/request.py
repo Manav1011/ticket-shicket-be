@@ -61,6 +61,13 @@ class UserLookupRequest(CamelCaseModel):
     email: str | None = None
     phone: str | None = None
 
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v):
+        if v and not re.match(PHONE_REGEX, v):
+            raise ValueError('Invalid phone format. Must be a valid Indian mobile number.')
+        return v
+
     def model_post_init(self, __pydantic_self__) -> None:
         if not self.email and not self.phone:
             raise ValueError("At least one of email or phone is required")

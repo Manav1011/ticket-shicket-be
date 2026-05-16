@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import field_validator
 from utils.schema import BaseResponse, CamelCaseModel
+from apps.allocation.enums import TransferMode
 
 
 class OrganizerPageResponse(CamelCaseModel):
@@ -59,30 +60,18 @@ class MyB2BAllocationItem(CamelCaseModel):
 
 class B2BTransferResponse(CamelCaseModel):
     transfer_id: UUID
-    status: str  # "completed" | "not_implemented"
+    status: str  # "completed" | "not_implemented" | "pending_payment"
     ticket_count: int
     reseller_id: UUID
-    mode: str  # "free" | "paid"
-    message: str | None = None  # only present when mode="paid" and not_implemented
-
-    @field_validator('mode')
-    @classmethod
-    def validate_mode(cls, v):
-        if v not in ('free', 'paid'):
-            raise ValueError('mode must be either "free" or "paid"')
-        return v
+    mode: TransferMode
+    message: str | None = None
+    payment_url: str | None = None  # Razorpay short_url for paid mode
 
 
 class CustomerTransferResponse(CamelCaseModel):
     transfer_id: UUID
     status: str  # "completed" | "not_implemented" | "pending_payment"
     ticket_count: int
-    mode: str  # "free" | "paid"
-    message: str | None = None  # only when mode="paid" and status="not_implemented"
-
-    @field_validator('mode')
-    @classmethod
-    def validate_mode(cls, v):
-        if v not in ('free', 'paid'):
-            raise ValueError('mode must be either "free" or "paid"')
-        return v
+    mode: TransferMode
+    message: str | None = None
+    payment_url: str | None = None  # Razorpay short_url for paid mode

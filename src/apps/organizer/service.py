@@ -1,7 +1,9 @@
 import re
+import secrets
 import uuid
 import hashlib
 from uuid import UUID
+from datetime import datetime, timedelta, timezone
 
 from .exceptions import OrganizerNotFound, OrganizerSlugAlreadyExists
 from .models import OrganizerPageModel
@@ -9,10 +11,14 @@ from src.utils.s3_client import get_s3_client
 from src.utils.file_validation import FileValidator, FileValidationError
 from apps.superadmin.service import SuperAdminService
 from apps.superadmin.enums import B2BRequestStatus
+from apps.superadmin.exceptions import SuperAdminError
 
 
 from apps.ticketing.repository import TicketingRepository
-from apps.allocation.enums import AllocationStatus
+from apps.payment_gateway.services.factory import get_gateway
+from apps.payment_gateway.services.base import BuyerInfo
+from apps.payment_gateway.repositories.order import OrderPaymentRepository
+from apps.allocation.enums import AllocationStatus, TransferMode, GatewayType
 from apps.allocation.repository import AllocationRepository
 from apps.allocation.service import AllocationService
 from apps.event.repository import EventRepository
@@ -32,6 +38,7 @@ class OrganizerService:
         self._ticketing_repo = TicketingRepository(repository.session)
         self._allocation_repo = AllocationRepository(repository.session)
         self._allocation_service = AllocationService(repository.session)
+        self._event_repo = EventRepository(repository.session)
 
     async def list_organizers(self, owner_user_id):
         return await self.repository.list_by_owner(owner_user_id)
@@ -247,6 +254,13 @@ class OrganizerService:
         quantity: int,
     ):
         """[Organizer] Submit a B2B ticket request. System auto-derives B2B ticket type."""
+        # Verify user owns the event (authorization check at service layer)
+        event = await self._event_repo.get_event_by_id(event_id)
+        if not event:
+            raise NotFoundError(f"Event {event_id} not found")
+        if event.organizer_id != user_id:
+            raise ForbiddenError(f"User {user_id} is not the organizer of event {event_id}")
+
         # Auto-derive B2B ticket type for this event day
         b2b_ticket_type = await self._ticketing_repo.get_or_create_b2b_ticket_type(
             event_day_id=event_day_id,
@@ -262,9 +276,11 @@ class OrganizerService:
     async def get_b2b_requests_for_event(
         self,
         event_id: uuid.UUID,
+        limit: int = 50,
+        offset: int = 0,
     ) -> list:
         """[Organizer] List B2B requests for a specific event."""
-        return await self.repository.list_b2b_requests_by_event(event_id)
+        return await self.repository.list_b2b_requests_by_event(event_id, limit=limit, offset=offset)
 
     async def confirm_b2b_payment(
         self,
@@ -274,16 +290,28 @@ class OrganizerService:
     ):
         """
         [Organizer] Confirm payment for an approved paid B2B request.
-        Verifies user owns the organizer page that owns this event, then triggers allocation.
+        NOTE: With Razorpay payment links, payment is confirmed automatically via webhook.
+        This endpoint is now a no-op for backwards compatibility.
+        If the B2B request is still in approved_paid, it means payment hasn't happened yet
+        and the organizer should use the payment link they received.
         """
         # Verify the B2B request belongs to this event
         b2b_req = await self.repository.get_b2b_request_by_id(request_id)
         if not b2b_req or b2b_req.event_id != event_id:
             raise ForbiddenError("B2B request does not belong to this event")
 
-        return await self._super_admin_service.process_paid_b2b_allocation(
-            request_id=request_id,
-        )
+        # If already completed via webhook (payment_done or approved_free), return success (no-op)
+        if b2b_req.status in (B2BRequestStatus.payment_done, B2BRequestStatus.approved_free):
+            return b2b_req
+
+        # If still pending payment, return an error pointing to the payment link
+        if b2b_req.status == B2BRequestStatus.approved_paid:
+            raise SuperAdminError(
+                "Payment has not been completed yet. Please use the payment link "
+                "sent to your registered email/phone to complete the payment."
+            )
+
+        raise SuperAdminError(f"B2B request is in unexpected status: {b2b_req.status}")
 
     # --- B2B My Tickets & Allocations ---
 
@@ -387,13 +415,14 @@ class OrganizerService:
 
     async def create_b2b_transfer(
         self,
-        user_id: uuid.UUID,
-        event_id: uuid.UUID,
-        reseller_id: uuid.UUID,
+        user_id: UUID,
+        event_id: UUID,
+        reseller_id: UUID,
         quantity: int,
-        event_day_id: uuid.UUID | None,
-        mode: str = "free",
-    ) -> "B2BTransferResponse":
+        event_day_id: UUID | None = None,
+        mode: TransferMode = TransferMode.FREE,
+        price: float | None = None,
+    ) -> B2BTransferResponse:
         """
         [Organizer] Transfer B2B tickets to a reseller (free mode).
 
@@ -402,7 +431,7 @@ class OrganizerService:
         2. Validate reseller is associated with this event (EventResellerModel accepted record)
         3. Validate event ownership
         4. Get organizer's TicketHolder
-        4.5. Validate event_day_id exists (if provided)
+        4.5. Validate event_day_id — auto-derive if single-day event, require if multi-day
         5. Get reseller's TicketHolder (resolve/create)
         6. Check organizer's available ticket count ≥ quantity
         7. Atomically lock quantity tickets (FIFO)
@@ -413,16 +442,6 @@ class OrganizerService:
 
         All in one DB transaction — rollback on any failure.
         """
-
-        if mode == "paid":
-            return B2BTransferResponse(
-                transfer_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
-                status="not_implemented",
-                ticket_count=0,
-                reseller_id=reseller_id,
-                mode="paid",
-                message="Paid transfer coming soon",
-            )
 
         if user_id == reseller_id:
             from exceptions import BadRequestError
@@ -460,6 +479,17 @@ class OrganizerService:
             if not event_day or event_day.event_id != event_id:
                 from exceptions import NotFoundError
                 raise NotFoundError("Event day not found or does not belong to this event")
+        else:
+            # Auto-derive single day or require explicit day for multi-day events
+            event_days = await event_repo.list_event_days(event_id)
+            if len(event_days) == 1:
+                event_day_id = event_days[0].id
+            elif len(event_days) > 1:
+                from exceptions import BadRequestError
+                raise BadRequestError(
+                    f"event_day_id is required for multi-day events. "
+                    f"This event has {len(event_days)} days."
+                )
 
         # 5. Get reseller's holder (resolve/create)
         reseller_holder = await self._allocation_service.resolve_holder(
@@ -484,6 +514,100 @@ class OrganizerService:
         if available < quantity:
             from exceptions import BadRequestError
             raise BadRequestError(f"Only {available} B2B tickets available, requested {quantity}")
+
+        if mode == TransferMode.PAID:
+            total_price = price or 0.0
+            # 1. Create pending order (no allocation created yet)
+            order = OrderModel(
+                event_id=event_id,
+                user_id=user_id,
+                type=OrderType.transfer,
+                subtotal_amount=total_price,
+                discount_amount=0.0,
+                final_amount=total_price,
+                status=OrderStatus.pending,
+                gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
+                gateway_flow_type="b2b_transfer",
+                lock_expires_at=datetime.utcnow() + timedelta(minutes=30),
+            )
+            self.repository.session.add(order)
+            await self.repository.session.flush()
+            await self.repository.session.refresh(order)
+            order.sender_holder_id = org_holder.id
+            order.receiver_holder_id = reseller_holder.id
+            order.transfer_type = "organizer_to_reseller"
+            order.event_day_id = event_day_id
+
+            # 2. Lock tickets (FIFO, 30-min TTL)
+            locked_ticket_ids = await self._ticketing_repo.lock_tickets_for_transfer(
+                owner_holder_id=org_holder.id,
+                event_id=event_id,
+                ticket_type_id=b2b_ticket_type.id,
+                event_day_id=event_day_id,
+                quantity=quantity,
+                order_id=order.id,
+                lock_ttl_minutes=30,
+            )
+
+            # 3. Create payment link via Razorpay
+            # Determine reseller contact info for BuyerInfo
+            reseller_name = getattr(reseller, 'name', None) or 'Reseller'
+            reseller_email = getattr(reseller, 'email', None)
+            reseller_phone = getattr(reseller, 'phone', None)
+
+            gateway = get_gateway("razorpay")
+            buyer_info = BuyerInfo(
+                name=reseller_name,
+                email=reseller_email,
+                phone=reseller_phone or "",
+            )
+            payment_result = await gateway.create_payment_link(
+                order_id=order.id,
+                amount=int(total_price * 100),
+                currency="INR",
+                buyer=buyer_info,
+                description=f"Ticket Transfer - {event.title}",
+                event_id=event_id,
+                flow_type="b2b_transfer",
+                transfer_type="organizer_to_reseller",
+                buyer_holder_id=reseller_holder.id,
+            )
+
+            # 4. Update order with gateway details
+            order_payment_repo = OrderPaymentRepository(self.repository.session)
+            await order_payment_repo.update_pending_order_on_payment_link_created(
+                order_id=order.id,
+                gateway_order_id=payment_result.gateway_order_id,
+                gateway_response=payment_result.gateway_response,
+                short_url=payment_result.short_url,
+            )
+
+            # 5. Send payment link via our notification channels
+            from src.utils.notifications.sms import mock_send_sms
+            from src.utils.notifications.whatsapp import mock_send_whatsapp
+            from src.utils.notifications.email import mock_send_email
+
+            payment_link = payment_result.short_url
+            print(f"[PAID B2B TRANSFER] Payment link: {payment_link}")
+            print(f"[PAID B2B TRANSFER] Sending to phone={reseller_phone}, email={reseller_email}")
+
+            message = f"Complete your B2B ticket purchase: {payment_link}"
+            if reseller_phone:
+                mock_send_sms(reseller_phone, message, template="b2b_paid_transfer")
+                mock_send_whatsapp(reseller_phone, message, template="b2b_paid_transfer")
+            if reseller_email:
+                mock_send_email(reseller_email, "Complete Your B2B Ticket Purchase", message)
+
+            # NO allocation created here — webhook handles that on payment
+
+            return B2BTransferResponse(
+                transfer_id=order.id,
+                status="pending_payment",
+                ticket_count=len(locked_ticket_ids),
+                reseller_id=reseller_id,
+                mode=TransferMode.PAID,
+                payment_url=payment_result.short_url,
+            )
 
         # 7. Create the transfer order FIRST (to get its ID for locking)
         order = OrderModel(
@@ -552,19 +676,20 @@ class OrganizerService:
             status="completed",
             ticket_count=len(locked_ticket_ids),
             reseller_id=reseller_id,
-            mode=mode,
+            mode=TransferMode.FREE,
         )
 
     async def create_customer_transfer(
         self,
-        user_id: uuid.UUID,
-        event_id: uuid.UUID,
+        user_id: UUID,
+        event_id: UUID,
         phone: str | None,
         email: str | None,
         quantity: int,
-        event_day_id: uuid.UUID,
-        mode: str = "free",
-    ) -> "CustomerTransferResponse":
+        event_day_id: UUID,
+        mode: TransferMode = TransferMode.FREE,
+        price: float | None = None,
+    ) -> CustomerTransferResponse:
         """
         [Organizer] Transfer B2B tickets to a customer (free mode).
         Customer receives a claim link; their ticket ownership is transferred immediately.
@@ -586,7 +711,11 @@ class OrganizerService:
         13. Send notifications (mock SMS/WhatsApp/Email)
 
         Flow (paid mode):
-        - Returns stub: status="not_implemented", mode="paid"
+        1. Create PENDING order (status=pending, 30-min TTL)
+        2. Lock tickets (FIFO, 30-min TTL)
+        3. Create Razorpay payment link (transfer_type=organizer_to_customer)
+        4. Send notification with payment link
+        5. Return CustomerTransferResponse with payment_url (Allocation deferred to webhook)
 
         Returns:
             CustomerTransferResponse with transfer_id, status, ticket_count, mode, claim_link
@@ -596,23 +725,153 @@ class OrganizerService:
         from src.utils.notifications.whatsapp import mock_send_whatsapp
         from src.utils.notifications.email import mock_send_email
 
-        if mode == "paid":
-            return CustomerTransferResponse(
-                transfer_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
-                status="not_implemented",
-                ticket_count=0,
-                mode="paid",
-                message="Paid customer transfer coming soon",
-            )
-
         if not phone and not email:
             raise BadRequestError("Either phone or email must be provided")
 
         # 1. Validate event ownership
+        from apps.event.repository import EventRepository
         event_repo = EventRepository(self.repository.session)
         event = await event_repo.get_by_id_for_owner(event_id, user_id)
         if not event:
             raise ForbiddenError("You do not own this event's organizer page")
+
+        if mode == TransferMode.PAID:
+            # Build buyer info from customer contact (customer may not have a user account)
+            customer_name = phone or "Customer"
+            customer_email = email
+            customer_phone = phone or ""
+
+            # Get organizer's holder first (needed for availability check)
+            org_holder = await self._allocation_repo.get_holder_by_user_id(user_id)
+            if not org_holder:
+                raise NotFoundError("Organizer has no ticket holder account")
+
+            # Check organizer's available ticket count ≥ quantity
+            b2b_ticket_type = await self._ticketing_repo.get_b2b_ticket_type_for_event(event_id)
+            if not b2b_ticket_type:
+                raise NotFoundError("No B2B ticket type found for this event")
+
+            ticket_rows = await self._allocation_repo.list_b2b_tickets_by_holder(
+                event_id=event_id,
+                holder_id=org_holder.id,
+                b2b_ticket_type_id=b2b_ticket_type.id,
+                event_day_id=event_day_id,
+            )
+            available = sum(r["count"] for r in ticket_rows)
+            if available < quantity:
+                raise BadRequestError(f"Only {available} B2B tickets available, requested {quantity}")
+
+            # Resolve customer TicketHolder (needed for order.receiver_holder_id)
+            if phone and email:
+                existing = await self._allocation_repo.get_holder_by_phone_and_email(phone, email)
+                if existing:
+                    customer_holder = existing
+                else:
+                    by_phone = await self._allocation_repo.get_holder_by_phone(phone)
+                    if by_phone:
+                        customer_holder = by_phone
+                    else:
+                        by_email = await self._allocation_repo.get_holder_by_email(email)
+                        if by_email:
+                            customer_holder = by_email
+                        else:
+                            customer_holder = await self._allocation_repo.create_holder(
+                                phone=phone, email=email
+                            )
+            elif phone:
+                customer_holder = await self._allocation_repo.get_holder_by_phone(phone)
+                if not customer_holder:
+                    customer_holder = await self._allocation_repo.create_holder(phone=phone)
+            else:
+                customer_holder = await self._allocation_repo.get_holder_by_email(email)
+                if not customer_holder:
+                    customer_holder = await self._allocation_repo.create_holder(email=email)
+
+            total_price = price or 0.0
+
+            # Create pending order with all fields for webhook handler
+            order = OrderModel(
+                event_id=event_id,
+                user_id=user_id,
+                type=OrderType.transfer,
+                subtotal_amount=total_price,
+                discount_amount=0.0,
+                final_amount=total_price,
+                status=OrderStatus.pending,
+                gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
+                lock_expires_at=datetime.utcnow() + timedelta(minutes=30),
+                sender_holder_id=org_holder.id,
+                receiver_holder_id=customer_holder.id,
+                transfer_type="organizer_to_customer",
+                event_day_id=event_day_id,
+            )
+            self.repository.session.add(order)
+            await self.repository.session.flush()
+            await self.repository.session.refresh(order)
+
+            locked_ticket_ids = await self._ticketing_repo.lock_tickets_for_transfer(
+                owner_holder_id=org_holder.id,
+                event_id=event_id,
+                ticket_type_id=b2b_ticket_type.id,
+                event_day_id=event_day_id,
+                quantity=quantity,
+                order_id=order.id,
+                lock_ttl_minutes=30,
+            )
+
+            # 3. Create payment link via Razorpay
+            gateway = get_gateway("razorpay")
+            buyer_info = BuyerInfo(
+                name=customer_name,
+                email=customer_email,
+                phone=customer_phone,
+            )
+            payment_result = await gateway.create_payment_link(
+                order_id=order.id,
+                amount=int(total_price * 100),
+                currency="INR",
+                buyer=buyer_info,
+                description=f"Ticket Transfer - {event.title}",
+                event_id=event_id,
+                flow_type="b2b_transfer",
+                transfer_type="organizer_to_customer",
+                buyer_holder_id=customer_holder.id,
+            )
+
+            # 4. Update order with gateway details
+            order_payment_repo = OrderPaymentRepository(self.repository.session)
+            await order_payment_repo.update_pending_order_on_payment_link_created(
+                order_id=order.id,
+                gateway_order_id=payment_result.gateway_order_id,
+                gateway_response=payment_result.gateway_response,
+                short_url=payment_result.short_url,
+            )
+
+            # 5. Send payment link via our notification channels
+            from src.utils.notifications.sms import mock_send_sms
+            from src.utils.notifications.whatsapp import mock_send_whatsapp
+            from src.utils.notifications.email import mock_send_email
+
+            payment_link = payment_result.short_url
+            print(f"[PAID CUSTOMER TRANSFER] Payment link: {payment_link}")
+            print(f"[PAID CUSTOMER TRANSFER] Sending to phone={customer_phone}, email={customer_email}")
+
+            message = f"Complete your ticket purchase: {payment_link}"
+            if customer_phone:
+                mock_send_sms(customer_phone, message, template="customer_paid_transfer")
+                mock_send_whatsapp(customer_phone, message, template="customer_paid_transfer")
+            if customer_email:
+                mock_send_email(customer_email, "Complete Your Ticket Purchase", message)
+
+            # NO allocation created here — webhook handles that on payment
+
+            return CustomerTransferResponse(
+                transfer_id=order.id,
+                status="pending_payment",
+                ticket_count=len(locked_ticket_ids),
+                mode=TransferMode.PAID,
+                payment_url=payment_result.short_url,
+            )
 
         # 2. Validate event_day_id exists and belongs to event
         event_day = await event_repo.get_event_day_by_id(event_day_id)
@@ -703,10 +962,12 @@ class OrganizerService:
             from_holder_id=org_holder.id,
             to_holder_id=customer_holder.id,
             order_id=order.id,
-            allocation_type=AllocationType.transfer,
+            allocation_type=AllocationType.b2b,
             ticket_count=len(locked_ticket_ids),
             token_hash=token_hash,
             created_by_holder_id=org_holder.id,
+            jwt_jti=secrets.token_hex(8),
+            token=raw_token,
             metadata_={"source": "organizer_customer_free", "mode": mode},
         )
 
@@ -739,6 +1000,8 @@ class OrganizerService:
         claim_url = f"/claim/{raw_token}"
         message = f"You received {len(locked_ticket_ids)} ticket(s). Claim at: {claim_url}"
 
+        print(f"\n[CUSTOMER TRANSFER] Claim URL: http://0.0.0.0:8080/api/open{claim_url}\n")
+
         mock_send_sms(phone or "", message, template="customer_transfer")
         mock_send_whatsapp(phone or "", message, template="customer_transfer")
         if email:
@@ -748,5 +1011,5 @@ class OrganizerService:
             transfer_id=order.id,
             status="completed",
             ticket_count=len(locked_ticket_ids),
-            mode=mode,
+            mode=TransferMode.FREE,
         )

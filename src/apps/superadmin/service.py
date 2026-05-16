@@ -2,19 +2,28 @@
 Super admin service — handles B2B request lifecycle.
 All B2B operations are wrapped in a single database transaction.
 """
+import logging
 import uuid
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.allocation.enums import AllocationStatus, AllocationType
-from apps.allocation.models import AllocationModel, OrderModel
+from apps.allocation.enums import AllocationStatus, AllocationType, GatewayType
+from apps.allocation.models import AllocationModel, OrderModel, TicketHolderModel
 from apps.allocation.repository import AllocationRepository
 from apps.allocation.service import AllocationService
 from apps.event.repository import EventRepository
 from apps.ticketing.enums import OrderStatus, OrderType
 from apps.ticketing.models import TicketModel
 from apps.ticketing.repository import TicketingRepository
+from apps.user.repository import UserRepository
+from apps.payment_gateway.repositories.order import OrderPaymentRepository
+from apps.payment_gateway.services.base import BuyerInfo
+from apps.payment_gateway.services.factory import get_gateway
+from utils.notifications.sms import mock_send_sms
+from utils.notifications.whatsapp import mock_send_whatsapp
+from utils.notifications.email import mock_send_email
+from datetime import datetime, timedelta
 
 from .enums import B2BRequestStatus
 from .exceptions import (
@@ -25,6 +34,8 @@ from .exceptions import (
 )
 from .models import B2BRequestModel, SuperAdminModel
 from .repository import SuperAdminRepository
+
+logger = logging.getLogger(__name__)
 
 
 class SuperAdminService:
@@ -44,6 +55,13 @@ class SuperAdminService:
         if not request:
             raise B2BRequestNotFoundError(f"B2B request {request_id} not found")
         return request
+
+    async def get_b2b_request_detail(self, request_id: uuid.UUID) -> dict:
+        """Get B2B request with enriched event/user/ticket type info."""
+        enriched = await self._repo.get_b2b_request_enriched(request_id)
+        if not enriched:
+            raise B2BRequestNotFoundError(f"B2B request {request_id} not found")
+        return enriched
 
     async def list_pending_b2b_requests(
         self, limit: int = 50, offset: int = 0
@@ -69,8 +87,17 @@ class SuperAdminService:
         """
         Approve a B2B request with free transfer (no payment).
         Creates allocation directly with a $0 TRANSFER order.
+        Uses SELECT FOR UPDATE to prevent concurrent approvals.
         """
-        b2b_request = await self.get_b2b_request(request_id)
+        # Use SELECT FOR UPDATE to prevent concurrent modifications
+        result = await self._session.execute(
+            select(B2BRequestModel)
+            .where(B2BRequestModel.id == request_id)
+            .with_for_update()
+        )
+        b2b_request = result.scalar_one_or_none()
+        if not b2b_request:
+            raise B2BRequestNotFoundError(f"B2B request {request_id} not found")
         if b2b_request.status != B2BRequestStatus.pending:
             raise B2BRequestNotPendingError(
                 f"B2B request is {b2b_request.status}, expected pending"
@@ -101,12 +128,10 @@ class SuperAdminService:
             event_day_id=b2b_request.event_day_id,
         )
 
-        # Get event day to find next_ticket_index
-        day = await self._event_repo.get_event_day_by_id(b2b_request.event_day_id)
-        if not day:
-            raise SuperAdminError(f"Event day {b2b_request.event_day_id} not found")
-
-        start_index = day.next_ticket_index
+        # Atomically get next_ticket_index and increment in one DB operation
+        start_index = await self._event_repo.increment_next_ticket_index(
+            b2b_request.event_day_id, b2b_request.quantity
+        )
 
         # Create tickets on-the-fly (B2B tickets don't exist in pool)
         tickets = await self._ticketing_repo.bulk_create_tickets(
@@ -117,9 +142,6 @@ class SuperAdminService:
             quantity=b2b_request.quantity,
         )
         ticket_ids = [t.id for t in tickets]
-
-        # Update day next_ticket_index
-        day.next_ticket_index += b2b_request.quantity
 
         # Create allocation (from_holder_id=NULL means pool)
         allocation = await self._allocation_repo.create_allocation(
@@ -180,17 +202,36 @@ class SuperAdminService:
         admin_notes: str | None = None,
     ) -> B2BRequestModel:
         """
-        Approve a B2B request with paid order.
-        Creates a pending PURCHASE order. Organizer pays via payment gateway.
-        Allocation is created later when organizer confirms payment.
+        Approve a B2B request as paid.
+        Creates a pending PURCHASE order + Razorpay payment link, sends link to organizer.
+        Allocation is created when webhook fires after payment.
+        Uses SELECT FOR UPDATE to prevent concurrent modifications.
         """
-        b2b_request = await self.get_b2b_request(request_id)
+        # Use SELECT FOR UPDATE to prevent concurrent modifications
+        result = await self._session.execute(
+            select(B2BRequestModel)
+            .where(B2BRequestModel.id == request_id)
+            .with_for_update()
+        )
+        b2b_request = result.scalar_one_or_none()
+        if not b2b_request:
+            raise B2BRequestNotFoundError(f"B2B request {request_id} not found")
         if b2b_request.status != B2BRequestStatus.pending:
             raise B2BRequestNotPendingError(
                 f"B2B request is {b2b_request.status}, expected pending"
             )
 
-        # Create PURCHASE order with pending status
+        # Resolve organizer user to get contact info for payment link
+        user_repo = UserRepository(self._session)
+        user = await user_repo.get_by_id(b2b_request.requesting_user_id)
+        if not user:
+            raise SuperAdminError(f"User {b2b_request.requesting_user_id} not found")
+
+        organizer_name = f"{user.first_name} {user.last_name}" if user.first_name else user.email.split("@")[0]
+        organizer_email = user.email or ""
+        organizer_phone = user.phone or ""
+
+        # Create pending PURCHASE order
         order = OrderModel(
             event_id=b2b_request.event_id,
             user_id=b2b_request.requesting_user_id,
@@ -199,11 +240,45 @@ class SuperAdminService:
             discount_amount=0.0,
             final_amount=amount,
             status=OrderStatus.pending,
+            gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
+            gateway_flow_type="b2b_request",
+            event_day_id=b2b_request.event_day_id,
+            lock_expires_at=datetime.utcnow() + timedelta(minutes=30),
         )
         self._session.add(order)
         await self._session.flush()
 
-        # Update B2B request — no allocation_id yet (allocation comes after payment)
+        # Create Razorpay payment link
+        gateway = get_gateway("razorpay")
+        buyer_info = BuyerInfo(
+            name=organizer_name,
+            email=organizer_email,
+            phone=organizer_phone,
+        )
+        description = f"B2B Ticket Request — {b2b_request.quantity} tickets"
+        payment_result = await gateway.create_payment_link(
+            order_id=order.id,
+            amount=int(amount * 100),  # Razorpay uses paise
+            currency="INR",
+            buyer=buyer_info,
+            description=description,
+            event_id=b2b_request.event_id,
+            flow_type="b2b_request",
+            transfer_type=None,
+            buyer_holder_id=None,
+        )
+
+        # Update order with gateway details
+        order_payment_repo = OrderPaymentRepository(self._session)
+        await order_payment_repo.update_pending_order_on_payment_link_created(
+            order_id=order.id,
+            gateway_order_id=payment_result.gateway_order_id,
+            gateway_response=payment_result.gateway_response,
+            short_url=payment_result.short_url,
+            gateway_flow_type="b2b_request",
+        )
+
+        # Update B2B request — no allocation_id yet (comes after payment)
         updated = await self._repo.update_b2b_request_status(
             request_id=b2b_request.id,
             new_status=B2BRequestStatus.approved_paid,
@@ -213,6 +288,14 @@ class SuperAdminService:
         )
         if not updated:
             raise SuperAdminError(f"Failed to update B2B request {b2b_request.id} status")
+
+        # Send payment link via notification channels
+        payment_link = payment_result.short_url
+        message = f"Complete your B2B ticket purchase: {payment_link}"
+        print(f"Mock sending payment link to organizer {organizer_name} ({organizer_email}, {organizer_phone}): {message}")
+        mock_send_sms(organizer_phone, message, template="b2b_paid_request")
+        mock_send_whatsapp(organizer_phone, message, template="b2b_paid_request")
+        mock_send_email(organizer_email, "Complete Your B2B Ticket Purchase", message)
 
         await self._session.refresh(b2b_request)
         return b2b_request
@@ -248,7 +331,7 @@ class SuperAdminService:
     ) -> B2BRequestModel:
         """
         Called after payment succeeds. Creates the actual allocation using the existing paid order.
-        This method is called from the organizer's confirm-payment endpoint.
+        Called from the Razorpay payment_link.paid webhook (via SuperAdminService.process_paid_b2b_allocation).
         admin_id is pulled from b2b_request.reviewed_by_admin_id (the super admin who approved it).
         """
         b2b_request = await self.get_b2b_request(request_id)
@@ -268,6 +351,12 @@ class SuperAdminService:
         if not order:
             raise SuperAdminError(f"Order {b2b_request.order_id} not found")
 
+        # Guard: ensure the order found actually belongs to this B2B request
+        if order.id != b2b_request.order_id:
+            raise SuperAdminError(
+                f"Order mismatch: webhook order {order.id} != b2b_request.order_id {b2b_request.order_id}"
+            )
+
         # Mark order as paid
         order.status = OrderStatus.paid
 
@@ -283,12 +372,10 @@ class SuperAdminService:
             event_day_id=b2b_request.event_day_id,
         )
 
-        # Get event day to find next_ticket_index
-        day = await self._event_repo.get_event_day_by_id(b2b_request.event_day_id)
-        if not day:
-            raise SuperAdminError(f"Event day {b2b_request.event_day_id} not found")
-
-        start_index = day.next_ticket_index
+        # Atomically get next_ticket_index and increment in one DB operation
+        start_index = await self._event_repo.increment_next_ticket_index(
+            b2b_request.event_day_id, b2b_request.quantity
+        )
 
         # Create tickets on-the-fly (B2B tickets don't exist in pool)
         tickets = await self._ticketing_repo.bulk_create_tickets(
@@ -299,9 +386,6 @@ class SuperAdminService:
             quantity=b2b_request.quantity,
         )
         ticket_ids = [t.id for t in tickets]
-
-        # Update day next_ticket_index
-        day.next_ticket_index += b2b_request.quantity
 
         # Create allocation (from_holder_id=NULL means pool)
         allocation = await self._allocation_repo.create_allocation(
@@ -342,15 +426,41 @@ class SuperAdminService:
         # Update B2B request with allocation_id
         updated = await self._repo.update_b2b_request_status(
             request_id=b2b_request.id,
-            new_status=B2BRequestStatus.approved_paid,
+            new_status=B2BRequestStatus.payment_done,
             admin_id=admin_id,
             allocation_id=allocation.id,
         )
         if not updated:
             raise SuperAdminError(f"Failed to update B2B request {b2b_request.id} status")
 
+        # Notify organizer that their B2B tickets have been issued
+        try:
+            holder_result = await self._session.execute(
+                select(TicketHolderModel).where(TicketHolderModel.user_id == b2b_request.requesting_user_id)
+            )
+            org_holder = holder_result.scalar_one_or_none()
+            if org_holder:
+                ticket_msg = f"Your B2B request for {b2b_request.quantity} ticket(s) has been fulfilled and tickets are now active."
+                if org_holder.email:
+                    mock_send_email(org_holder.email, "B2B Tickets Issued", ticket_msg)
+                if org_holder.phone:
+                    mock_send_sms(org_holder.phone, ticket_msg)
+                    mock_send_whatsapp(org_holder.phone, ticket_msg)
+        except Exception as e:
+            # Notification failures must not rollback the allocation
+            logger.warning(f"Failed to send B2B fulfillment notification: {e}")
+
         await self._session.refresh(b2b_request)
         return b2b_request
+
+    async def expire_stale_b2b_requests(self, stale_hours: int = 24) -> int:
+        """
+        Expire B2B requests that have been in approved_paid status
+        for longer than stale_hours. Safety net for missed Razorpay expiry webhooks.
+        """
+        from .workers import B2BExpiryWorker
+        worker = B2BExpiryWorker(self._session)
+        return await worker.expire_stale_requests(stale_hours=stale_hours)
 
     async def _select_and_lock_tickets_fifo(
         self,

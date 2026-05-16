@@ -147,14 +147,6 @@ class TicketTypePublicResponse(CamelCaseModel):
     currency: str = "USD"
 
 
-class TicketAllocationPublicResponse(CamelCaseModel):
-    id: UUID
-    ticket_type_id: UUID
-    event_day_id: UUID
-    quantity: int
-    price: str = "0.00"
-
-
 class EventDetailResponse(CamelCaseModel):
     id: UUID
     title: str | None = None
@@ -182,7 +174,6 @@ class EventDetailResponse(CamelCaseModel):
     days: list[EventDayPublicResponse] = []
     media_assets: list[MediaAssetPublicResponse] = []
     ticket_types: list[TicketTypePublicResponse] = []
-    ticket_allocations: list[TicketAllocationPublicResponse] = []
 
     class Config:
         from_attributes = True
@@ -235,3 +226,40 @@ class SplitClaimResponse(CamelCaseModel):
     remaining_ticket_count: int
     new_jwt: str
     message: str
+
+
+class CouponAppliedResponse(CamelCaseModel):
+    code: str
+    type: str
+    value: float
+    max_discount: float | None
+
+
+class PreviewOrderResponse(CamelCaseModel):
+    subtotal_amount: str
+    discount_amount: str
+    final_amount: str
+    coupon_applied: CouponAppliedResponse | None = None
+
+
+class CreateOrderResponse(CamelCaseModel):
+    order_id: UUID
+    razorpay_order_id: str | None
+    razorpay_key_id: str | None
+    amount: int
+    currency: str
+    subtotal_amount: str
+    discount_amount: str
+    final_amount: str
+    status: str
+    is_free: bool = False
+    claim_token: str | None = None
+
+
+class PollStatusResponse(CamelCaseModel):
+    order_id: UUID
+    status: str
+    ticket_count: int
+    jwt: str | None = None
+    claim_token: str | None = None
+    failure_reason: str | None = None

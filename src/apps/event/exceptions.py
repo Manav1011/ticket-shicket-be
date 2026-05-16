@@ -1,5 +1,5 @@
 import constants
-from exceptions import AlreadyExistsError, ForbiddenError, NotFoundError, UnprocessableEntityError
+from exceptions import AlreadyExistsError, BadRequestError, ForbiddenError, NotFoundError, UnprocessableEntityError
 
 
 class OrganizerOwnershipError(ForbiddenError):
@@ -24,6 +24,13 @@ class InvalidAsset(UnprocessableEntityError):
 
 class ValidationError(UnprocessableEntityError):
     message = "Validation error."
+
+
+class InsufficientTicketsError(BadRequestError):
+    def __init__(self, requested: int, available: int):
+        self.requested = requested
+        self.available = available
+        super().__init__(f"Not enough tickets available. Only {available} ticket(s) remaining for this selection.")
 
 
 # Re-export for convenience

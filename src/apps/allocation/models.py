@@ -2,10 +2,12 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -15,11 +17,11 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base, TimeStampMixin, UUIDPrimaryKeyMixin
 from apps.ticketing.enums import OrderStatus, OrderType
-from .enums import AllocationStatus, AllocationType, ClaimLinkStatus, TicketHolderStatus
+from .enums import AllocationStatus, AllocationType, ClaimLinkStatus, CouponType, GatewayType, TicketHolderStatus
 
 
 class TicketHolderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
@@ -53,6 +55,9 @@ class ClaimLinkModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     )
     token_hash: Mapped[str] = mapped_column(
         String(64), unique=True, nullable=False, index=True
+    )
+    token: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
     )
     event_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True
@@ -99,6 +104,9 @@ class RevokedScanTokenModel(Base, UUIDPrimaryKeyMixin):
 
 class AllocationModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     __tablename__ = "allocations"
+    __table_args__ = (
+        UniqueConstraint("order_id", name="uq_allocations_order_id"),
+    )
 
     event_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("events.id", ondelete="CASCADE"), index=True, nullable=False
@@ -178,6 +186,17 @@ class OrderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    sender_holder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ticket_holders.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    receiver_holder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ticket_holders.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    transfer_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    gateway_flow_type: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    event_day_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("event_days.id", ondelete="CASCADE"), nullable=True
+    )
     type: Mapped[str] = mapped_column(
         Enum(OrderType), nullable=False
     )  # PURCHASE / TRANSFER
@@ -195,4 +214,86 @@ class OrderModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
         default=OrderStatus.pending,
         server_default=text("'pending'"),
         nullable=False,
+    )
+    lock_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    gateway_type: Mapped[str | None] = mapped_column(Enum(GatewayType), nullable=True)
+    gateway_order_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    gateway_response: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    short_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    gateway_payment_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    captured_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    expired_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    coupon_application: Mapped["OrderCouponModel | None"] = relationship(
+        back_populates="order",
+        cascade="all, delete-orphan",
+        uselist=False,
+        lazy="selectin",
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_orders_pending_lock_expiry",
+            "status",
+            "lock_expires_at",
+            postgresql_where=text("status = 'pending'"),
+        ),
+    )
+
+
+class CouponModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
+    __tablename__ = "coupons"
+
+    code: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True
+    )
+    type: Mapped[str] = mapped_column(
+        Enum(CouponType), nullable=False
+    )
+    value: Mapped[float] = mapped_column(
+        Numeric(), nullable=False
+    )
+    max_discount: Mapped[float | None] = mapped_column(
+        Numeric(), nullable=True
+    )
+    min_order_amount: Mapped[float] = mapped_column(
+        Numeric(), nullable=False, server_default="0"
+    )
+    usage_limit: Mapped[int] = mapped_column(
+        Integer(), nullable=False
+    )
+    per_user_limit: Mapped[int] = mapped_column(
+        Integer(), nullable=False, server_default="1"
+    )
+    used_count: Mapped[int] = mapped_column(
+        Integer(), nullable=False, server_default="0"
+    )
+    valid_from: Mapped[datetime] = mapped_column(
+        DateTime(), nullable=False
+    )
+    valid_until: Mapped[datetime] = mapped_column(
+        DateTime(), nullable=False
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, server_default="true"
+    )
+
+
+class OrderCouponModel(Base, TimeStampMixin):
+    __tablename__ = "order_coupons"
+
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("orders.id", ondelete="CASCADE"), primary_key=True
+    )
+    coupon_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("coupons.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    discount_applied: Mapped[float] = mapped_column(
+        Numeric(), nullable=False
+    )
+    order: Mapped["OrderModel"] = relationship(
+        back_populates="coupon_application",
+        lazy="selectin",
+    )
+    coupon: Mapped["CouponModel"] = relationship(
+        lazy="selectin",
     )

@@ -11,7 +11,7 @@ from utils.schema import BaseResponse
 from .repository import ResellerRepository
 from .response import ResellerEventsResponse, ResellerTicketsResponse, ResellerAllocationsResponse
 from .service import ResellerService
-from apps.organizer.request import CreateCustomerTransferRequest
+from apps.resellers.request import CreateResellerCustomerTransferRequest
 from apps.organizer.response import CustomerTransferResponse
 
 router = APIRouter(
@@ -34,17 +34,18 @@ async def list_my_reseller_events(
     return await service.list_my_events(request.state.user.id)
 
 
-@router.get("/events/{event_id}/tickets")
+@router.get("/b2b/events/{event_id}/tickets")
 async def get_my_reseller_tickets(
     event_id: UUID,
     request: Request,
     service: Annotated[ResellerService, Depends(get_reseller_service)],
+    event_day_id: UUID | None = None,
 ) -> ResellerTicketsResponse:
     """Get my tickets for an event I resell."""
-    return await service.get_my_tickets(event_id, request.state.user.id)
+    return await service.get_my_tickets(event_id, request.state.user.id, event_day_id=event_day_id)
 
 
-@router.get("/events/{event_id}/my-allocations")
+@router.get("/b2b/events/{event_id}/my-allocations")
 async def get_my_reseller_allocations(
     event_id: UUID,
     request: Request,
@@ -60,7 +61,7 @@ async def get_my_reseller_allocations(
 async def create_reseller_customer_transfer_endpoint(
     event_id: UUID,
     request: Request,
-    body: Annotated[CreateCustomerTransferRequest, Body()],
+    body: Annotated[CreateResellerCustomerTransferRequest, Body()],
     service: Annotated[ResellerService, Depends(get_reseller_service)],
 ) -> BaseResponse[CustomerTransferResponse]:
     """
@@ -76,5 +77,6 @@ async def create_reseller_customer_transfer_endpoint(
         quantity=body.quantity,
         event_day_id=body.event_day_id,
         mode=body.mode,
+        price=body.price,
     )
     return BaseResponse(data=result)

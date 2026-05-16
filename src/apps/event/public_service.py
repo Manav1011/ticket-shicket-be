@@ -22,7 +22,6 @@ class PublicEventService:
         days = await self.event_repo.list_event_days(event_id)
         assets = await self.event_repo.list_media_assets(event_id)
         ticket_types = await self.ticketing_repo.list_ticket_types_for_event(event_id)
-        allocations = await self.ticketing_repo.list_allocations_for_event(event_id)
 
         return {
             "id": event.id,
@@ -81,15 +80,5 @@ class PublicEventService:
                     "currency": getattr(t, "currency", "USD"),
                 }
                 for t in ticket_types
-            ],
-            "ticket_allocations": [
-                {
-                    "id": str(a.id),
-                    "ticket_type_id": str(a.ticket_type_id),
-                    "event_day_id": str(a.event_day_id),
-                    "quantity": a.quantity,
-                    "price": str(getattr(a, "price", "0.00")),
-                }
-                for a in allocations
             ],
         }

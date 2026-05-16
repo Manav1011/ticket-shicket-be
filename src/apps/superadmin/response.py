@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -19,6 +19,23 @@ class B2BRequestResponse(BaseModel):
     metadata: dict = Field(validation_alias="metadata_", serialization_alias="metadata")
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class B2BRequestDetailResponse(BaseModel):
+    id: UUID
+    quantity: int
+    status: str
+    admin_notes: str | None
+    created_at: datetime
+    updated_at: datetime
+    # Enriched fields
+    event_name: str | None = None
+    event_day_date: date | None = None
+    ticket_type_name: str | None = None
+    requesting_user_email: str | None = None
 
     class Config:
         from_attributes = True

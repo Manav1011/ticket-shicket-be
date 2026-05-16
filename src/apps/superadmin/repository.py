@@ -6,7 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .enums import B2BRequestStatus
 from .models import B2BRequestModel, SuperAdminModel
-
+from apps.ticketing.models import TicketTypeModel
+from apps.event.models import EventModel, EventDayModel
+from apps.user.models import UserModel
+from sqlalchemy import select
 
 class SuperAdminRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -36,6 +39,49 @@ class SuperAdminRepository:
         return await self._session.scalar(
             select(B2BRequestModel).where(B2BRequestModel.id == request_id)
         )
+
+    async def get_b2b_request_enriched(self, request_id: UUID) -> Optional[dict]:
+        """Get B2B request with event, event_day, ticket_type, and user data in a single query."""
+
+        query = (
+            select(
+                B2BRequestModel.id,
+                B2BRequestModel.quantity,
+                B2BRequestModel.status,
+                B2BRequestModel.admin_notes,
+                B2BRequestModel.created_at,
+                B2BRequestModel.updated_at,
+                EventModel.title.label("event_name"),
+                EventDayModel.date.label("event_day_date"),
+                TicketTypeModel.name.label("ticket_type_name"),
+                UserModel.email.label("requesting_user_email"),
+            )
+            .select_from(B2BRequestModel)
+            .join(EventModel, B2BRequestModel.event_id == EventModel.id)
+            .join(EventDayModel, B2BRequestModel.event_day_id == EventDayModel.id)
+            .join(TicketTypeModel, B2BRequestModel.ticket_type_id == TicketTypeModel.id)
+            .join(UserModel, B2BRequestModel.requesting_user_id == UserModel.id)
+            .where(B2BRequestModel.id == request_id)
+        )
+
+        result = await self._session.execute(query)
+        row = result.first()
+
+        if not row:
+            return None
+
+        return {
+            "id": row.id,
+            "quantity": row.quantity,
+            "status": row.status,
+            "admin_notes": row.admin_notes,
+            "created_at": row.created_at,
+            "updated_at": row.updated_at,
+            "event_name": row.event_name,
+            "event_day_date": row.event_day_date,
+            "ticket_type_name": row.ticket_type_name,
+            "requesting_user_email": row.requesting_user_email,
+        }
 
     async def list_b2b_requests(
         self,

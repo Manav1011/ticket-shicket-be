@@ -5,6 +5,7 @@ from apps.ticketing.models import DayTicketAllocationModel, TicketModel, TicketT
 from apps.user.models import RefreshTokenModel, UserModel
 from apps.allocation.models import AllocationEdgeModel, AllocationModel, AllocationTicketModel, OrderModel, TicketHolderModel
 from apps.superadmin.models import B2BRequestModel, SuperAdminModel
+from apps.payment_gateway.models import PaymentGatewayEventModel
 
 __all__ = [
     "UserModel",
@@ -24,4 +25,5 @@ __all__ = [
     "OrderModel",
     "SuperAdminModel",
     "B2BRequestModel",
+    "PaymentGatewayEventModel",
 ]

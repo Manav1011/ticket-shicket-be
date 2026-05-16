@@ -60,21 +60,14 @@ class ClaimService:
         if claim_link.status != ClaimLinkStatus.active:
             raise BadRequestError("Claim link has already been used or revoked")
 
-        # 4. Query tickets for this claim link only. Legacy claim links fall
-        # back to untagged tickets owned by the target holder.
+        # 4. Query tickets for this claim link only.
         result = await self._session.scalars(
             select(TicketModel)
             .where(
+                TicketModel.claim_link_id == claim_link.id,
                 TicketModel.event_day_id == claim_link.event_day_id,
                 TicketModel.status == "active",
                 TicketModel.lock_reference_id.is_(None),
-            )
-            .where(
-                (TicketModel.claim_link_id == claim_link.id)
-                | (
-                    TicketModel.claim_link_id.is_(None)
-                    & (TicketModel.owner_holder_id == claim_link.to_holder_id)
-                )
             )
         )
         tickets = list(result.all())
@@ -85,13 +78,8 @@ class ClaimService:
         # Extract sorted indexes (all tickets are for the same event_day)
         indexes = sorted(ticket.ticket_index for ticket in tickets)
 
-        # 5. Use the stored JTI when available; legacy links may not have one.
-        jti = claim_link.jwt_jti if claim_link.jwt_jti else secrets.token_hex(8)
-
-        # 6. Persist the generated JTI for legacy links so future revocation works.
-        if not claim_link.jwt_jti:
-            claim_link.jwt_jti = jti
-            await self._session.flush()
+        # 5. Use the stored JTI.
+        jti = claim_link.jwt_jti
 
         # 7. Generate JWT
         jwt = generate_scan_jwt(
@@ -189,10 +177,10 @@ class ClaimService:
             ticket_count=len(locked_ticket_ids),
             token_hash=customer_b_token_hash,
             created_by_holder_id=customer_a_id,
+            jwt_jti=customer_b_jti,
+            token=customer_b_raw_token,
             metadata_={"source": "customer_split"},
         )
-        customer_b_claim_link.jwt_jti = customer_b_jti
-        await self._session.flush()
 
         await self._allocation_repo.add_tickets_to_allocation(
             allocation.id,
@@ -249,6 +237,8 @@ class ClaimService:
             )
 
         claim_link_url = f"/claim/{customer_b_raw_token}"
+        print(f"\n[CUSTOMER SPLIT] Claim URL: http://0.0.0.0:8080/api/open{claim_link_url}\n")
+
         # TODO: Re-enable notifications once phone/WhatsApp integration is ready
         # mock_send_whatsapp(to_email, f"Your claim link: {claim_link_url}")
         mock_send_email(

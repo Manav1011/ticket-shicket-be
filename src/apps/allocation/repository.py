@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.ticketing.models import TicketModel, TicketTypeModel
 from .enums import AllocationStatus, AllocationType, ClaimLinkStatus
-from .models import AllocationEdgeModel, AllocationModel, AllocationTicketModel, TicketHolderModel, ClaimLinkModel, RevokedScanTokenModel
+from .models import AllocationEdgeModel, AllocationModel, AllocationTicketModel, TicketHolderModel, ClaimLinkModel, RevokedScanTokenModel, CouponModel
 
 
 class AllocationRepository:
@@ -76,6 +76,14 @@ class AllocationRepository:
         Get or create a TicketHolder by phone, email, or user_id.
         At least one of phone, email, or user_id must be provided.
         """
+        # When all three params are provided, check phone+email combo first
+        # to avoid creating a duplicate holder when the same person already exists
+        # with a different field combination
+        if phone and email and user_id:
+            holder = await self.get_holder_by_phone_and_email(phone, email)
+            if holder:
+                return holder
+
         if phone:
             holder = await self.get_holder_by_phone(phone)
             if holder:
@@ -182,6 +190,8 @@ class AllocationRepository:
         token_hash: str,
         created_by_holder_id: UUID,
         metadata_: dict | None = None,
+        jwt_jti: str | None = None,
+        token: str | None = None,
     ) -> tuple[AllocationModel, ClaimLinkModel]:
         """
         Create an allocation and its associated claim link in a single transaction.
@@ -203,11 +213,13 @@ class AllocationRepository:
         claim_link = await ClaimLinkRepository(self._session).create(
             allocation_id=allocation.id,
             token_hash=token_hash,
+            token=token,
             event_id=event_id,
             event_day_id=event_day_id,
             from_holder_id=from_holder_id,
             to_holder_id=to_holder_id,
             created_by_holder_id=created_by_holder_id,
+            jwt_jti=jwt_jti,
         )
 
         return allocation, claim_link
@@ -382,17 +394,21 @@ class ClaimLinkRepository:
         from_holder_id: UUID | None,
         to_holder_id: UUID,
         created_by_holder_id: UUID,
+        jwt_jti: str | None = None,
+        token: str | None = None,
     ) -> ClaimLinkModel:
         """Create a new claim link scoped to a specific event_day."""
         link = ClaimLinkModel(
             allocation_id=allocation_id,
             token_hash=token_hash,
+            token=token,
             event_id=event_id,
             event_day_id=event_day_id,
             from_holder_id=from_holder_id,
             to_holder_id=to_holder_id,
             status=ClaimLinkStatus.active,
             created_by_holder_id=created_by_holder_id,
+            jwt_jti=jwt_jti,
         )
         self._session.add(link)
         await self._session.flush()
@@ -500,3 +516,30 @@ class RevokedScanTokenRepository:
             )
         )
         return list(result.all())
+
+
+class CouponRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    @property
+    def session(self) -> AsyncSession:
+        return self._session
+
+    async def get_by_code(self, code: str) -> Optional[CouponModel]:
+        """Get an active coupon by its code. Returns None if not found or inactive."""
+        return await self._session.scalar(
+            select(CouponModel).where(
+                CouponModel.code == code.upper(),
+                CouponModel.is_active == True,
+            )
+        )
+
+    async def increment_used_count(self, coupon_id: UUID) -> None:
+        """Atomically increment the used_count for a coupon."""
+        await self._session.execute(
+            update(CouponModel)
+            .where(CouponModel.id == coupon_id)
+            .values(used_count=CouponModel.used_count + 1)
+        )
+        await self._session.flush()

@@ -1,0 +1,182 @@
+# Architecture Overview
+
+## System Components
+
+The platform is a FastAPI-based event ticketing system with async PostgreSQL, Redis rate limiting, Razorpay payments, and S3 media storage.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    FastAPI Application                     │
+│  lifespan → scheduler, Redis limiter init                 │
+├──────────┬──────────┬──────────┬──────────┬────────────────┤
+│  /api/user    /api/guest   /api/events   /api/organizers  │
+│  /api/superadmin    /webhooks/razorpay    /api/core      │
+└────┬────────────────┬─────────────────┬─────────────────┘
+     │                 │                  │
+     ▼                 ▼                  ▼
+┌─────────┐     ┌──────────┐      ┌──────────────┐
+│  Auth   │     │  Event   │      │  Payment     │
+│ JWT +   │     │  Service │      │  Gateway     │
+│ Cookies │     │  +       │      │  Razorpay    │
+└────┬────┘     │  Scan    │      └──────┬───────┘
+     │          │  Mgmt    │             │
+     │          └────┬─────┘             │
+     │               │                  │
+     ▼               ▼                  ▼
+┌─────────┐     ┌──────────────────────────────┐
+│  User   │     │       Ticketing / Allocation  │
+│  Guest  │     │  TicketType → DayAllocation  │
+│  Super  │     │  Ticket → TicketHolder      │
+│  Admin  │     │  Order → Allocation         │
+└────┬────┘     └──────────────┬───────────────┘
+     │                         │
+     ▼                         ▼
+┌─────────────────────────────────────┐
+│          PostgreSQL (asyncpg)        │
+│  async session factory + engine     │
+└─────────────────────────────────────┘
+     │
+     ▼
+┌─────────────┐     ┌──────────────┐     ┌──────────────┐
+│   Redis    │     │   LocalStack │     │   NATS       │
+│ Rate limit │     │   S3 (media) │     │   Workers    │
+└─────────────┘     └──────────────┘     └──────────────┘
+```
+
+## Data Flow
+
+### 1. Online Ticket Purchase
+
+```
+sequenceDiagram
+    Customer->>API: POST /api/events/purchase/create
+    API->>TicketingService: create_order()
+    TicketingService->>TicketingRepository: lock_tickets()
+    TicketingService->>Razorpay: create_order()
+    TicketingService-->>Customer: order + gateway_order_id
+    Note over Customer: Pays via Razorpay
+    Razorpay->>Webhook: order.paid
+    WebhookHandler->>OrderModel: update status=paid
+    WebhookHandler->>AllocationModel: create (pool→buyer)
+    WebhookHandler->>TicketModel: update owner_holder_id
+    WebhookHandler->>ClaimLinkModel: generate + notify
+```
+
+### 2. B2B Request Flow (Paid)
+
+```
+sequenceDiagram
+    Organizer->>API: POST /api/organizers/b2b/events/{id}/requests
+    API->>OrganizerService: create_b2b_request()
+    Organizer->>API: POST .../confirm-payment
+    API->>OrganizerService: confirm_b2b_payment()
+    OrganizerService->>Razorpay: create_payment_link()
+    OrganizerService-->>Organizer: payment_link_url
+    Note over Organizer: Pays via Razorpay dashboard
+    Razorpay->>Webhook: payment_link.paid
+    WebhookHandler->>SuperAdminService: process_paid_b2b_allocation()
+    SuperAdminService->>AllocationModel: create allocation
+    WebhookHandler-->>Webhook: {status: ok}
+```
+
+### 3. B2B Transfer to Reseller
+
+```
+sequenceDiagram
+    Organizer->>API: POST .../transfers/reseller
+    API->>OrganizerService: create_b2b_transfer()
+    OrganizerService->>TicketingRepository: lock_tickets()
+    OrganizerService->>Razorpay: create_payment_link() [if paid]
+    OrganizerService-->>Organizer: order + payment_link
+    Note over Razorpay: Payment (if paid)
+    Razorpay->>Webhook: payment_link.paid
+    WebhookHandler->>OrderModel: update status=paid
+    WebhookHandler->>AllocationModel: create (organizer→reseller)
+    WebhookHandler->>TicketModel: update owner_holder_id
+```
+
+### 4. Ticket Claim (Customer receiving transfer)
+
+```
+sequenceDiagram
+    Customer->>API: GET /api/open/claim/{token}
+    API->>CoreService: validate_claim_link()
+    CoreService->>TicketModel: find tickets by claim_link_id
+    CoreService-->>Customer: ticket details + QR code
+```
+
+## Domain Models
+
+### Core Entities
+
+| Entity | File | Purpose |
+|--------|------|---------|
+| `UserModel` | `apps/user/models.py` | User account (email/password) |
+| `GuestModel` | `apps/guest/models.py` | Anonymous device-based guest |
+| `SuperAdminModel` | `apps/superadmin/models.py` | Links user to super admin role |
+| `OrganizerPageModel` | `apps/organizer/models.py` | Organizer profile page |
+| `EventModel` | `apps/event/models.py` | Event with venue, dates, media |
+| `EventDayModel` | `apps/event/models.py` | Single date within an event |
+| `TicketTypeModel` | `apps/ticketing/models.py` | Type/Category of ticket (VIP, GA) |
+| `DayTicketAllocationModel` | `apps/ticketing/models.py` | Per-day inventory for a ticket type |
+| `TicketModel` | `apps/ticketing/models.py` | Individual ticket with seat/index |
+| `OrderModel` | `apps/allocation/models.py` | Payment order (purchase or transfer) |
+| `TicketHolderModel` | `apps/allocation/models.py` | Person who owns/receives tickets |
+| `AllocationModel` | `apps/allocation/models.py` | Transfer record (who→whom, count, status) |
+| `ClaimLinkModel` | `apps/allocation/models.py` | Claim token for transferred tickets |
+| `CouponModel` | `apps/allocation/models.py` | Discount coupon |
+| `B2BRequestModel` | `apps/superadmin/models.py` | Organizer bulk ticket request |
+| `EventResellerModel` | `apps/event/models.py` | Links user as reseller for an event |
+
+## Auth Architecture
+
+Three token types via JWT:
+
+| Token | Endpoint | Payload | Storage |
+|-------|----------|----------|---------|
+| Access token | `/sign-in` | `sub` (user_id), `user_type=user`, `jti`, `exp` | HTTP-only cookie |
+| Refresh token | `/sign-in` | `sub`, `user_type=user`, `jti`, `exp` | DB (hashed) + cookie |
+| Guest token | `/guest/login` | `sub` (guest_id), `user_type=guest`, `jti` | HTTP-only cookie |
+
+Refresh tokens are stored hashed in DB (`refresh_tokens` table) with a blocklist for revocation.
+
+## Key Design Patterns
+
+**1. Service + Repository Layer**
+Every app module has `models.py`, `repository.py`, `service.py`, `request.py`, `response.py`. Service depends on repository. Routes inject service via `Depends()`.
+
+**2. Allocation Graph**
+Tickets flow through a directed graph of `AllocationEdgeModel` records (`from_holder_id` → `to_holder_id` per event). Edges are upserted per transfer to track ownership chain.
+
+**3. Ticket Locking**
+Before payment, tickets are locked via `lock_reference_type` + `lock_reference_id` + `lock_expires_at`. If payment fails/expires, locks are cleared.
+
+**4. Idempotent Webhooks**
+Razorpay webhooks use a `PaymentGatewayEventModel` unique constraint on `gateway_payment_id` for deduplication, plus atomic `UPDATE ... WHERE status=pending` to prevent double-processing.
+
+**5. Scan Status State Machine**
+Event days transition through `not_started → scanning → paused → scanning → ended`. Each transition is recorded in `ScanStatusHistoryModel`.
+
+## External Dependencies
+
+| Service | Purpose | Config Key |
+|---------|---------|-----------|
+| PostgreSQL | Primary database | `DATABASE_URL` |
+| Redis | Rate limiting + cache | `REDIS_URL` |
+| Razorpay | Payments | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` |
+| LocalStack S3 | Media storage (dev) | `AWS_S3_*` |
+| Sentry | Error monitoring | `SENTRY_SDK_DSN` |
+| NATS | Async job queue | `NATS_URL` (via `nats-server.conf`) |
+
+## Database Mixins
+
+Defined in `db/base.py`:
+- `UUIDPrimaryKeyMixin` — adds `id: UUID` primary key with `default=uuid.uuid4`
+- `TimeStampMixin` — adds `created_at` and `updated_at` with `server_default=func.now()`
+- `Base` — `DeclarativeBase` for all models
+
+## Infrastructure
+
+- **Docker Compose** (`docker-compose.yml`) — Postgres, Redis, LocalStack, NATS
+- **Alembic** — migration management (`uv run main.py makemigrations`, `migrate`)
+- **Starlette-Admin** — mounted optionally on `/admin`

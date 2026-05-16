@@ -11,9 +11,18 @@ from utils.schema import BaseResponse
 from apps.organizer.repository import OrganizerRepository
 from apps.ticketing.repository import TicketingRepository
 from .repository import EventRepository
-from .request import CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest, UpdateEventDayRequest, UpdateMediaAssetMetadataRequest, UpdateShowTicketsRequest, CreateResellerInviteRequest
-from .response import EventDayResponse, EventReadinessResponse, EventResponse, PublishValidationResponse, ScanStatusHistoryResponse, MediaAssetResponse, ResellerResponse, ResellerInviteResponse
-from .service import EventService
+from apps.allocation.repository import CouponRepository
+from .request import (
+    CreateDraftEventRequest, CreateEventDayRequest, UpdateEventBasicInfoRequest,
+    UpdateEventDayRequest, UpdateMediaAssetMetadataRequest, UpdateShowTicketsRequest,
+    CreateResellerInviteRequest, PreviewOrderRequest, CreateOrderRequest
+)
+from .response import (
+    EventDayResponse, EventReadinessResponse, EventResponse, PublishValidationResponse,
+    ScanStatusHistoryResponse, MediaAssetResponse, ResellerResponse, ResellerInviteResponse,
+    PreviewOrderResponse, CreateOrderResponse, PollStatusResponse
+)
+from .service import EventService, PurchaseService
 
 from apps.user.invite.service import InviteService as UserInviteService
 from apps.user.invite.repository import InviteRepository as UserInviteRepository
@@ -36,6 +45,15 @@ def get_user_invite_service(
     return UserInviteService(
         repository=UserInviteRepository(session),
         user_repository=UserRepository(session),
+    )
+
+
+def get_purchase_service(
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> PurchaseService:
+    return PurchaseService(
+        coupon_repository=CouponRepository(session),
+        repository=EventRepository(session),
     )
 
 
@@ -402,3 +420,48 @@ async def list_event_resellers(
 
     resellers = await event_service.repository.list_resellers_for_event(event_id)
     return BaseResponse(data=[ResellerResponse.model_validate(r) for r in resellers])
+
+
+@router.post("/purchase/preview", tags=["Purchase"])
+async def preview_order(
+    body: Annotated[PreviewOrderRequest, Body()],
+    service: Annotated[PurchaseService, Depends(get_purchase_service)],
+) -> BaseResponse[PreviewOrderResponse]:
+    """Validate purchase and return price breakdown."""
+    result = await service.preview_order(
+        event_id=body.event_id,
+        event_day_id=body.event_day_id,
+        ticket_type_id=body.ticket_type_id,
+        quantity=body.quantity,
+        coupon_code=body.coupon_code,
+    )
+    return BaseResponse(data=PreviewOrderResponse.model_validate(result))
+
+
+@router.post("/purchase/create", tags=["Purchase"])
+async def create_order(
+    request: Request,
+    body: Annotated[CreateOrderRequest, Body()],
+    service: Annotated[PurchaseService, Depends(get_purchase_service)],
+) -> BaseResponse[CreateOrderResponse]:
+    """Lock tickets and create Razorpay checkout order."""
+    result = await service.create_order(
+        user_id=request.state.user.id,
+        event_id=body.event_id,
+        event_day_id=body.event_day_id,
+        ticket_type_id=body.ticket_type_id,
+        quantity=body.quantity,
+        coupon_code=body.coupon_code,
+    )
+    return BaseResponse(data=CreateOrderResponse.model_validate(result))
+
+
+@router.get("/purchase/orders/{order_id}/status", tags=["Purchase"])
+async def poll_order_status(
+    order_id: UUID,
+    request: Request,
+    service: Annotated[PurchaseService, Depends(get_purchase_service)],
+) -> BaseResponse[PollStatusResponse]:
+    """Poll status of a purchase order."""
+    result = await service.poll_order_status(order_id, user_id=request.state.user.id)
+    return BaseResponse(data=PollStatusResponse.model_validate(result))

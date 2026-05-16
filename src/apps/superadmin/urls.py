@@ -11,7 +11,7 @@ from apps.superadmin.request import (
     ApproveB2BRequestPaidBody,
     RejectB2BRequestBody,
 )
-from apps.superadmin.response import B2BRequestResponse
+from apps.superadmin.response import B2BRequestDetailResponse, B2BRequestResponse
 from apps.superadmin.service import SuperAdminService
 from db.session import db_session
 from utils.schema import BaseResponse
@@ -69,12 +69,12 @@ async def get_b2b_request(
     request_id: UUID,
     request: Request,
     service: Annotated[SuperAdminService, Depends(get_super_admin_service)],
-) -> BaseResponse[B2BRequestResponse]:
+) -> BaseResponse[B2BRequestDetailResponse]:
     """
-    [Super Admin] Get a single B2B request by ID.
+    [Super Admin] Get a single B2B request by ID with enriched details.
     """
-    b2b_request = await service.get_b2b_request(request_id)
-    return BaseResponse(data=B2BRequestResponse.model_validate(b2b_request))
+    b2b_request = await service.get_b2b_request_detail(request_id)
+    return BaseResponse(data=B2BRequestDetailResponse.model_validate(b2b_request))
 
 
 @router.post("/b2b/requests/{request_id}/approve-free")

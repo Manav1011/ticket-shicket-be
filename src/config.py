@@ -55,12 +55,19 @@ class Settings(BaseSettings):
 
     REDIS_URL: Optional[str] = Field(None, alias="REDIS_URL")
 
+    FRONTEND_URL: Optional[str] = Field("http://localhost:3000", alias="FRONTEND_URL")
+
     # S3 Configuration
     AWS_ACCESS_KEY_ID: Optional[str] = Field("test", alias="AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = Field("test", alias="AWS_SECRET_ACCESS_KEY")
     AWS_S3_BUCKET: Optional[str] = Field("ticket-shicket-media", alias="AWS_S3_BUCKET")
     AWS_S3_REGION: Optional[str] = Field("us-east-1", alias="AWS_S3_REGION")
     AWS_S3_ENDPOINT_URL: Optional[str] = Field(None, alias="AWS_S3_ENDPOINT_URL")
+
+    # Razorpay Configuration
+    RAZORPAY_KEY_ID: Optional[str] = Field(None, alias="RAZORPAY_KEY_ID")
+    RAZORPAY_KEY_SECRET: Optional[str] = Field(None, alias="RAZORPAY_KEY_SECRET")
+    RAZORPAY_WEBHOOK_SECRET: Optional[str] = Field(None, alias="RAZORPAY_WEBHOOK_SECRET")
 
     # Sentry variables
     SENTRY_SDK_DSN: str | None = Field(None, alias="SENTRY_SDK_DSN")

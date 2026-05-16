@@ -73,6 +73,10 @@ class TicketingService:
         if not ticket_type:
             raise TicketTypeNotFound
 
+        # B2B ticket types cannot be allocated via this endpoint — use organizer B2B transfer instead
+        if ticket_type.category == TicketCategory.b2b:
+            raise InvalidAllocation("B2B ticket types cannot be allocated via this endpoint. Use B2B transfer.")
+
         # C1: Verify day belongs to this event
         day = await self.event_day_repository.get_event_day_for_owner(
             event_day_id, owner_user_id
@@ -94,15 +98,14 @@ class TicketingService:
                 raise DuplicateAllocation
             raise
 
+        start_index = await self.event_day_repository.increment_next_ticket_index(event_day_id, quantity)
         await self.repository.bulk_create_tickets(
             event_id,
             event_day_id,
             ticket_type_id,
-            start_index=day.next_ticket_index,
+            start_index=start_index,
             quantity=quantity,
         )
-        day.next_ticket_index += quantity
-        await self.repository.session.flush()
         return allocation
 
     async def update_allocation_quantity(
@@ -139,17 +142,19 @@ class TicketingService:
 
         # C4: Calculate quantity increase and bulk-create new tickets
         quantity_increase = new_quantity - allocation.quantity
+        start_index = await self.event_day_repository.increment_next_ticket_index(
+            allocation.event_day_id, quantity_increase
+        )
         await self.repository.bulk_create_tickets(
             event_id,
             allocation.event_day_id,
             allocation.ticket_type_id,
-            start_index=day.next_ticket_index,
+            start_index=start_index,
             quantity=quantity_increase,
         )
 
         # C4: Update allocation and day state
         allocation.quantity = new_quantity
-        day.next_ticket_index += quantity_increase
         await self.repository.session.flush()
         await self.repository.session.refresh(allocation)
         return allocation

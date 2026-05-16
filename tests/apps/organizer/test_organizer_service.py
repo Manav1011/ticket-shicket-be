@@ -1,10 +1,169 @@
 from types import SimpleNamespace
 from uuid import uuid4
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from apps.organizer.service import OrganizerService
+
+
+@pytest.mark.asyncio
+async def test_create_b2b_transfer_paid_mode_creates_pending_order():
+    """Paid mode creates a pending order, generates payment link, returns payment_url."""
+    from apps.organizer.service import OrganizerService
+    from apps.ticketing.enums import OrderStatus
+    from apps.allocation.enums import TransferMode
+
+    mock_repo = AsyncMock()
+    mock_session = AsyncMock()
+    mock_session.add = MagicMock()
+    mock_session.flush = AsyncMock()
+    mock_session.refresh = AsyncMock()
+    mock_repo.session = mock_session
+
+    service = OrganizerService(mock_repo)
+    service._ticketing_repo = AsyncMock()
+    service._allocation_repo = AsyncMock()
+    service._allocation_service = AsyncMock()
+
+    # Mock allocation_repo methods
+    org_holder = MagicMock(id=uuid4())
+    reseller_holder = MagicMock(id=uuid4())
+    reseller_user = MagicMock(id=uuid4(), name="Reseller Co", email="reseller@co.in", phone="+919999999999")
+
+    service._allocation_repo.get_holder_by_user_id = AsyncMock(
+        side_effect=[org_holder, reseller_holder]
+    )
+    service._allocation_repo.list_b2b_tickets_by_holder = AsyncMock(return_value=[
+        {"event_day_id": uuid4(), "count": 5}
+    ])
+    service._allocation_repo.get_holder_by_email = AsyncMock(return_value=None)
+    service._allocation_repo.get_holder_by_phone = AsyncMock(return_value=None)
+
+    service._ticketing_repo.get_b2b_ticket_type_for_event = AsyncMock(
+        return_value=MagicMock(id=uuid4())
+    )
+    service._ticketing_repo.lock_tickets_for_transfer = AsyncMock(return_value=[uuid4(), uuid4()])
+
+    # Mock gateway
+    with patch("apps.organizer.service.get_gateway") as mock_get_gateway:
+        mock_gateway = MagicMock()
+        mock_gateway.create_payment_link = AsyncMock(
+            return_value=MagicMock(
+                gateway_order_id="plink_test123",
+                short_url="https://razorpay.in/test",
+                gateway_response={"id": "plink_test123"},
+            )
+        )
+        mock_get_gateway.return_value = mock_gateway
+
+        with patch("apps.organizer.service.OrderModel") as mock_order_model:
+            order_instance = MagicMock()
+            order_instance.id = uuid4()
+            mock_order_model.return_value = order_instance
+
+            with patch("apps.organizer.service.UserRepository") as mock_user_repo_cls:
+                mock_user_repo = MagicMock()
+                mock_user_repo.find_by_id = AsyncMock(return_value=reseller_user)
+                mock_user_repo_cls.return_value = mock_user_repo
+
+                with patch("apps.organizer.service.EventRepository") as mock_event_repo_cls:
+                    mock_event_repo = MagicMock()
+                    mock_event_repo.get_reseller_for_event = AsyncMock(return_value=MagicMock(accepted_at=uuid4()))
+                    mock_event_repo.get_by_id_for_owner = AsyncMock(return_value=MagicMock(name="Test Event"))
+                    
+                    target_event_id = uuid4()
+                    mock_event_repo.get_event_day_by_id = AsyncMock(return_value=MagicMock(event_id=target_event_id))
+                    mock_event_repo_cls.return_value = mock_event_repo
+
+                    result = await service.create_b2b_transfer(
+                        user_id=uuid4(),
+                        event_id=target_event_id,
+                        reseller_id=uuid4(),
+                        quantity=2,
+                        event_day_id=uuid4(),
+                        mode=TransferMode.PAID,
+                    )
+
+    assert result.status == "pending_payment"
+    assert result.mode == TransferMode.PAID
+    assert result.payment_url == "https://razorpay.in/test"
+    assert result.ticket_count == 2
+    mock_gateway.create_payment_link.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_create_customer_transfer_paid_mode_creates_pending_order():
+    """Paid mode creates a pending order, generates payment link, returns payment_url."""
+    from apps.organizer.service import OrganizerService
+    from apps.ticketing.enums import OrderStatus
+    from apps.allocation.enums import TransferMode
+
+    mock_repo = AsyncMock()
+    mock_session = AsyncMock()
+    mock_session.add = MagicMock()
+    mock_session.flush = AsyncMock()
+    mock_session.refresh = AsyncMock()
+    mock_repo.session = mock_session
+
+    service = OrganizerService(mock_repo)
+    service._ticketing_repo = AsyncMock()
+    service._allocation_repo = AsyncMock()
+    service._allocation_service = AsyncMock()
+
+    customer_holder = MagicMock(id=uuid4())
+    org_holder = MagicMock(id=uuid4())
+
+    service._allocation_repo.get_holder_by_user_id = AsyncMock(return_value=org_holder)
+    service._allocation_repo.get_holder_by_phone_and_email = AsyncMock(return_value=None)
+    service._allocation_repo.get_holder_by_phone = AsyncMock(return_value=None)
+    service._allocation_repo.get_holder_by_email = AsyncMock(return_value=None)
+    service._allocation_repo.create_holder = AsyncMock(return_value=customer_holder)
+    service._allocation_repo.list_b2b_tickets_by_holder = AsyncMock(return_value=[{"count": 5}])
+    service._ticketing_repo.get_b2b_ticket_type_for_event = AsyncMock(
+        return_value=MagicMock(id=uuid4())
+    )
+    service._ticketing_repo.lock_tickets_for_transfer = AsyncMock(return_value=[uuid4()])
+
+    with patch("apps.organizer.service.get_gateway") as mock_get_gateway:
+        mock_gateway = MagicMock()
+        mock_gateway.create_payment_link = AsyncMock(
+            return_value=MagicMock(
+                gateway_order_id="plink_cust123",
+                short_url="https://razorpay.in/cust",
+                gateway_response={"id": "plink_cust123"},
+            )
+        )
+        mock_get_gateway.return_value = mock_gateway
+
+        with patch("apps.organizer.service.OrderModel") as mock_order_model:
+            order_instance = MagicMock()
+            order_instance.id = uuid4()
+            mock_order_model.return_value = order_instance
+
+            with patch("apps.organizer.service.EventRepository") as mock_event_repo_cls:
+                mock_event_repo = MagicMock()
+                target_event_id = uuid4()
+                mock_event_repo.get_by_id_for_owner = AsyncMock(return_value=MagicMock(name="Test Event"))
+                mock_event_repo.get_event_day_by_id = AsyncMock(return_value=MagicMock(event_id=target_event_id))
+                mock_event_repo_cls.return_value = mock_event_repo
+
+                result = await service.create_customer_transfer(
+                    user_id=uuid4(),
+                    event_id=target_event_id,
+                    phone="+919999999999",
+                    email=None,
+                    quantity=1,
+                    event_day_id=uuid4(),
+                    mode=TransferMode.PAID,
+                )
+
+    assert result.status == "pending_payment"
+    assert result.mode == TransferMode.PAID
+    assert result.payment_url == "https://razorpay.in/cust"
+    assert result.ticket_count == 1
+    mock_gateway.create_payment_link.assert_called_once()
+
 
 
 @pytest.mark.asyncio
@@ -17,7 +176,6 @@ async def test_create_organizer_normalizes_slug_and_uses_owner_scope():
     organizer = await service.create_organizer(
         owner_user_id=uuid4(),
         name="Ahmedabad Talks",
-        slug=" Ahmedabad Talks ",
         bio="Meetups",
         logo_url="https://cdn/logo.png",
         cover_image_url="https://cdn/cover.png",
@@ -215,3 +373,157 @@ async def test_list_events_by_organizer_returns_only_published():
     result = await service.list_events_by_organizer(org_id)
 
     assert len(result) == 1
+
+@pytest.mark.asyncio
+async def test_create_b2b_transfer_paid_mode_uses_price_for_amount():
+    """Paid mode uses price as final_amount and passes price*100 (paise) to gateway."""
+    from apps.organizer.service import OrganizerService
+    from apps.allocation.enums import TransferMode
+    from uuid import uuid4
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    mock_repo = AsyncMock()
+    mock_session = AsyncMock()
+    mock_session.add = MagicMock()
+    mock_session.flush = AsyncMock()
+    mock_session.refresh = AsyncMock()
+    mock_repo.session = mock_session
+
+    service = OrganizerService(mock_repo)
+    service._ticketing_repo = AsyncMock()
+    service._allocation_repo = AsyncMock()
+    service._allocation_service = AsyncMock()
+
+    org_holder = MagicMock(id=uuid4())
+    reseller_holder = MagicMock(id=uuid4())
+    reseller_user = MagicMock(id=uuid4(), name="Reseller Co", email="reseller@co.in", phone="+919999999999")
+
+    service._allocation_repo.get_holder_by_user_id = AsyncMock(
+        side_effect=[org_holder, reseller_holder]
+    )
+    service._allocation_repo.list_b2b_tickets_by_holder = AsyncMock(return_value=[{"event_day_id": uuid4(), "count": 5}])
+    service._allocation_repo.get_holder_by_email = AsyncMock(return_value=None)
+    service._allocation_repo.get_holder_by_phone = AsyncMock(return_value=None)
+    service._ticketing_repo.get_b2b_ticket_type_for_event = AsyncMock(
+        return_value=MagicMock(id=uuid4())
+    )
+    service._ticketing_repo.lock_tickets_for_transfer = AsyncMock(return_value=[uuid4(), uuid4()])
+
+    with patch("apps.organizer.service.get_gateway") as mock_get_gateway:
+        mock_gateway = MagicMock()
+        mock_gateway.create_payment_link = AsyncMock(
+            return_value=MagicMock(
+                gateway_order_id="plink_test123",
+                short_url="https://razorpay.in/test",
+                gateway_response={"id": "plink_test123"},
+            )
+        )
+        mock_get_gateway.return_value = mock_gateway
+
+        with patch("apps.organizer.service.OrderModel") as mock_order_model:
+            order_instance = MagicMock()
+            order_instance.id = uuid4()
+            mock_order_model.return_value = order_instance
+
+            with patch("apps.organizer.service.UserRepository") as mock_user_repo_cls:
+                mock_user_repo = MagicMock()
+                mock_user_repo.find_by_id = AsyncMock(return_value=reseller_user)
+                mock_user_repo_cls.return_value = mock_user_repo
+
+                with patch("apps.organizer.service.EventRepository") as mock_event_repo_cls:
+                    mock_event_repo = MagicMock()
+                    mock_event_repo.get_by_id_for_owner = AsyncMock(return_value=MagicMock(title="Test Event"))
+                    mock_event_repo.get_reseller_for_event = AsyncMock(return_value=MagicMock(status="accepted"))
+                    mock_event_id = uuid4()
+                    mock_event_repo.get_event_day_by_id = AsyncMock(return_value=MagicMock(event_id=mock_event_id))
+                    mock_event_repo_cls.return_value = mock_event_repo
+
+                    result = await service.create_b2b_transfer(
+                        user_id=uuid4(),
+                        event_id=mock_event_id,
+                        reseller_id=uuid4(),
+                        quantity=2,
+                        event_day_id=uuid4(),
+                        mode=TransferMode.PAID,
+                        price=250.0,
+                    )
+
+    assert result.status == "pending_payment"
+    # Verify amount passed to gateway was price*100 in paise
+    mock_gateway.create_payment_link.assert_called_once()
+    call_kwargs = mock_gateway.create_payment_link.call_args.kwargs
+    assert call_kwargs["amount"] == int(250.0 * 100)  # 25000 paise = ₹250
+
+
+@pytest.mark.asyncio
+async def test_create_customer_transfer_paid_mode_uses_price_for_amount():
+    """Paid mode uses price as final_amount and passes price*100 (paise) to gateway."""
+    from apps.organizer.service import OrganizerService
+    from apps.allocation.enums import TransferMode
+    from uuid import uuid4
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    mock_repo = AsyncMock()
+    mock_session = AsyncMock()
+    mock_session.add = MagicMock()
+    mock_session.flush = AsyncMock()
+    mock_session.refresh = AsyncMock()
+    mock_repo.session = mock_session
+
+    service = OrganizerService(mock_repo)
+    service._ticketing_repo = AsyncMock()
+    service._allocation_repo = AsyncMock()
+    service._allocation_service = AsyncMock()
+
+    customer_holder = MagicMock(id=uuid4())
+    org_holder = MagicMock(id=uuid4())
+
+    service._allocation_repo.get_holder_by_user_id = AsyncMock(return_value=org_holder)
+    service._allocation_repo.get_holder_by_phone_and_email = AsyncMock(return_value=None)
+    service._allocation_repo.get_holder_by_phone = AsyncMock(return_value=None)
+    service._allocation_repo.get_holder_by_email = AsyncMock(return_value=None)
+    service._allocation_repo.create_holder = AsyncMock(return_value=customer_holder)
+    service._allocation_repo.list_b2b_tickets_by_holder = AsyncMock(return_value=[{"count": 5}])
+    service._ticketing_repo.get_b2b_ticket_type_for_event = AsyncMock(
+        return_value=MagicMock(id=uuid4())
+    )
+    service._ticketing_repo.lock_tickets_for_transfer = AsyncMock(return_value=[uuid4()])
+
+    with patch("apps.organizer.service.get_gateway") as mock_get_gateway:
+        mock_gateway = MagicMock()
+        mock_gateway.create_payment_link = AsyncMock(
+            return_value=MagicMock(
+                gateway_order_id="plink_cust123",
+                short_url="https://razorpay.in/cust",
+                gateway_response={"id": "plink_cust123"},
+            )
+        )
+        mock_get_gateway.return_value = mock_gateway
+
+        with patch("apps.organizer.service.OrderModel") as mock_order_model:
+            order_instance = MagicMock()
+            order_instance.id = uuid4()
+            mock_order_model.return_value = order_instance
+
+            with patch("apps.organizer.service.EventRepository") as mock_event_repo_cls:
+                mock_event_repo = MagicMock()
+                target_event_id = uuid4()
+                mock_event_repo.get_by_id_for_owner = AsyncMock(return_value=MagicMock(title="Test Event"))
+                mock_event_repo.get_event_day_by_id = AsyncMock(return_value=MagicMock(event_id=target_event_id))
+                mock_event_repo_cls.return_value = mock_event_repo
+
+                result = await service.create_customer_transfer(
+                    user_id=uuid4(),
+                    event_id=target_event_id,
+                    phone="+919999999999",
+                    email=None,
+                    quantity=3,
+                    event_day_id=uuid4(),
+                    mode=TransferMode.PAID,
+                    price=100.0,
+                )
+
+    assert result.status == "pending_payment"
+    mock_gateway.create_payment_link.assert_called_once()
+    call_kwargs = mock_gateway.create_payment_link.call_args.kwargs
+    assert call_kwargs["amount"] == int(100.0 * 100)  # 10000 paise = ₹100

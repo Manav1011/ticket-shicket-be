@@ -14,6 +14,7 @@ async def test_create_claim_link():
         allocation_id=uuid4(),
         token_hash="abc12345",
         event_id=uuid4(),
+        event_day_id=uuid4(),
         from_holder_id=None,
         to_holder_id=uuid4(),
         created_by_holder_id=uuid4(),

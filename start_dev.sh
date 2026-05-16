@@ -38,7 +38,7 @@ if ! command_exists uv; then
 fi
 
 # Step 1: Start Docker services
-log_info "Starting Docker services (postgres, redis, localstack)..."
+log_info "Starting Docker services (postgres, redis, localstack, nats)..."
 docker compose up -d
 
 # Step 2: Wait for services to be healthy
@@ -97,6 +97,24 @@ wait_for_localstack() {
     return 0
 }
 
+wait_for_nats() {
+    echo "Waiting for NATS..."
+    local max_attempts=15
+    local attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        if docker exec ticket_shicket_nats nats-server --version >/dev/null 2>&1; then
+            # Jetstream is enabled by default in 2.10+
+            echo "NATS is ready (Jetstream enabled)!"
+            return 0
+        fi
+        echo "  Attempt $attempt/$max_attempts..."
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+    log_error "NATS failed to start after $max_attempts attempts"
+    return 1
+}
+
 # Wait for all services
 if ! wait_for_postgres; then
     log_error "PostgreSQL healthcheck failed"
@@ -105,6 +123,11 @@ fi
 
 if ! wait_for_redis; then
     log_error "Redis healthcheck failed"
+    exit 1
+fi
+
+if ! wait_for_nats; then
+    log_error "NATS healthcheck failed"
     exit 1
 fi
 
@@ -132,6 +155,8 @@ echo "Services:"
 echo "  PostgreSQL  - localhost:5432"
 echo "  Redis       - localhost:6379"
 echo "  LocalStack  - localhost:4566"
+echo "  NATS        - localhost:4222 (Jetstream enabled)"
+echo "  NATS Mon    - localhost:8222"
 echo ""
 echo "Next: Run 'uv run python main.py run --debug' to start the server"
 echo ""

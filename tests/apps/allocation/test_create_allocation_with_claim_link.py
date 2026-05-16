@@ -31,6 +31,7 @@ async def test_create_allocation_with_claim_link_returns_both():
         ) as mock_create:
             result = await repo.create_allocation_with_claim_link(
                 event_id=event_id,
+                event_day_id=uuid4(),
                 from_holder_id=from_id,
                 to_holder_id=to_id,
                 order_id=order_id,
