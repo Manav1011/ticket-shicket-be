@@ -6,7 +6,7 @@ import secrets
 
 from apps.event.enums import EventAccessType, LocationMode
 
-from .exceptions import AlreadyExistsError, EventNotFound, InvalidScanTransition, OrganizerOwnershipError, InvalidAsset
+from .exceptions import AlreadyExistsError, EventNotFound, InsufficientTicketsError, InvalidScanTransition, OrganizerOwnershipError, InvalidAsset
 from .models import EventModel, EventDayModel, EventMediaAssetModel
 from .response import FieldErrorResponse
 from sqlalchemy.exc import IntegrityError
@@ -97,7 +97,7 @@ class PurchaseService:
             event_id, event_day_id, ticket_type_id
         )
         if quantity > available_count:
-            raise BadRequestError(f"Only {available_count} tickets available, requested {quantity}")
+            raise InsufficientTicketsError(requested=quantity, available=available_count)
 
         # Calculate pricing
         subtotal = float(ticket_type.price) * quantity
@@ -220,7 +220,7 @@ class PurchaseService:
             event_id, event_day_id, ticket_type_id
         )
         if quantity > available_count:
-            raise BadRequestError(f"Only {available_count} tickets available, requested {quantity}")
+            raise InsufficientTicketsError(requested=quantity, available=available_count)
 
         # Lock tickets BEFORE creating order (prevents over-selling)
         locked_ticket_ids = await ticketing_repo.lock_tickets_for_purchase(

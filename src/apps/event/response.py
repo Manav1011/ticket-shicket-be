@@ -147,14 +147,6 @@ class TicketTypePublicResponse(CamelCaseModel):
     currency: str = "USD"
 
 
-class TicketAllocationPublicResponse(CamelCaseModel):
-    id: UUID
-    ticket_type_id: UUID
-    event_day_id: UUID
-    quantity: int
-    price: str = "0.00"
-
-
 class EventDetailResponse(CamelCaseModel):
     id: UUID
     title: str | None = None
@@ -182,7 +174,6 @@ class EventDetailResponse(CamelCaseModel):
     days: list[EventDayPublicResponse] = []
     media_assets: list[MediaAssetPublicResponse] = []
     ticket_types: list[TicketTypePublicResponse] = []
-    ticket_allocations: list[TicketAllocationPublicResponse] = []
 
     class Config:
         from_attributes = True
