@@ -951,7 +951,7 @@ class OrganizerService:
             from_holder_id=org_holder.id,
             to_holder_id=customer_holder.id,
             order_id=order.id,
-            allocation_type=AllocationType.transfer,
+            allocation_type=AllocationType.b2b,
             ticket_count=len(locked_ticket_ids),
             token_hash=token_hash,
             created_by_holder_id=org_holder.id,
