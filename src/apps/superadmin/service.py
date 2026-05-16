@@ -185,7 +185,7 @@ class SuperAdminService:
         await self._session.refresh(b2b_request)
         return b2b_request
 
-    async def   approve_b2b_request_paid(
+    async def approve_b2b_request_paid(
         self,
         admin_id: uuid.UUID,
         request_id: uuid.UUID,
