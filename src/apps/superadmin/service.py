@@ -330,6 +330,12 @@ class SuperAdminService:
         if not order:
             raise SuperAdminError(f"Order {b2b_request.order_id} not found")
 
+        # Guard: ensure the order found actually belongs to this B2B request
+        if order.id != b2b_request.order_id:
+            raise SuperAdminError(
+                f"Order mismatch: webhook order {order.id} != b2b_request.order_id {b2b_request.order_id}"
+            )
+
         # Mark order as paid
         order.status = OrderStatus.paid
 
