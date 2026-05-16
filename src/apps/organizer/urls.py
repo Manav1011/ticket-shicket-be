@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, File, UploadFile, Request, HTTPException
+from fastapi import APIRouter, Body, Depends, File, UploadFile, Request, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.event.response import EventSummaryResponse, EventResponse
@@ -236,6 +236,8 @@ async def list_b2b_requests_for_event(
     event_id: UUID,
     request: Request,
     service: Annotated[OrganizerService, Depends(get_organizer_service)],
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
 ) -> BaseResponse[list[B2BRequestResponse]]:
     """
     [Organizer] List B2B requests for a specific event.
@@ -253,7 +255,7 @@ async def list_b2b_requests_for_event(
     if not organizer:
         raise HTTPException(status_code=403, detail="You do not own this event's organizer page")
 
-    requests = await service.get_b2b_requests_for_event(event_id)
+    requests = await service.get_b2b_requests_for_event(event_id, limit=limit, offset=offset)
     return BaseResponse(data=[B2BRequestResponse.model_validate(r) for r in requests])
 
 

@@ -276,9 +276,11 @@ class OrganizerService:
     async def get_b2b_requests_for_event(
         self,
         event_id: uuid.UUID,
+        limit: int = 50,
+        offset: int = 0,
     ) -> list:
         """[Organizer] List B2B requests for a specific event."""
-        return await self.repository.list_b2b_requests_by_event(event_id)
+        return await self.repository.list_b2b_requests_by_event(event_id, limit=limit, offset=offset)
 
     async def confirm_b2b_payment(
         self,
