@@ -373,6 +373,22 @@ class RazorpayWebhookHandler:
                         "transfer_type": transfer_type,
                     },
                 )
+                # Add tickets to allocation
+                await self._allocation_repo.add_tickets_to_allocation(allocation.id, locked_ticket_ids)
+
+                # Upsert edge
+                await self._allocation_repo.upsert_edge(
+                    event_id=order.event_id,
+                    from_holder_id=order.sender_holder_id,
+                    to_holder_id=order.receiver_holder_id,
+                    ticket_count=len(locked_ticket_ids),
+                )
+
+                # Transfer ownership (no claim link for reseller)
+                await self._ticketing_repo.update_ticket_ownership_batch(
+                    ticket_ids=locked_ticket_ids,
+                    new_owner_holder_id=order.receiver_holder_id,
+                )
             else:
                 # Customer: create allocation with claim link
                 raw_token = generate_claim_link_token(length=8)
@@ -419,25 +435,25 @@ class RazorpayWebhookHandler:
 
                 logger.info(f"Sent claim link to customer for order {order.id}")
 
-            # Add tickets to allocation
-            await self._allocation_repo.add_tickets_to_allocation(allocation.id, locked_ticket_ids)
+                # Add tickets to allocation
+                await self._allocation_repo.add_tickets_to_allocation(allocation.id, locked_ticket_ids)
 
-            # Upsert edge
-            await self._allocation_repo.upsert_edge(
-                event_id=order.event_id,
-                from_holder_id=order.sender_holder_id,
-                to_holder_id=order.receiver_holder_id,
-                ticket_count=len(locked_ticket_ids),
-            )
+                # Upsert edge
+                await self._allocation_repo.upsert_edge(
+                    event_id=order.event_id,
+                    from_holder_id=order.sender_holder_id,
+                    to_holder_id=order.receiver_holder_id,
+                    ticket_count=len(locked_ticket_ids),
+                )
 
-            # Transfer ownership
-            await self._ticketing_repo.update_ticket_ownership_batch(
-                ticket_ids=locked_ticket_ids,
-                new_owner_holder_id=order.receiver_holder_id,
-                claim_link_id=claim_link.id,
-            )
+                # Transfer ownership (with claim link for customer)
+                await self._ticketing_repo.update_ticket_ownership_batch(
+                    ticket_ids=locked_ticket_ids,
+                    new_owner_holder_id=order.receiver_holder_id,
+                    claim_link_id=claim_link.id,
+                )
 
-            # Mark completed
+            # Mark completed (allocation exists in both branches)
             await self._allocation_repo.transition_allocation_status(
                 allocation.id,
                 AllocationStatus.pending,
