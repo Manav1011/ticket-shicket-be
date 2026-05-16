@@ -76,6 +76,14 @@ class AllocationRepository:
         Get or create a TicketHolder by phone, email, or user_id.
         At least one of phone, email, or user_id must be provided.
         """
+        # When all three params are provided, check phone+email combo first
+        # to avoid creating a duplicate holder when the same person already exists
+        # with a different field combination
+        if phone and email and user_id:
+            holder = await self.get_holder_by_phone_and_email(phone, email)
+            if holder:
+                return holder
+
         if phone:
             holder = await self.get_holder_by_phone(phone)
             if holder:
