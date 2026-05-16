@@ -341,15 +341,6 @@ class RazorpayWebhookHandler:
             from apps.superadmin.service import SuperAdminService
             svc = SuperAdminService(self.session)
             await svc.process_paid_b2b_allocation(request_id=b2b_request.id)
-
-            # Mark order as paid
-            await self.session.execute(
-                update(OrderModel)
-                .where(OrderModel.id == order.id, OrderModel.status == OrderStatus.pending)
-                .values(status=OrderStatus.paid, captured_at=datetime.utcnow())
-            )
-
-            await self.session.flush()
             logger.info(f"B2B request {b2b_request.id} allocation complete for order {order.id}")
             return {"status": "ok", "b2b_request_id": str(b2b_request.id)}
 
