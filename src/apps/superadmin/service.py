@@ -313,7 +313,7 @@ class SuperAdminService:
     ) -> B2BRequestModel:
         """
         Called after payment succeeds. Creates the actual allocation using the existing paid order.
-        This method is called from the organizer's confirm-payment endpoint.
+        Called from the Razorpay payment_link.paid webhook (via SuperAdminService.process_paid_b2b_allocation).
         admin_id is pulled from b2b_request.reviewed_by_admin_id (the super admin who approved it).
         """
         b2b_request = await self.get_b2b_request(request_id)
