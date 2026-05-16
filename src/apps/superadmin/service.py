@@ -87,8 +87,17 @@ class SuperAdminService:
         """
         Approve a B2B request with free transfer (no payment).
         Creates allocation directly with a $0 TRANSFER order.
+        Uses SELECT FOR UPDATE to prevent concurrent approvals.
         """
-        b2b_request = await self.get_b2b_request(request_id)
+        # Use SELECT FOR UPDATE to prevent concurrent modifications
+        result = await self._session.execute(
+            select(B2BRequestModel)
+            .where(B2BRequestModel.id == request_id)
+            .with_for_update()
+        )
+        b2b_request = result.scalar_one_or_none()
+        if not b2b_request:
+            raise B2BRequestNotFoundError(f"B2B request {request_id} not found")
         if b2b_request.status != B2BRequestStatus.pending:
             raise B2BRequestNotPendingError(
                 f"B2B request is {b2b_request.status}, expected pending"
