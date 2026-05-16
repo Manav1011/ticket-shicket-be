@@ -435,6 +435,15 @@ class SuperAdminService:
         await self._session.refresh(b2b_request)
         return b2b_request
 
+    async def expire_stale_b2b_requests(self, stale_hours: int = 24) -> int:
+        """
+        Expire B2B requests that have been in approved_paid status
+        for longer than stale_hours. Safety net for missed Razorpay expiry webhooks.
+        """
+        from .workers import B2BExpiryWorker
+        worker = B2BExpiryWorker(self._session)
+        return await worker.expire_stale_requests(stale_hours=stale_hours)
+
     async def _select_and_lock_tickets_fifo(
         self,
         event_day_id: uuid.UUID,
