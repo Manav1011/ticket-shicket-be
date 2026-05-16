@@ -347,127 +347,133 @@ class RazorpayWebhookHandler:
         # Phase 4: B2B Transfer paid — create allocation and transfer tickets to buyer
         elif order.gateway_flow_type == "b2b_transfer":
             logger.info(f"Routing B2B transfer payment for order {order.id}")
-            # Retrieve the locked tickets (locked during paid transfer creation in organizer service)
-        # Tickets have lock_reference_type='transfer' and lock_reference_id=order.id
-        locked_tickets_result = await self.session.execute(
-            select(TicketModel).where(
-                TicketModel.lock_reference_type == 'transfer',
-                TicketModel.lock_reference_id == order.id,
-            )
-        )
-        locked_ticket_ids = [t.id for t in locked_tickets_result.scalars().all()]
-
-        if locked_ticket_ids:
-            transfer_type = order.transfer_type
-            is_reseller = transfer_type == "organizer_to_reseller"
-
-            if is_reseller:
-                # Reseller already has an account; no claim link needed
-                allocation = await self._allocation_repo.create_allocation(
-                    event_id=order.event_id,
-                    from_holder_id=order.sender_holder_id,
-                    to_holder_id=order.receiver_holder_id,
-                    order_id=order.id,
-                    allocation_type=AllocationType.b2b,
-                    ticket_count=len(locked_ticket_ids),
-                    metadata_={
-                        "source": "razorpay_webhook_paid_transfer",
-                        "transfer_type": transfer_type,
-                    },
+            try:
+                # Retrieve the locked tickets (locked during paid transfer creation in organizer service)
+                # Tickets have lock_reference_type='transfer' and lock_reference_id=order.id
+                locked_tickets_result = await self.session.execute(
+                    select(TicketModel).where(
+                        TicketModel.lock_reference_type == 'transfer',
+                        TicketModel.lock_reference_id == order.id,
+                    )
                 )
-                # Add tickets to allocation
-                await self._allocation_repo.add_tickets_to_allocation(allocation.id, locked_ticket_ids)
+                locked_ticket_ids = [t.id for t in locked_tickets_result.scalars().all()]
 
-                # Upsert edge
-                await self._allocation_repo.upsert_edge(
-                    event_id=order.event_id,
-                    from_holder_id=order.sender_holder_id,
-                    to_holder_id=order.receiver_holder_id,
-                    ticket_count=len(locked_ticket_ids),
-                )
+                if locked_ticket_ids:
+                    transfer_type = order.transfer_type
+                    is_reseller = transfer_type == "organizer_to_reseller"
 
-                # Transfer ownership (no claim link for reseller)
-                await self._ticketing_repo.update_ticket_ownership_batch(
-                    ticket_ids=locked_ticket_ids,
-                    new_owner_holder_id=order.receiver_holder_id,
-                )
-            else:
-                # Customer: create allocation with claim link
-                raw_token = generate_claim_link_token(length=8)
-                token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+                    if is_reseller:
+                        # Reseller already has an account; no claim link needed
+                        allocation = await self._allocation_repo.create_allocation(
+                            event_id=order.event_id,
+                            from_holder_id=order.sender_holder_id,
+                            to_holder_id=order.receiver_holder_id,
+                            order_id=order.id,
+                            allocation_type=AllocationType.b2b,
+                            ticket_count=len(locked_ticket_ids),
+                            metadata_={
+                                "source": "razorpay_webhook_paid_transfer",
+                                "transfer_type": transfer_type,
+                            },
+                        )
+                        # Add tickets to allocation
+                        await self._allocation_repo.add_tickets_to_allocation(allocation.id, locked_ticket_ids)
 
-                allocation, claim_link = await self._allocation_repo.create_allocation_with_claim_link(
-                    event_id=order.event_id,
-                    event_day_id=order.event_day_id,
-                    from_holder_id=order.sender_holder_id,
-                    to_holder_id=order.receiver_holder_id,
-                    order_id=order.id,
-                    allocation_type=AllocationType.b2b,
-                    ticket_count=len(locked_ticket_ids),
-                    token_hash=token_hash,
-                    created_by_holder_id=order.sender_holder_id,
-                    jwt_jti=secrets.token_hex(8),
-                    token=raw_token,
-                    metadata_={
-                        "source": "razorpay_webhook_paid_transfer",
-                        "transfer_type": transfer_type,
-                    },
-                )
-                # Send claim link to customer via notification
-                from utils.notifications.sms import mock_send_sms
-                from utils.notifications.whatsapp import mock_send_whatsapp
-                from utils.notifications.email import mock_send_email
+                        # Upsert edge
+                        await self._allocation_repo.upsert_edge(
+                            event_id=order.event_id,
+                            from_holder_id=order.sender_holder_id,
+                            to_holder_id=order.receiver_holder_id,
+                            ticket_count=len(locked_ticket_ids),
+                        )
 
-                # Get receiver holder for contact info
-                holder_result = await self.session.execute(
-                    select(TicketHolderModel).where(TicketHolderModel.id == order.receiver_holder_id)
-                )
-                receiver_holder = holder_result.scalar_one()
+                        # Transfer ownership (no claim link for reseller)
+                        await self._ticketing_repo.update_ticket_ownership_batch(
+                            ticket_ids=locked_ticket_ids,
+                            new_owner_holder_id=order.receiver_holder_id,
+                        )
+                    else:
+                        # Customer: create allocation with claim link
+                        raw_token = generate_claim_link_token(length=8)
+                        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
 
-                claim_url = f"/claim/{raw_token}"
-                message = f"You received {len(locked_ticket_ids)} ticket(s). Claim at: {claim_url}"
+                        allocation, claim_link = await self._allocation_repo.create_allocation_with_claim_link(
+                            event_id=order.event_id,
+                            event_day_id=order.event_day_id,
+                            from_holder_id=order.sender_holder_id,
+                            to_holder_id=order.receiver_holder_id,
+                            order_id=order.id,
+                            allocation_type=AllocationType.b2b,
+                            ticket_count=len(locked_ticket_ids),
+                            token_hash=token_hash,
+                            created_by_holder_id=order.sender_holder_id,
+                            jwt_jti=secrets.token_hex(8),
+                            token=raw_token,
+                            metadata_={
+                                "source": "razorpay_webhook_paid_transfer",
+                                "transfer_type": transfer_type,
+                            },
+                        )
+                        # Send claim link to customer via notification
+                        from utils.notifications.sms import mock_send_sms
+                        from utils.notifications.whatsapp import mock_send_whatsapp
+                        from utils.notifications.email import mock_send_email
 
-                print(f"\n[PAID CUSTOMER TRANSFER WEBHOOK] Claim URL: http://0.0.0.0:8080/api/open{claim_url}\n")
+                        # Get receiver holder for contact info
+                        holder_result = await self.session.execute(
+                            select(TicketHolderModel).where(TicketHolderModel.id == order.receiver_holder_id)
+                        )
+                        receiver_holder = holder_result.scalar_one()
 
-                if receiver_holder.phone:
-                    mock_send_sms(receiver_holder.phone, message, template="customer_transfer")
-                    mock_send_whatsapp(receiver_holder.phone, message, template="customer_transfer")
-                if receiver_holder.email:
-                    mock_send_email(receiver_holder.email, "You received tickets!", message)
+                        claim_url = f"/claim/{raw_token}"
+                        message = f"You received {len(locked_ticket_ids)} ticket(s). Claim at: {claim_url}"
 
-                logger.info(f"Sent claim link to customer for order {order.id}")
+                        print(f"\n[PAID CUSTOMER TRANSFER WEBHOOK] Claim URL: http://0.0.0.0:8080/api/open{claim_url}\n")
 
-                # Add tickets to allocation
-                await self._allocation_repo.add_tickets_to_allocation(allocation.id, locked_ticket_ids)
+                        if receiver_holder.phone:
+                            mock_send_sms(receiver_holder.phone, message, template="customer_transfer")
+                            mock_send_whatsapp(receiver_holder.phone, message, template="customer_transfer")
+                        if receiver_holder.email:
+                            mock_send_email(receiver_holder.email, "You received tickets!", message)
 
-                # Upsert edge
-                await self._allocation_repo.upsert_edge(
-                    event_id=order.event_id,
-                    from_holder_id=order.sender_holder_id,
-                    to_holder_id=order.receiver_holder_id,
-                    ticket_count=len(locked_ticket_ids),
-                )
+                        logger.info(f"Sent claim link to customer for order {order.id}")
 
-                # Transfer ownership (with claim link for customer)
-                await self._ticketing_repo.update_ticket_ownership_batch(
-                    ticket_ids=locked_ticket_ids,
-                    new_owner_holder_id=order.receiver_holder_id,
-                    claim_link_id=claim_link.id,
-                )
+                        # Add tickets to allocation
+                        await self._allocation_repo.add_tickets_to_allocation(allocation.id, locked_ticket_ids)
 
-            # Mark completed (allocation exists in both branches)
-            await self._allocation_repo.transition_allocation_status(
-                allocation.id,
-                AllocationStatus.pending,
-                AllocationStatus.completed,
-            )
-        else:
-            logger.warning(f"No locked tickets found for order {order.id} after payment")
+                        # Upsert edge
+                        await self._allocation_repo.upsert_edge(
+                            event_id=order.event_id,
+                            from_holder_id=order.sender_holder_id,
+                            to_holder_id=order.receiver_holder_id,
+                            ticket_count=len(locked_ticket_ids),
+                        )
 
-        await self._ticketing_repo.clear_locks_for_order(order.id)
+                        # Transfer ownership (with claim link for customer)
+                        await self._ticketing_repo.update_ticket_ownership_batch(
+                            ticket_ids=locked_ticket_ids,
+                            new_owner_holder_id=order.receiver_holder_id,
+                            claim_link_id=claim_link.id,
+                        )
 
-        logger.info(f"Order {order_id} marked paid, payment {payment_id}")
-        return {"status": "ok"}
+                    # Mark completed (allocation exists in both branches)
+                    await self._allocation_repo.transition_allocation_status(
+                        allocation.id,
+                        AllocationStatus.pending,
+                        AllocationStatus.completed,
+                    )
+                else:
+                    logger.warning(f"No locked tickets found for order {order.id} after payment")
+
+                await self._ticketing_repo.clear_locks_for_order(order.id)
+                logger.info(f"Order {order_id} marked paid, payment {payment_id}")
+                return {"status": "ok"}
+
+            except Exception as e:
+                logger.error(f"B2B transfer allocation failed for order {order.id}: {e}")
+                if order.gateway_order_id:
+                    await self._gateway.cancel_payment_link(order.gateway_order_id)
+                raise
 
     async def handle_payment_failed(self, event: WebhookEvent) -> dict:
         """Handle payment.failed — atomic update + clear locks."""
