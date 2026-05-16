@@ -1,7 +1,9 @@
+import re
 from uuid import UUID
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from utils.schema import CamelCaseModel
 from apps.allocation.enums import TransferMode
+from constants.regex import PHONE_REGEX
 
 class CreateResellerCustomerTransferRequest(CamelCaseModel):
     phone: str | None = None
@@ -25,3 +27,10 @@ class CreateResellerCustomerTransferRequest(CamelCaseModel):
             if self.price <= 0:
                 raise ValueError('price must be greater than 0 when mode=PAID')
         return self
+
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v):
+        if v and not re.match(PHONE_REGEX, v):
+            raise ValueError('Invalid phone format. Must be a valid Indian mobile number.')
+        return v

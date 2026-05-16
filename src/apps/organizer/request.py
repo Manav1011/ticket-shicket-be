@@ -7,6 +7,7 @@ from utils.schema import CamelCaseModel
 
 from apps.organizer.enums import OrganizerVisibility
 from apps.allocation.enums import TransferMode
+from constants.regex import PHONE_REGEX
 
 # URL regex pattern - allows http/https URLs
 URL_REGEX = r"^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(/.*)?$"
@@ -100,3 +101,10 @@ class CreateCustomerTransferRequest(CamelCaseModel):
             if self.price <= 0:
                 raise ValueError('price must be greater than 0 when mode=PAID')
         return self
+
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v):
+        if v and not re.match(PHONE_REGEX, v):
+            raise ValueError('Invalid phone format. Must be a valid Indian mobile number.')
+        return v
