@@ -344,8 +344,10 @@ class RazorpayWebhookHandler:
             logger.info(f"B2B request {b2b_request.id} allocation complete for order {order.id}")
             return {"status": "ok", "b2b_request_id": str(b2b_request.id)}
 
-        # Phase 4: Create B2B allocation + transfer tickets to buyer
-        # Retrieve the locked tickets (locked during paid transfer creation in organizer service)
+        # Phase 4: B2B Transfer paid — create allocation and transfer tickets to buyer
+        elif order.gateway_flow_type == "b2b_transfer":
+            logger.info(f"Routing B2B transfer payment for order {order.id}")
+            # Retrieve the locked tickets (locked during paid transfer creation in organizer service)
         # Tickets have lock_reference_type='transfer' and lock_reference_id=order.id
         locked_tickets_result = await self.session.execute(
             select(TicketModel).where(

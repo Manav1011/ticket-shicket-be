@@ -514,6 +514,7 @@ class OrganizerService:
                 final_amount=total_price,
                 status=OrderStatus.pending,
                 gateway_type=GatewayType.RAZORPAY_PAYMENT_LINK,
+                gateway_flow_type="b2b_transfer",
                 lock_expires_at=datetime.utcnow() + timedelta(minutes=30),
             )
             self.repository.session.add(order)
