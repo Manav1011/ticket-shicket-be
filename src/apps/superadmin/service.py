@@ -2,13 +2,14 @@
 Super admin service — handles B2B request lifecycle.
 All B2B operations are wrapped in a single database transaction.
 """
+import logging
 import uuid
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.allocation.enums import AllocationStatus, AllocationType, GatewayType
-from apps.allocation.models import AllocationModel, OrderModel
+from apps.allocation.models import AllocationModel, OrderModel, TicketHolderModel
 from apps.allocation.repository import AllocationRepository
 from apps.allocation.service import AllocationService
 from apps.event.repository import EventRepository
@@ -33,6 +34,8 @@ from .exceptions import (
 )
 from .models import B2BRequestModel, SuperAdminModel
 from .repository import SuperAdminRepository
+
+logger = logging.getLogger(__name__)
 
 
 class SuperAdminService:
@@ -411,6 +414,23 @@ class SuperAdminService:
         )
         if not updated:
             raise SuperAdminError(f"Failed to update B2B request {b2b_request.id} status")
+
+        # Notify organizer that their B2B tickets have been issued
+        try:
+            holder_result = await self._session.execute(
+                select(TicketHolderModel).where(TicketHolderModel.user_id == b2b_request.requesting_user_id)
+            )
+            org_holder = holder_result.scalar_one_or_none()
+            if org_holder:
+                ticket_msg = f"Your B2B request for {b2b_request.quantity} ticket(s) has been fulfilled and tickets are now active."
+                if org_holder.email:
+                    mock_send_email(org_holder.email, "B2B Tickets Issued", ticket_msg)
+                if org_holder.phone:
+                    mock_send_sms(org_holder.phone, ticket_msg)
+                    mock_send_whatsapp(org_holder.phone, ticket_msg)
+        except Exception as e:
+            # Notification failures must not rollback the allocation
+            logger.warning(f"Failed to send B2B fulfillment notification: {e}")
 
         await self._session.refresh(b2b_request)
         return b2b_request
